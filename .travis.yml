@@ -26,6 +26,9 @@ postgres:
   database: tenant
   username: postgres
 
+before_script:
+  - if echo $SETTINGS | grep 'postgresql' -q; psql -c 'create database tenant;' -U postgres; fi
+
 install:
   - pip install $DJANGO coverage django-coverage -q --use-mirrors
   - if echo $SETTINGS | grep 'psycopg2' -q; then pip install psycopg2 -q --use-mirrors; fi
