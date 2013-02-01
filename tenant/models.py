@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.color import no_style
-from django.db import connection, connections, models, router, transaction
+from django.db import connections, models, router, transaction
 from django.dispatch.dispatcher import receiver
 from django.utils.datastructures import SortedDict
 
@@ -39,6 +39,10 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
     CREATE the tables associated with a tenant's models.
     """
     if created:
+        connection = connections[using]
+        if connection.vendor == 'postgresql':
+            schema = connection.ops.quote_name(instance.db_schema)
+            connection.cursor().execute("CREATE SCHEMA %s" % schema)
         # Here we don't use south's API to avoid detecting things such
         # as `unique_together` and `index_together` (which are set on the
         # abstract base) and manually calling `create_index`.
@@ -78,11 +82,14 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
     DROP the tables associated with a tenant's models.
     """
     connection = connections[using]
-    if connection.vendor == 'postgresl':
-        connection.cursor().execute("DROP SCHEMA %s CASCADE" % instance.db_schema)
+    quote_name = connection.ops.quote_name
+    if connection.vendor == 'postgresql':
+        connection.cursor().execute(
+            "DROP SCHEMA %s CASCADE" % quote_name(instance.db_schema)
+        )
     else:
         for model in instance.models.values():
-            table_name = model._meta.db_table
+            table_name = quote_name(model._meta.db_table)
             for db in allow_syncdbs(model):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)
     ContentType.objects.clear_cache()
@@ -177,9 +184,13 @@ class TenantModelDescriptor(object):
         if model_class is None:
             # The model class has not been created yet, we define it.
             # TODO: Use `db_schema` once django #6148 is fixed.
-            db_table = connection.ops.quote_name(
-                "%s.%s" % (instance.db_schema, self.opts.db_table)
-            )
+            connection = connections[instance._state.db]
+            if connection.vendor == 'postgresql':
+                # See https://code.djangoproject.com/ticket/6148#comment:47
+                db_table_format = '%s\".\"%s'
+            else:
+                db_table_format = "%s_%s"
+            db_table = db_table_format % (instance.db_schema, self.opts.db_table)
             model_class = self.type(
                 tenant=instance,
                 Meta=meta(app_label=app_label, db_table=db_table)
