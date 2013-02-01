@@ -1,0 +1,9 @@
+syntax:glob
+*.db
+*.pyc
+*.orig
+.pydevproject
+.settings/*
+.DS_Store
+dist/
+django_tenant.egg-info/*
