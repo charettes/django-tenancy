@@ -1,0 +1,27 @@
+branches:
+  only:
+    - master
+
+language: python
+
+python:
+  - 2.6
+  - 2.7
+
+env:
+  - DJANGO="django>=1.4,<1.5" SETTINGS=test_settings.sqlite3
+  - DJANGO="django>=1.4,<1.5" SETTINGS=test_settings.postgresql_psycopg2
+  - DJANGO="https://github.com/django/django/archive/stable/1.5.x.tar.gz" SETTINGS=test_settings.sqlite3
+  - DJANGO="https://github.com/django/django/archive/stable/1.5.x.tar.gz" SETTINGS=test_settings.postgresql_psycopg2
+  - DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=test_settings.sqlite3
+  - DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=test_settings.postgresql_psycopg2
+
+allow_failures:
+  - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=test_settings.sqlite3
+  - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=test_settings.postgresql_psycopg2
+
+install:
+  - pip install $DJANGO coverage django-coverage -q --use-mirrors
+
+script:
+  - django-admin.py test_coverage tenant --pythonpath=`pwd` --settings=$SETTINGS
