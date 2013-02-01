@@ -4,6 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.management.color import no_style
 from django.db import connection, connections, models, router, transaction
 from django.dispatch.dispatcher import receiver
+from django.utils.datastructures import SortedDict
 
 
 class Tenant(models.Model):
@@ -16,10 +17,10 @@ class Tenant(models.Model):
 
     @property
     def models(self):
-        return {
-            related_name: getattr(self, related_name).model
+        return SortedDict(
+            (related_name, getattr(self, related_name).model)
             for related_name in self._related_names
-        }
+        )
 
     @property
     def db_schema(self):
