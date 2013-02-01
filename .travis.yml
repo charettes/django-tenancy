@@ -20,6 +20,11 @@ allow_failures:
   - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=test_settings.sqlite3
   - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=test_settings.postgresql_psycopg2
 
+postgres:
+  adapter: postgresql
+  database: tenant
+  username: postgres
+
 install:
   - pip install $DJANGO coverage django-coverage -q --use-mirrors
   - if echo $SETTINGS | grep 'psycopg2' -q; then pip install psycopg2 -q --use-mirrors; fi
