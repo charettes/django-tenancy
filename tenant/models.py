@@ -1,11 +1,9 @@
 from __future__ import unicode_literals
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.management.color import no_style
 from django.db import connection, connections, models, router, transaction
 from django.dispatch.dispatcher import receiver
-from django.core.management.color import no_style
-
-from south.db import dbs as south_dbs
 
 
 class Tenant(models.Model):
@@ -35,7 +33,7 @@ def allow_syncdbs(model):
 
 
 @receiver(models.signals.post_save, sender=Tenant)
-def create_tenant_tables(sender, instance, created, **kwargs):
+def create_tenant_schema(sender, instance, created, using, **kwargs):
     """
     CREATE the tables associated with a tenant's models.
     """
@@ -74,14 +72,18 @@ def create_tenant_tables(sender, instance, created, **kwargs):
 
 
 @receiver(models.signals.post_delete, sender=Tenant)
-def drop_tenant_tables(sender, instance, **kwargs):
+def drop_tenant_schema(sender, instance, using, **kwargs):
     """
     DROP the tables associated with a tenant's models.
     """
-    for model in instance.models.values():
-        table_name = model._meta.db_table
-        for db in allow_syncdbs(model):
-            south_dbs[db].delete_table(table_name)
+    connection = connections[using]
+    if connection.vendor == 'postgresl':
+        connection.cursor().execute("DROP SCHEMA %s CASCADE" % instance.db_schema)
+    else:
+        for model in instance.models.values():
+            table_name = model._meta.db_table
+            for db in allow_syncdbs(model):
+                connections[db].cursor().execute("DROP TABLE %s" % table_name)
     ContentType.objects.clear_cache()
 
 
