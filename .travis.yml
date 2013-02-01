@@ -22,6 +22,7 @@ allow_failures:
 
 install:
   - pip install $DJANGO coverage django-coverage -q --use-mirrors
+  - if echo $SETTINGS | grep 'psycopg2' -q; then pip install psycopg2 -q --use-mirrors; fi
 
 script:
   - django-admin.py test_coverage tenant --pythonpath=`pwd` --settings=$SETTINGS
