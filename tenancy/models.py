@@ -1,8 +1,10 @@
 from __future__ import unicode_literals
+import copy
 
 import django
 from django.contrib.contenttypes.models import ContentType
 from django.db import connections, models
+from django.db.models.fields.related import RelatedField
 from django.utils.datastructures import SortedDict
 
 from . import get_tenant_model
@@ -62,24 +64,49 @@ class TenantModelBase(models.base.ModelBase):
         if not getattr(Meta, 'abstract', False):
             Meta.abstract = True
             module = attrs.get('__module__')
-            # Create an abstract base to hold attributes
+            # Extract related fields pointing to tenant models in order to add
+            # them to the returned unmanaged model to avoid breaking anything
+            # and to add them to tenant specific models when needed.
+            related_fields = dict(
+                (name, attrs.pop(name))
+                for name, attr in attrs.items()
+                if isinstance(attr, RelatedField) and isinstance(attr.rel.to, cls)
+            )
+            # Create an abstract base to hold attributes.
             base = super_new(cls, str("Abstract%s" % name), (models.Model,), attrs)
+            # Extract the specified related name if it exists.
             try:
                 related_name = base.TenantMeta.related_name
             except AttributeError:
                 related_name = name.lower() + 's'
             tenant_opts = TenantOptions(base, related_name)
-            model = super_new(cls, name, (base,) + bases, {'__module__': module,
-                                                           '_tenant_meta': tenant_opts,
-                                                           'Meta': meta(managed=False)})
+            # Create the concrete unmanaged model to be returned.
+            model_bases = (base,) + bases
+            model_attrs = {
+                '__module__': module,
+                '_tenant_meta': tenant_opts,
+                'Meta': meta(managed=False)
+            }
+            # Add the related to tenant model fields back in order to avoid
+            # breaking anything.
+            model_attrs.update(**related_fields)
+            model = super_new(cls, name, model_bases, model_attrs)
             # Attach a descriptor to the tenant model to access the underlying
             # model based on the tenant instance.
             def type_(tenant, **attrs):
                 attrs.update(
                     tenant=tenant,
                     __module__=module,
-                    _tenant_meta=tenant_opts
+                    _tenant_meta=tenant_opts,
                 )
+                # Add the related field and make them point to the correct
+                # tenant model by referring to them by app_label.module_name.
+                for fname, related_field in related_fields.items():
+                    field = copy.deepcopy(related_field)
+                    related_name = related_field.rel.to._tenant_meta.related_name
+                    natural_key = getattr(tenant.__class__, related_name).natural_key(tenant)
+                    field.rel.to = '.'.join(natural_key)
+                    attrs[fname] = field
                 type_bases = tuple(
                     getattr(tenant, b._tenant_meta.related_name).model if isinstance(b, cls) else b
                     for b in bases if b is not cls.tenant_model_class
@@ -111,12 +138,17 @@ class TenantModelDescriptor(object):
         self.type = type_
         self.opts = opts
 
+    def app_label(self, tenant):
+        return "tenant_%s_%s" % (tenant.pk, self.opts.app_label)
+
+    def natural_key(self, tenant):
+        return (self.app_label(tenant), self.opts.module_name)
+
     def __get__(self, instance, owner):
         if not instance:
             return self
-        app_label = "tenant_%s_%s" % (instance.pk, self.opts.app_label)
-        natural_key = (app_label, self.opts.module_name)
         try:
+            natural_key = self.natural_key(instance)
             content_type = ContentType.objects.get_by_natural_key(*natural_key)
         except ContentType.DoesNotExist:
             # We must create the content type and the model class
@@ -137,7 +169,7 @@ class TenantModelDescriptor(object):
             db_table = db_table_format % (instance.db_schema, self.opts.db_table)
             model_class = self.type(
                 tenant=instance,
-                Meta=meta(app_label=app_label, db_table=db_table)
+                Meta=meta(app_label=self.app_label(instance), db_table=db_table)
             )
             # Make sure to create the content type associated with this model
             # class that was just created.

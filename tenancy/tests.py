@@ -30,6 +30,13 @@ class SpecificModelSubclass(SpecificModel):
         related_name = 'specific_models_subclasses'
 
 
+class FkToTenantModel(TenantModel):
+    specific_model = models.ForeignKey(SpecificModel, related_name='fks')
+
+    class TenantMeta:
+        related_name = 'fk_to_tenant_models'
+
+
 class TenantModelBaseTest(BaseTenantTestCase):
     def test_instancecheck(self):
         instance = self.tenant.specificmodels.create()
@@ -43,18 +50,6 @@ class TenantModelBaseTest(BaseTenantTestCase):
         model = self.tenant.specificmodels.model
         self.assertTrue(issubclass(model, SpecificModel))
         self.assertFalse(issubclass(model, RelatedSpecificModel))
-
-
-class MultiTenantTest(BaseTenantTestCase):
-    def test_isolation(self):
-        """
-        Make sure instances created in a tenant specific databases are shared
-        between tenants.
-        """
-        self.tenant.related_specific_models.create()
-        self.assertEqual(self.other_tenant.related_specific_models.count(), 0)
-        self.other_tenant.related_specific_models.create()
-        self.assertEqual(self.tenant.related_specific_models.count(), 1)
 
 
 class TenantModelDescriptorTest(BaseTenantTestCase):
@@ -77,8 +72,31 @@ class TenantModelDescriptorTest(BaseTenantTestCase):
                                                    model=opts.module_name).exists())
 
 
-class TenantModelSubclassingTest(BaseTenantTestCase):
-    def test_parents_tenant(self):
+class TenantModelTest(BaseTenantTestCase):
+    def test_isolation_between_tenants(self):
+        """
+        Make sure instances created in a tenant specific databases are not
+        shared between tenants.
+        """
+        self.tenant.related_specific_models.create()
+        self.assertEqual(self.other_tenant.related_specific_models.count(), 0)
+        self.other_tenant.related_specific_models.create()
+        self.assertEqual(self.tenant.related_specific_models.count(), 1)
+
+    def test_foreign_key_between_tenant_models(self):
+        """
+        Make sure foreign keys to TenantModels work correctly.
+        """
+        for tenant in Tenant.objects.all():
+            # Test object creation
+            specific_model = tenant.specificmodels.create()
+            fk = tenant.fk_to_tenant_models.create(specific_model=specific_model)
+            # Test reverse related manager
+            self.assertEqual(specific_model.fks.get(), fk)
+            # Test reverse filtering
+            self.assertEqual(tenant.specificmodels.filter(fks=fk).get(), specific_model)
+
+    def test_subclassing(self):
         """
         Make sure tenant model subclasses share the same tenant.
         """
@@ -87,3 +105,5 @@ class TenantModelSubclassingTest(BaseTenantTestCase):
             for parent in parents:
                 if isinstance(parent, TenantModelBase):
                     self.assertEqual(parent.tenant, tenant)
+            tenant.specific_models_subclasses.create()
+            self.assertEqual(tenant.specificmodels.count(), 1)
