@@ -1,10 +1,18 @@
 from __future__ import  unicode_literals
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import models
 from django.test.testcases import TransactionTestCase
+from django.utils.unittest.case import skipIf
 
 from .models import Tenant, TenantModel, TenantModelBase
+from .settings import DEFAULT_TENANT_MODEL, TENANT_MODEL
+
+
+def skipIfCustomTenant(skipped):
+    return skipIf(TENANT_MODEL != DEFAULT_TENANT_MODEL, 'Custom tenant model in use')(skipped)
 
 
 class BaseTenantTestCase(TransactionTestCase):
@@ -107,3 +115,26 @@ class TenantModelTest(BaseTenantTestCase):
                     self.assertEqual(parent.tenant, tenant)
             tenant.specific_models_subclasses.create()
             self.assertEqual(tenant.specificmodels.count(), 1)
+
+
+@skipIfCustomTenant
+class CreateTenantCommandTest(TransactionTestCase):
+    def test_too_many_fields(self):
+        args = ('name', 'useless')
+        expected_message = (
+            "Number of args exceeds the number of fields for model tenancy.Tenant.\n"
+            "Got %s when defined fields are ('name',)." % repr(args)
+        )
+        with self.assertRaisesMessage(CommandError, expected_message):
+            call_command('create_tenant', *args)
+
+    def test_full_clean_failure(self):
+        expected_message = (
+            'Invalid value for field "name": This field cannot be blank.'
+        )
+        with self.assertRaisesMessage(CommandError, expected_message):
+            call_command('create_tenant')
+
+    def test_success(self):
+        call_command('create_tenant', 'tenant')
+        Tenant.objects.get(name='tenant').delete()
