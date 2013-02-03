@@ -22,10 +22,15 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertNotIsInstance(instance, RelatedSpecificModel)
         self.assertNotIsInstance(instance, TenantModelBaseTest)
 
-    def test_subclassheck(self):
-        model = self.tenant.specificmodels.model
-        self.assertTrue(issubclass(model, SpecificModel))
-        self.assertFalse(issubclass(model, RelatedSpecificModel))
+    def test_subclasscheck(self):
+        tenant_specific_model = self.tenant.specificmodels.model
+        self.assertTrue(issubclass(tenant_specific_model, SpecificModel))
+        self.assertFalse(issubclass(tenant_specific_model, RelatedSpecificModel))
+        self.assertFalse(issubclass(tenant_specific_model, tuple))
+        self.assertTrue(issubclass(tenant_specific_model, models.Model))
+        tenant_specific_model_subclass = self.tenant.specific_models_subclasses.model
+        self.assertTrue(issubclass(tenant_specific_model_subclass, SpecificModel))
+        self.assertTrue(issubclass(tenant_specific_model_subclass, tenant_specific_model))
 
 
 class TenantModelDescriptorTest(TenancyTestCase):
@@ -49,8 +54,12 @@ class TenantModelDescriptorTest(TenancyTestCase):
         always created.
         """
         opts = self.tenant.specificmodels.model._meta
-        self.assertTrue(ContentType.objects.filter(app_label=opts.app_label,
-                                                   model=opts.module_name).exists())
+        self.assertTrue(
+            ContentType.objects.filter(
+                app_label=opts.app_label,
+                model=opts.module_name
+            ).exists()
+        )
 
 
 class TenantModelTest(TenancyTestCase):

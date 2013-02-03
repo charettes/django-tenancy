@@ -126,11 +126,12 @@ class TenantModelBase(models.base.ModelBase):
         return self.__subclasscheck__(instance.__class__)
 
     def __subclasscheck__(self, subclass):
-        if isinstance(subclass, TenantModelBase):
-            try:
-                return subclass._tenant_meta is self._tenant_meta
-            except AttributeError:
-                pass
+        if (isinstance(subclass, TenantModelBase) and
+            not subclass._meta.abstract):
+            tenant_opts = self._tenant_meta
+            if subclass._tenant_meta is tenant_opts:
+                return True
+            return any(self.__subclasscheck__(b) for b in subclass.__bases__)
 
 
 class TenantModelDescriptor(object):
