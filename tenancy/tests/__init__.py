@@ -1,5 +1,6 @@
 from __future__ import  unicode_literals
 
+import django
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -99,8 +100,21 @@ class TenantModelTest(TenancyTestCase):
             self.assertEqual(tenant.specificmodels.count(), 1)
 
 
+# TODO: Remove when support for django 1.4 is dropped
+class raise_cmd_error_stderr(object):
+    def write(self, msg):
+        raise CommandError(msg)
+
+
 @skipIfCustomTenant
 class CreateTenantCommandTest(TransactionTestCase):
+    stderr = raise_cmd_error_stderr()
+
+    def create_tenant(self, *args, **kwargs):
+        if django.VERSION[:2] == (1, 4):
+            kwargs['stderr'] = self.stderr
+        call_command('create_tenant', *args, **kwargs)
+
     def test_too_many_fields(self):
         args = ('name', 'useless')
         expected_message = (
@@ -108,15 +122,15 @@ class CreateTenantCommandTest(TransactionTestCase):
             "Got %s when defined fields are ('name',)." % repr(args)
         )
         with self.assertRaisesMessage(CommandError, expected_message):
-            call_command('create_tenant', *args)
+            self.create_tenant(*args)
 
     def test_full_clean_failure(self):
         expected_message = (
             'Invalid value for field "name": This field cannot be blank.'
         )
         with self.assertRaisesMessage(CommandError, expected_message):
-            call_command('create_tenant')
+            self.create_tenant()
 
     def test_success(self):
-        call_command('create_tenant', 'tenant')
+        self.create_tenant('tenant')
         Tenant.objects.get(name='tenant').delete()
