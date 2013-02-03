@@ -7,8 +7,9 @@ __version__ = (0, 0, 1)
 
 
 def get_tenant_model():
-    from .settings import TENANT_MODEL
     from django.db.models import get_model
+    from .models import AbstractTenant
+    from .settings import TENANT_MODEL
 
     try:
         app_label, model_name = TENANT_MODEL.split('.')
@@ -17,4 +18,6 @@ def get_tenant_model():
     tenant_model = get_model(app_label, model_name)
     if tenant_model is None:
         raise ImproperlyConfigured("TENANCY_TENANT_MODEL refers to model '%s' that has not been installed" % TENANT_MODEL)
+    elif not issubclass(tenant_model, AbstractTenant):
+        raise ImproperlyConfigured("TENANCY_TENANT_MODEL refers to models '%s' which is not a subclass of 'tenancy.AbstractTenant'")
     return tenant_model
