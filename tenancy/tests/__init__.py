@@ -23,15 +23,22 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertNotIsInstance(instance, RelatedSpecificModel)
         self.assertNotIsInstance(instance, TenantModelBaseTest)
 
+    def assertIsSubclass(self, cls, base):
+        self.assertTrue(issubclass(cls, base))
+
+    def assertIsNotSubclass(self, cls, base):
+        self.assertFalse(issubclass(cls, base))
+
     def test_subclasscheck(self):
         tenant_specific_model = self.tenant.specificmodels.model
-        self.assertTrue(issubclass(tenant_specific_model, SpecificModel))
-        self.assertFalse(issubclass(tenant_specific_model, RelatedSpecificModel))
-        self.assertFalse(issubclass(tenant_specific_model, tuple))
-        self.assertTrue(issubclass(tenant_specific_model, models.Model))
+        self.assertIsSubclass(tenant_specific_model, AbstractTenantModel)
+        self.assertIsSubclass(tenant_specific_model, SpecificModel)
+        self.assertIsNotSubclass(tenant_specific_model, RelatedSpecificModel)
+        self.assertIsNotSubclass(tenant_specific_model, tuple)
+        self.assertIsSubclass(tenant_specific_model, models.Model)
         tenant_specific_model_subclass = self.tenant.specific_models_subclasses.model
-        self.assertTrue(issubclass(tenant_specific_model_subclass, SpecificModel))
-        self.assertTrue(issubclass(tenant_specific_model_subclass, tenant_specific_model))
+        self.assertIsSubclass(tenant_specific_model_subclass, SpecificModel)
+        self.assertIsSubclass(tenant_specific_model_subclass, tenant_specific_model)
 
 
 class TenantModelDescriptorTest(TenancyTestCase):

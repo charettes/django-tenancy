@@ -5,7 +5,12 @@ from django.db import models
 from ..models import TenantModel
 
 
-class SpecificModel(TenantModel):
+class AbstractTenantModel(TenantModel):
+    class Meta:
+        abstract = True
+
+
+class SpecificModel(AbstractTenantModel):
     pass
 
 

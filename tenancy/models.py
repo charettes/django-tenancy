@@ -108,8 +108,10 @@ class TenantModelBase(models.base.ModelBase):
                     field.rel.to = '.'.join(natural_key)
                     attrs[fname] = field
                 type_bases = tuple(
-                    getattr(tenant, b._tenant_meta.related_name).model if isinstance(b, cls) else b
-                    for b in bases if b is not cls.tenant_model_class
+                    getattr(tenant, b._tenant_meta.related_name).model
+                        if isinstance(b, cls) and not b._meta.abstract
+                        else b
+                    for b in bases
                 )
                 return super_new(cls, name, (base,) + type_bases, attrs)
             descriptor = TenantModelDescriptor(type_, model._meta)
@@ -126,8 +128,9 @@ class TenantModelBase(models.base.ModelBase):
         return self.__subclasscheck__(instance.__class__)
 
     def __subclasscheck__(self, subclass):
-        if (isinstance(subclass, TenantModelBase) and
-            not subclass._meta.abstract):
+        if self._meta.abstract:
+            return self in subclass.__mro__
+        elif (isinstance(subclass, TenantModelBase) and not subclass._meta.abstract):
             tenant_opts = self._tenant_meta
             if subclass._tenant_meta is tenant_opts:
                 return True
