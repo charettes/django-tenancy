@@ -11,7 +11,8 @@ class AbstractTenantModel(TenantModel):
 
 
 class SpecificModel(AbstractTenantModel):
-    pass
+    class Meta:
+        db_table = 'custom_db_table'
 
 
 class RelatedSpecificModel(TenantModel):
