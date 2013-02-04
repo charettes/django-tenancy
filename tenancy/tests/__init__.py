@@ -109,16 +109,29 @@ class TenantModelTest(TenancyTestCase):
 
     def test_foreign_key_between_tenant_models(self):
         """
-        Make sure foreign keys to TenantModels work correctly.
+        Make sure foreign keys between TenantModels work correctly.
         """
         for tenant in self.tenant_model.objects.all():
             # Test object creation
-            specific_model = tenant.specificmodels.create()
-            fk = tenant.fk_to_tenant_models.create(specific_model=specific_model)
+            specific = tenant.specificmodels.create()
+            related = tenant.related_tenant_models.create(fk=specific)
             # Test reverse related manager
-            self.assertEqual(specific_model.fks.get(), fk)
+            self.assertEqual(specific.fks.get(), related)
             # Test reverse filtering
-            self.assertEqual(tenant.specificmodels.filter(fks=fk).get(), specific_model)
+            self.assertEqual(tenant.specificmodels.filter(fks=related).get(), specific)
+
+    def test_m2m_between_tenant_models(self):
+        """
+        Make sure m2m between TenantModels work correctly.
+        """
+        for tenant in self.tenant_model.objects.all():
+            # Test object creation
+            related = tenant.related_tenant_models.create()
+            specific_model = related.m2m.create()
+            # Test reverse related manager
+            self.assertEqual(specific_model.m2ms.get(), related)
+            # Test reverse filtering
+            self.assertEqual(tenant.specificmodels.filter(m2ms=related).get(), specific_model)
 
     def test_subclassing(self):
         """

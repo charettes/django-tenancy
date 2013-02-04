@@ -17,6 +17,15 @@ def allow_syncdbs(model):
             yield db
 
 
+def get_tenant_models(tenant):
+    models = set([getattr(tenant, base.related_name).model for base in TenantModelBase.instances.values()])
+    for model in list(models):
+        for m2m in model._meta.local_many_to_many:
+            if isinstance(m2m.rel.to, TenantModelBase):
+                models.add(m2m.rel.through)
+    return models
+
+
 @receiver(models.signals.post_save, sender=get_tenant_model())
 def create_tenant_schema(sender, instance, created, using, **kwargs):
     """
@@ -42,7 +51,7 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
         )
         created_models = dict((db, set()) for db in connections)
         pending_references = dict((db, {}) for db in connections)
-        for model in instance.models.values():
+        for model in get_tenant_models(instance):
             for db in allow_syncdbs(model):
                 connection = connections[db]
                 sql, references = connection.creation.sql_create_model(model, style, seen_models)
@@ -72,7 +81,7 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
             "DROP SCHEMA %s CASCADE" % quote_name(instance.db_schema)
         )
     else:
-        for model in instance.models.values():
+        for model in get_tenant_models(instance):
             table_name = quote_name(model._meta.db_table)
             for db in allow_syncdbs(model):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)

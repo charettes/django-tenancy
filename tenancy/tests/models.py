@@ -29,11 +29,12 @@ class SpecificModelSubclass(SpecificModel):
         related_name = 'specific_models_subclasses'
 
 
-class FkToTenantModel(TenantModel):
-    specific_model = models.ForeignKey(SpecificModel, related_name='fks')
+class RelatedTenantModel(TenantModel):
+    fk = models.ForeignKey(SpecificModel, related_name='fks', null=True)
+    m2m = models.ManyToManyField(SpecificModel, related_name='m2ms')
 
     class TenantMeta:
-        related_name = 'fk_to_tenant_models'
+        related_name = 'related_tenant_models'
 
 
 class SignalTenantModel(TenantModel):

@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from collections import namedtuple
 import copy
 
 import django
@@ -11,17 +12,8 @@ from . import get_tenant_model
 
 
 class AbstractTenant(models.Model):
-    _related_names = []
-
     class Meta:
         abstract = True
-
-    @property
-    def models(self):
-        return SortedDict(
-            (related_name, getattr(self, related_name).model)
-            for related_name in self._related_names
-        )
 
     @property
     def db_schema(self):
@@ -53,6 +45,18 @@ def meta(**opts):
     return type(str('Meta'), (), opts)
 
 
+def db_schema_table(tenant, db_table):
+    connection = connections[tenant._state.db]
+    if connection.vendor == 'postgresql':
+        # See https://code.djangoproject.com/ticket/6148#comment:47
+        return '%s\".\"%s' % (tenant.db_schema, db_table)
+    else:
+        return "%s_%s" % (tenant.db_schema, db_table)
+
+
+Reference = namedtuple('Reference', ['related_name', 'model'])
+
+
 class TenantModelBase(models.base.ModelBase):
     instances = SortedDict()
 
@@ -76,14 +80,14 @@ class TenantModelBase(models.base.ModelBase):
             # Create the abstract model to be returned.
             model = super_new(cls, name, bases, attrs)
             opts = model._meta
-            # Store instances in order to reference them with related fields
-            cls.instances["%s.%s" % (opts.app_label, opts.object_name)] = model
             # Extract the specified related name if it exists.
             try:
                 related_name = model.TenantMeta.related_name
             except AttributeError:
                 related_name = name.lower() + 's'
             model._tenant_meta = TenantOptions(related_name)
+            # Store instances in order to reference them with related fields
+            cls.instances["%s.%s" % (opts.app_label, opts.object_name)] = Reference(related_name, model)
             # Attach a descriptor to the tenant model to access the underlying
             # model based on the tenant instance.
             def type_(tenant, **attrs):
@@ -102,15 +106,18 @@ class TenantModelBase(models.base.ModelBase):
                     field = copy.deepcopy(related_field)
                     rel_to = related_field.rel.to
                     if isinstance(rel_to, basestring):
-                        rel_to = cls.instances[rel_to]
+                        rel_to = cls.instances[rel_to].model
                     related_name = rel_to._tenant_meta.related_name
-                    natural_key = getattr(tenant.__class__, related_name).natural_key(tenant)
-                    field.rel.to = '.'.join(natural_key)
+                    field.rel.to = getattr(tenant, related_name).model
+                    if (isinstance(field, models.ManyToManyField) and
+                        not field.rel.through):
+                        if field.name is None:
+                            field.name = fname
+                        field.db_table = db_schema_table(tenant, field._get_m2m_db_table(opts))
                     attrs[fname] = field
                 return super_new(cls, name, (model,) + tenant_bases, attrs)
             descriptor = TenantModelDescriptor(type_, opts)
             tenant_model = get_tenant_model(model._meta.app_label)
-            tenant_model._related_names.append(related_name)
             setattr(tenant_model, related_name, descriptor)
         else:
             model = super_new(cls, name, bases, attrs)
@@ -144,13 +151,7 @@ class TenantModelDescriptor(object):
         if model_class is None:
             # The model class has not been created yet, we define it.
             # TODO: Use `db_schema` once django #6148 is fixed.
-            connection = connections[instance._state.db]
-            if connection.vendor == 'postgresql':
-                # See https://code.djangoproject.com/ticket/6148#comment:47
-                db_table_format = '%s\".\"%s'
-            else:
-                db_table_format = "%s_%s"
-            db_table = db_table_format % (instance.db_schema, self.opts.db_table)
+            db_table = db_schema_table(instance, self.opts.db_table)
             model_class = self.type(
                 tenant=instance,
                 Meta=meta(app_label=self.app_label(instance), db_table=db_table)
