@@ -115,7 +115,7 @@ class TenantModelBase(models.base.ModelBase):
                 )
                 return super_new(cls, name, (base,) + type_bases, attrs)
             descriptor = TenantModelDescriptor(type_, model._meta)
-            tenant_model = get_tenant_model()
+            tenant_model = get_tenant_model(model._meta.app_label)
             tenant_model._related_names.append(related_name)
             setattr(tenant_model, related_name, descriptor)
         else:
