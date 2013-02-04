@@ -4,7 +4,10 @@ from django.db import models
 
 from ..management import model_sender_signals
 from ..models import TenantModel
+from ..monkey import patch_related_fields
 
+
+patch_related_fields()
 
 class AbstractTenantModel(TenantModel):
     class Meta:
@@ -27,7 +30,7 @@ class SpecificModelSubclass(SpecificModel):
 
 
 class FkToTenantModel(TenantModel):
-    specific_model = models.ForeignKey('tests.SpecificModel', related_name='fks')
+    specific_model = models.ForeignKey(SpecificModel, related_name='fks')
 
     class TenantMeta:
         related_name = 'fk_to_tenant_models'
