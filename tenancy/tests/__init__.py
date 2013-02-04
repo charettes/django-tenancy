@@ -132,6 +132,27 @@ class TenantModelTest(TenancyTestCase):
             tenant.specific_models_subclasses.create()
             self.assertEqual(tenant.specificmodels.count(), 1)
 
+    def test_signals(self):
+        """
+        Make sure signals are correctly dispatched for tenant models
+        """
+        for tenant in self.tenant_model.objects.all():
+            signal_model = tenant.signal_models.model
+            instance = signal_model()
+            instance.save()
+            instance.delete()
+            self.assertListEqual(
+                signal_model.logs(),
+                [
+                 models.signals.pre_init,
+                 models.signals.post_init,
+                 models.signals.pre_save,
+                 models.signals.post_save,
+                 models.signals.pre_delete,
+                 models.signals.post_delete
+                 ]
+            )
+
 
 # TODO: Remove when support for django 1.4 is dropped
 class raise_cmd_error_stderr(object):

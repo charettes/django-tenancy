@@ -4,10 +4,11 @@ import django
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.color import no_style
 from django.db import connections, models, router, transaction
-from django.dispatch.dispatcher import receiver
+from django.dispatch.dispatcher import _make_id, receiver
 from django.utils.datastructures import SortedDict
 
 from .. import get_tenant_model
+from ..models import TenantModelBase
 
 
 def allow_syncdbs(model):
@@ -76,3 +77,24 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
             for db in allow_syncdbs(model):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)
     ContentType.objects.clear_cache()
+
+
+model_sender_signals = (
+    models.signals.pre_init,
+    models.signals.post_init,
+    models.signals.pre_save,
+    models.signals.post_save,
+    models.signals.pre_delete,
+    models.signals.post_delete,
+)
+
+@receiver(models.signals.class_prepared)
+def attach_signals(signal, sender, **kwargs):
+    """
+    Re-attach signals to tenant models
+    """
+    if isinstance(sender, TenantModelBase) and sender._meta.managed:
+        sender_id = _make_id(sender.__bases__[0])
+        for signal in model_sender_signals:
+            for receiver in signal._live_receivers(sender_id):
+                signal.connect(receiver, sender=sender)

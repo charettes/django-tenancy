@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from django.db import models
 
+from ..management import model_sender_signals
 from ..models import TenantModel
 
 
@@ -30,3 +31,24 @@ class FkToTenantModel(TenantModel):
 
     class TenantMeta:
         related_name = 'fk_to_tenant_models'
+
+
+class SignalTenantModel(TenantModel):
+    class TenantMeta:
+        related_name = 'signal_models'
+
+    _logs = {}
+
+    @classmethod
+    def logs(cls):
+        return cls._logs.setdefault(cls.tenant, [])
+
+    @classmethod
+    def log(cls, signal):
+        cls.logs().append(signal)
+
+def add_to_dispatched(signal, sender, **kwargs):
+    sender.log(signal)
+
+for signal in model_sender_signals:
+    signal.connect(add_to_dispatched, sender=SignalTenantModel)
