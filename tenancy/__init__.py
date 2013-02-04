@@ -19,7 +19,7 @@ def get_tenant_model(origin=None):
     only_installed = (origin != app_label)
     tenant_model = get_model(app_label, model_name, seed_cache=seed_cache, only_installed=only_installed)
     if tenant_model is None:
-        raise ImproperlyConfigured("TENANCY_TENANT_MODEL refers to model '%s' that has not been installed" % TENANT_MODEL)
+        raise ImproperlyConfigured("TENANCY_TENANT_MODEL refers to model '%s.%s' that has not been installed" % (app_label, model_name))
     elif not issubclass(tenant_model, AbstractTenant):
-        raise ImproperlyConfigured("TENANCY_TENANT_MODEL refers to models '%s' which is not a subclass of 'tenancy.AbstractTenant'" % TENANT_MODEL)
+        raise ImproperlyConfigured("TENANCY_TENANT_MODEL refers to models '%s.%s' which is not a subclass of 'tenancy.AbstractTenant'" % (app_label, model_name))
     return tenant_model

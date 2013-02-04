@@ -2,16 +2,42 @@ from __future__ import  unicode_literals
 
 import django
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import models
-from django.test.testcases import TransactionTestCase
+from django.test.testcases import SimpleTestCase, TransactionTestCase
 from django.utils.unittest.case import skipIf
 
+from .. import get_tenant_model
 from ..models import Tenant, TenantModelBase
 
 from .models import *
 from .utils import skipIfCustomTenant, TenancyTestCase
+
+
+class TenantTest(SimpleTestCase):
+    def assertSwapFailure(self, tenant_model, expected_message):
+        with self.settings(TENANCY_TENANT_MODEL=tenant_model):
+            with self.assertRaisesMessage(ImproperlyConfigured, expected_message):
+                get_tenant_model()
+
+    def test_swap_failures(self):
+        """
+        Make sure tenant swap failures raise the correct exception
+        """
+        self.assertSwapFailure(
+            'invalid',
+            "TENANCY_TENANT_MODEL must be of the form 'app_label.model_name'"
+        )
+        self.assertSwapFailure(
+            'not.Installed',
+            "TENANCY_TENANT_MODEL refers to model 'not.Installed' that has not been installed"
+        )
+        self.assertSwapFailure(
+            'contenttypes.ContentType',
+            "TENANCY_TENANT_MODEL refers to models 'contenttypes.ContentType' which is not a subclass of 'tenancy.AbstractTenant'"
+        )
 
 
 class TenantModelBaseTest(TenancyTestCase):
