@@ -10,6 +10,8 @@ from ..monkey import patch_related_fields
 patch_related_fields()
 
 class AbstractTenantModel(TenantModel):
+    date = models.DateField(null=True)
+
     class Meta:
         abstract = True
 

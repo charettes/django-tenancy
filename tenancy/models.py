@@ -107,20 +107,23 @@ class TenantModelBase(models.base.ModelBase):
             def type_(tenant, **attrs):
                 attrs.update(
                     tenant=tenant,
-                    __module__=module
+                    __module__=module,
+                    **model._tenant_meta.related_fields_for_tenant(tenant, opts)
                 )
-                type_bases = []
-                for base in (model,) + bases:
+                type_bases = [model]
+                for base in bases:
                     if isinstance(base, cls):
                         base_tenant_opts = base._tenant_meta
                         base_related_name = base_tenant_opts.related_name
-                        if base_related_name and base is not model:
+                        if base_related_name:
                             type_bases.append(getattr(tenant, base_related_name).model)
                             continue
                         else:
                             # Add related tenant fields of the base since it's abstract
                             attrs.update(base_tenant_opts.related_fields_for_tenant(tenant, opts))
-                    type_bases.append(base)
+                    elif not base._meta.abstract:
+                        # model already extends this base
+                        type_bases.append(base)
                 return super_new(cls, name, tuple(type_bases), attrs)
             descriptor = TenantModelDescriptor(type_, opts)
             tenant_model = get_tenant_model(model._meta.app_label)
