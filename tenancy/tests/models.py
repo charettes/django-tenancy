@@ -26,7 +26,7 @@ class SpecificModelSubclass(SpecificModel):
 
 
 class FkToTenantModel(TenantModel):
-    specific_model = models.ForeignKey(SpecificModel, related_name='fks')
+    specific_model = models.ForeignKey('tests.SpecificModel', related_name='fks')
 
     class TenantMeta:
         related_name = 'fk_to_tenant_models'

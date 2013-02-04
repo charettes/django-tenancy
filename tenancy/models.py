@@ -41,8 +41,7 @@ class Tenant(AbstractTenant):
 
 
 class TenantOptions(object):
-    def __init__(self, base, related_name):
-        self.base = base
+    def __init__(self, related_name):
         self.related_name = related_name
 
 
@@ -55,86 +54,67 @@ def meta(**opts):
 
 
 class TenantModelBase(models.base.ModelBase):
-    tenant_model_class = None
+    instances = SortedDict()
 
     def __new__(cls, name, bases, attrs):
         super_new = super(TenantModelBase, cls).__new__
         Meta = attrs.setdefault('Meta', meta())
-        # It's a concrete or proxy model
+        # It's not an abstract model
         if not getattr(Meta, 'abstract', False):
             Meta.abstract = True
             module = attrs.get('__module__')
             # Extract related fields pointing to tenant models in order to add
             # them to the returned unmanaged model to avoid breaking anything
             # and to add them to tenant specific models when needed.
-            related_fields = dict(
-                (name, attrs.pop(name))
-                for name, attr in attrs.items()
-                if isinstance(attr, RelatedField) and isinstance(attr.rel.to, cls)
-            )
-            # Create an abstract base to hold attributes.
-            base = super_new(cls, str("Abstract%s" % name), (models.Model,), attrs)
+            related_tenant_fields = {}
+            for key, value in attrs.items():
+                if isinstance(value, RelatedField):
+                    rel_to = value.rel.to
+                    if isinstance(rel_to, basestring):
+                        if rel_to in cls.instances:
+                            related_tenant_fields[key] = attrs.pop(key)
+            # Create the abstract model to be returned.
+            model = super_new(cls, name, bases, attrs)
+            opts = model._meta
+            # Store instances in order to reference them with related fields
+            cls.instances["%s.%s" % (opts.app_label, opts.object_name)] = model
             # Extract the specified related name if it exists.
             try:
-                related_name = base.TenantMeta.related_name
+                related_name = model.TenantMeta.related_name
             except AttributeError:
                 related_name = name.lower() + 's'
-            tenant_opts = TenantOptions(base, related_name)
-            # Create the concrete unmanaged model to be returned.
-            model_bases = (base,) + bases
-            model_attrs = {
-                '__module__': module,
-                '_tenant_meta': tenant_opts,
-                'Meta': meta(managed=False)
-            }
-            # Add the related to tenant model fields back in order to avoid
-            # breaking anything.
-            model_attrs.update(**related_fields)
-            model = super_new(cls, name, model_bases, model_attrs)
+            model._tenant_meta = TenantOptions(related_name)
             # Attach a descriptor to the tenant model to access the underlying
             # model based on the tenant instance.
             def type_(tenant, **attrs):
                 attrs.update(
                     tenant=tenant,
-                    __module__=module,
-                    _tenant_meta=tenant_opts,
+                    __module__=module
+                )
+                # Add all the correct tenant bases
+                tenant_bases = tuple(
+                    getattr(tenant, b._tenant_meta.related_name).model
+                    for b in bases if isinstance(b, cls) and hasattr(b, '_tenant_meta')
                 )
                 # Add the related field and make them point to the correct
                 # tenant model by referring to them by app_label.module_name.
-                for fname, related_field in related_fields.items():
+                for fname, related_field in related_tenant_fields.items():
                     field = copy.deepcopy(related_field)
-                    related_name = related_field.rel.to._tenant_meta.related_name
+                    rel_to = related_field.rel.to
+                    if isinstance(rel_to, basestring):
+                        rel_to = cls.instances[rel_to]
+                    related_name = rel_to._tenant_meta.related_name
                     natural_key = getattr(tenant.__class__, related_name).natural_key(tenant)
                     field.rel.to = '.'.join(natural_key)
                     attrs[fname] = field
-                type_bases = tuple(
-                    getattr(tenant, b._tenant_meta.related_name).model
-                        if isinstance(b, cls) and not b._meta.abstract
-                        else b
-                    for b in bases
-                )
-                return super_new(cls, name, (base,) + type_bases, attrs)
-            descriptor = TenantModelDescriptor(type_, model._meta)
+                return super_new(cls, name, (model,) + tenant_bases, attrs)
+            descriptor = TenantModelDescriptor(type_, opts)
             tenant_model = get_tenant_model(model._meta.app_label)
             tenant_model._related_names.append(related_name)
             setattr(tenant_model, related_name, descriptor)
         else:
             model = super_new(cls, name, bases, attrs)
-        if cls.tenant_model_class is None:
-            cls.tenant_model_class = model
         return model
-
-    def __instancecheck__(self, instance):
-        return self.__subclasscheck__(instance.__class__)
-
-    def __subclasscheck__(self, subclass):
-        if self._meta.abstract:
-            return self in subclass.__mro__
-        elif (isinstance(subclass, TenantModelBase) and not subclass._meta.abstract):
-            tenant_opts = self._tenant_meta
-            if subclass._tenant_meta is tenant_opts:
-                return True
-            return any(self.__subclasscheck__(b) for b in subclass.__bases__)
 
 
 class TenantModelDescriptor(object):
