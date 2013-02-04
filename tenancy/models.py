@@ -92,14 +92,14 @@ class TenantModelBase(models.base.ModelBase):
         if not getattr(Meta, 'abstract', False):
             Meta.abstract = True
             module = attrs.get('__module__')
+            # Extract the specified related name if it exists.
+            try:
+                related_name = attrs.pop('TenantMeta').related_name
+            except (KeyError, AttributeError):
+                related_name = name.lower() + 's'
             # Create the abstract model to be returned.
             model = super_new(cls, name, bases, attrs)
             opts = model._meta
-            # Extract the specified related name if it exists.
-            try:
-                related_name = model.TenantMeta.related_name
-            except AttributeError:
-                related_name = name.lower() + 's'
             # Store instances in order to reference them with related fields
             cls.instances["%s.%s" % (opts.app_label, opts.object_name)] = Reference(related_name, model)
             # Attach a descriptor to the tenant model to access the underlying
@@ -109,19 +109,18 @@ class TenantModelBase(models.base.ModelBase):
                     tenant=tenant,
                     __module__=module
                 )
-                type_bases = [model]
-                for base in bases:
+                type_bases = []
+                for base in (model,) + bases:
                     if isinstance(base, cls):
                         base_tenant_opts = base._tenant_meta
-                        # Add related tenant fields of the base
-                        attrs.update(base_tenant_opts.related_fields_for_tenant(tenant, opts))
                         base_related_name = base_tenant_opts.related_name
-                        if base_related_name:
+                        if base_related_name and base is not model:
                             type_bases.append(getattr(tenant, base_related_name).model)
                             continue
+                        else:
+                            # Add related tenant fields of the base since it's abstract
+                            attrs.update(base_tenant_opts.related_fields_for_tenant(tenant, opts))
                     type_bases.append(base)
-                # Add related tenant fields of the abstract base
-                attrs.update(model._tenant_meta.related_fields_for_tenant(tenant, opts))
                 return super_new(cls, name, tuple(type_bases), attrs)
             descriptor = TenantModelDescriptor(type_, opts)
             tenant_model = get_tenant_model(model._meta.app_label)

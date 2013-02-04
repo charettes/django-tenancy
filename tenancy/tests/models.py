@@ -19,14 +19,14 @@ class SpecificModel(AbstractTenantModel):
         db_table = 'custom_db_table'
 
 
-class RelatedSpecificModel(TenantModel):
-    class TenantMeta:
-        related_name = 'related_specific_models'
-
-
 class SpecificModelSubclass(SpecificModel):
     class TenantMeta:
         related_name = 'specific_models_subclasses'
+
+
+class RelatedSpecificModel(TenantModel):
+    class TenantMeta:
+        related_name = 'related_specific_models'
 
 
 class AbstractSpecificModelSubclass(TenantModel):
@@ -42,6 +42,10 @@ class RelatedTenantModel(AbstractSpecificModelSubclass):
 
     class TenantMeta:
         related_name = 'related_tenant_models'
+
+
+class RelatedTenantModelSubclass(RelatedTenantModel):
+    pass
 
 
 class SignalTenantModel(TenantModel):

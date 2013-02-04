@@ -18,11 +18,13 @@ def allow_syncdbs(model):
 
 
 def get_tenant_models(tenant):
-    models = set([getattr(tenant, base.related_name).model for base in TenantModelBase.instances.values()])
+    models = [getattr(tenant, base.related_name).model for base in TenantModelBase.instances.values()]
     for model in list(models):
         for m2m in model._meta.local_many_to_many:
             if isinstance(m2m.rel.to, TenantModelBase):
-                models.add(m2m.rel.through)
+                through = m2m.rel.through
+                if through not in models:
+                    models.append(through)
     return models
 
 
