@@ -8,7 +8,7 @@ from ..settings import DEFAULT_TENANT_MODEL, TENANT_MODEL
 
 
 def skipIfCustomTenant(skipped):
-    return skipIf(TENANT_MODEL != DEFAULT_TENANT_MODEL, 'Custom tenant model in use')(skipped)
+    return skipIf(TENANT_MODEL() != DEFAULT_TENANT_MODEL, 'Custom tenant model in use')(skipped)
 
 
 class TenancyTestCase(TransactionTestCase):

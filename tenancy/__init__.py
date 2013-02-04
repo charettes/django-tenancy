@@ -12,7 +12,7 @@ def get_tenant_model(origin=None):
     from .settings import TENANT_MODEL
 
     try:
-        app_label, model_name = TENANT_MODEL.split('.')
+        app_label, model_name = TENANT_MODEL().split('.')
     except ValueError:
         raise ImproperlyConfigured("TENANCY_TENANT_MODEL must be of the form 'app_label.model_name'")
     seed_cache = origin is None
