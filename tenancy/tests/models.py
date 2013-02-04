@@ -29,7 +29,14 @@ class SpecificModelSubclass(SpecificModel):
         related_name = 'specific_models_subclasses'
 
 
-class RelatedTenantModel(TenantModel):
+class AbstractSpecificModelSubclass(TenantModel):
+    fk = models.ForeignKey(SpecificModel, related_name='fks', null=True)
+
+    class Meta:
+        abstract = True
+
+
+class RelatedTenantModel(AbstractSpecificModelSubclass):
     fk = models.ForeignKey(SpecificModel, related_name='fks', null=True)
     m2m = models.ManyToManyField(SpecificModel, related_name='m2ms')
 
