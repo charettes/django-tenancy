@@ -94,7 +94,9 @@ def attach_signals(signal, sender, **kwargs):
     Re-attach signals to tenant models
     """
     if isinstance(sender, TenantModelBase) and sender._meta.managed:
-        sender_id = _make_id(sender.__bases__[0])
+        abstract_sender = sender.__bases__[0]
+        # TODO: Remove when support for Django < 1.6 is dropped
+        sender_id = abstract_sender if django.VERSION >= (1, 6) else _make_id(abstract_sender)
         for signal in model_sender_signals:
             for receiver in signal._live_receivers(sender_id):
                 signal.connect(receiver, sender=sender)
