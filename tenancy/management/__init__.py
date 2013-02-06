@@ -87,6 +87,7 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
             table_name = quote_name(model._meta.db_table)
             for db in allow_syncdbs(model):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)
+    ContentType.objects.filter(app_label__startswith="tenant_%s" % instance.pk).delete()
     ContentType.objects.clear_cache()
 
 

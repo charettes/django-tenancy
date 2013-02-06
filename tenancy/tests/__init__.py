@@ -6,8 +6,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import models
-from django.test.testcases import SimpleTestCase, TransactionTestCase
-from django.utils.unittest.case import skipIf
+from django.test.testcases import TransactionTestCase
 
 from .. import get_tenant_model
 from ..models import Tenant, TenantModelBase
@@ -16,7 +15,7 @@ from .models import *
 from .utils import skipIfCustomTenant, TenancyTestCase
 
 
-class TenantTest(SimpleTestCase):
+class TenantTest(TransactionTestCase):
     def assertSwapFailure(self, tenant_model, expected_message):
         with self.settings(TENANCY_TENANT_MODEL=tenant_model):
             with self.assertRaisesMessage(ImproperlyConfigured, expected_message):
@@ -38,6 +37,18 @@ class TenantTest(SimpleTestCase):
             'contenttypes.ContentType',
             "TENANCY_TENANT_MODEL refers to models 'contenttypes.ContentType' which is not a subclass of 'tenancy.AbstractTenant'"
         )
+
+    @skipIfCustomTenant
+    def test_content_types_deleted(self):
+        """
+        Make sure content types of tenant models are deleted upon their related
+        tenant deletion.
+        """
+        tenant = Tenant.objects.create(name='tenant')
+        model = tenant.specificmodels.model
+        content_type = ContentType.objects.get_for_model(model)
+        tenant.delete()
+        self.assertFalse(ContentType.objects.filter(pk=content_type.pk).exists())
 
 
 class TenantModelBaseTest(TenancyTestCase):
