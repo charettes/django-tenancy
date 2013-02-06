@@ -74,11 +74,11 @@ class TenantModelDescriptorTest(TenancyTestCase):
         when the related_name is specified or not.
         """
         self.assertEqual(
-            self.tenant_model.specificmodels.opts,
+            Tenant.specificmodels.opts,
             SpecificModel._meta
         )
         self.assertEqual(
-            self.tenant_model.related_specific_models.opts,
+            Tenant.related_specific_models.opts,
             RelatedSpecificModel._meta
         )
 
@@ -111,7 +111,7 @@ class TenantModelTest(TenancyTestCase):
         """
         Make sure foreign keys between TenantModels work correctly.
         """
-        for tenant in self.tenant_model.objects.all():
+        for tenant in Tenant.objects.all():
             # Test object creation
             specific = tenant.specificmodels.create()
             related = tenant.related_tenant_models.create(fk=specific)
@@ -124,7 +124,7 @@ class TenantModelTest(TenancyTestCase):
         """
         Make sure m2m between TenantModels work correctly.
         """
-        for tenant in self.tenant_model.objects.all():
+        for tenant in Tenant.objects.all():
             # Test object creation
             related = tenant.related_tenant_models.create()
             specific_model = related.m2m.create()
@@ -137,7 +137,7 @@ class TenantModelTest(TenancyTestCase):
         """
         Make sure tenant model subclasses share the same tenant.
         """
-        for tenant in self.tenant_model.objects.all():
+        for tenant in Tenant.objects.all():
             parents = tenant.specific_models_subclasses.model._meta.parents
             for parent in parents:
                 if isinstance(parent, TenantModelBase):
@@ -149,7 +149,7 @@ class TenantModelTest(TenancyTestCase):
         """
         Make sure signals are correctly dispatched for tenant models
         """
-        for tenant in self.tenant_model.objects.all():
+        for tenant in Tenant.objects.all():
             signal_model = tenant.signal_models.model
             instance = signal_model()
             instance.save()
