@@ -104,7 +104,7 @@ class TenantModelBase(models.base.ModelBase):
             cls.instances["%s.%s" % (opts.app_label, opts.object_name)] = Reference(related_name, model)
             # Attach a descriptor to the tenant model to access the underlying
             # model based on the tenant instance.
-            def type_(tenant, **attrs):
+            def new(tenant, **attrs):
                 attrs.update(
                     tenant=tenant,
                     __module__=module,
@@ -125,7 +125,7 @@ class TenantModelBase(models.base.ModelBase):
                         # model already extends this base
                         type_bases.append(base)
                 return super_new(cls, name, tuple(type_bases), attrs)
-            descriptor = TenantModelDescriptor(type_, opts)
+            descriptor = TenantModelDescriptor(new, opts)
             tenant_model = get_tenant_model(model._meta.app_label)
             setattr(tenant_model, related_name, descriptor)
         else:
@@ -136,8 +136,8 @@ class TenantModelBase(models.base.ModelBase):
 
 
 class TenantModelDescriptor(object):
-    def __init__(self, type_, opts):
-        self.type = type_
+    def __init__(self, new, opts):
+        self.new = new
         self.opts = opts
 
     def app_label(self, tenant):
@@ -163,7 +163,7 @@ class TenantModelDescriptor(object):
             # The model class has not been created yet, we define it.
             # TODO: Use `db_schema` once django #6148 is fixed.
             db_table = db_schema_table(instance, self.opts.db_table)
-            model_class = self.type(
+            model_class = self.new(
                 tenant=instance,
                 Meta=meta(app_label=self.app_label(instance), db_table=db_table)
             )
