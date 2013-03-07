@@ -1,4 +1,4 @@
-from __future__ import  unicode_literals
+from __future__ import unicode_literals
 
 import django
 from django.contrib.contenttypes.models import ContentType
@@ -6,7 +6,7 @@ from django.core import serializers
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import models
+from django.db import models as django_models
 from django.test.testcases import TransactionTestCase
 from django.test.utils import override_settings
 
@@ -14,7 +14,9 @@ from .. import get_tenant_model
 from ..models import Tenant, TenantModelBase
 from ..views import SingleTenantObjectMixin
 
-from .models import *
+from .models import (AbstractTenantModel, AbstractSpecificModelSubclass,
+    RelatedSpecificModel, SpecificModel, SpecificModelSubclass)
+from .views import InvalidModelMixin, MissingModelMixin, SpecificModelMixin
 from .utils import skipIfCustomTenant, TenancyTestCase
 
 
@@ -59,7 +61,7 @@ class TenantModelBaseTest(TenancyTestCase):
         instance = self.tenant.specificmodels.create()
         self.assertIsInstance(instance, SpecificModel)
         self.assertNotIsInstance(instance, RelatedSpecificModel)
-        self.assertIsInstance(instance, models.Model)
+        self.assertIsInstance(instance, django_models.Model)
         self.assertNotIsInstance(instance, RelatedSpecificModel)
         self.assertNotIsInstance(instance, TenantModelBaseTest)
 
@@ -75,7 +77,7 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertIsSubclass(tenant_specific_model, SpecificModel)
         self.assertIsNotSubclass(tenant_specific_model, RelatedSpecificModel)
         self.assertIsNotSubclass(tenant_specific_model, tuple)
-        self.assertIsSubclass(tenant_specific_model, models.Model)
+        self.assertIsSubclass(tenant_specific_model, django_models.Model)
         tenant_specific_model_subclass = self.tenant.specific_models_subclasses.model
         self.assertIsSubclass(tenant_specific_model_subclass, SpecificModel)
         self.assertIsSubclass(tenant_specific_model_subclass, tenant_specific_model)
@@ -171,12 +173,12 @@ class TenantModelTest(TenancyTestCase):
             self.assertListEqual(
                 signal_model.logs(),
                 [
-                 models.signals.pre_init,
-                 models.signals.post_init,
-                 models.signals.pre_save,
-                 models.signals.post_save,
-                 models.signals.pre_delete,
-                 models.signals.post_delete
+                 django_models.signals.pre_init,
+                 django_models.signals.post_init,
+                 django_models.signals.pre_save,
+                 django_models.signals.post_save,
+                 django_models.signals.pre_delete,
+                 django_models.signals.post_delete
                  ]
             )
 
@@ -217,23 +219,24 @@ class CreateTenantCommandTest(TransactionTestCase):
         Tenant.objects.get(name='tenant').delete()
 
 
-@override_settings(
-    ROOT_URLCONF='tenancy.tests.urls',
-    MIDDLEWARE_CLASSES=('tenancy.tests.middleware.TenantMiddleware',))
 class SingleTenantObjectMixinTest(TenancyTestCase):
-    def test_improperly_configured(self):
-        with self.assertRaisesMessage(ImproperlyConfigured,
-            'MissingModelView is missing a model.'):
-            self.client.get('/missing-model')
-        with self.assertRaisesMessage(ImproperlyConfigured,
-            'InvalidModelView.model is not an instance of TenantModelBase.'):
-            self.client.get('/invalid-model')
+    def test_missing_model(self):
+        self.assertRaisesMessage(
+            ImproperlyConfigured,
+            'MissingModelMixin is missing a model.',
+            MissingModelMixin().get_queryset
+        )
 
-    def test_get_object(self):
+    def test_invalid_model(self):
+        self.assertRaisesMessage(
+            ImproperlyConfigured,
+            'InvalidModelMixin.model is not an instance of TenantModelBase.',
+            InvalidModelMixin().get_queryset
+        )
+
+    def test_get_queryset(self):
         specific_model = self.tenant.specificmodels.create()
-        response = self.client.get("/specific-model/%s" % specific_model.pk)
-        self.assertEqual(response.status_code, 200)
         self.assertEqual(
             specific_model,
-            next(serializers.deserialize('json', response.content)).object
+            SpecificModelMixin().get_queryset().get()
         )
