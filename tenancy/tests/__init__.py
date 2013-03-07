@@ -2,14 +2,17 @@ from __future__ import  unicode_literals
 
 import django
 from django.contrib.contenttypes.models import ContentType
+from django.core import serializers
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import models
 from django.test.testcases import TransactionTestCase
+from django.test.utils import override_settings
 
 from .. import get_tenant_model
 from ..models import Tenant, TenantModelBase
+from ..views import SingleTenantObjectMixin
 
 from .models import *
 from .utils import skipIfCustomTenant, TenancyTestCase
@@ -110,7 +113,7 @@ class TenantModelDescriptorTest(TenancyTestCase):
 class TenantModelTest(TenancyTestCase):
     def test_isolation_between_tenants(self):
         """
-        Make sure instances created in a tenant specific databases are not
+        Make sure instances created in a tenant specific schema are not
         shared between tenants.
         """
         self.tenant.related_specific_models.create()
@@ -212,3 +215,25 @@ class CreateTenantCommandTest(TransactionTestCase):
     def test_success(self):
         self.create_tenant('tenant')
         Tenant.objects.get(name='tenant').delete()
+
+
+@override_settings(
+    ROOT_URLCONF='tenancy.tests.urls',
+    MIDDLEWARE_CLASSES=('tenancy.tests.middleware.TenantMiddleware',))
+class SingleTenantObjectMixinTest(TenancyTestCase):
+    def test_improperly_configured(self):
+        with self.assertRaisesMessage(ImproperlyConfigured,
+            'MissingModelView is missing a model.'):
+            self.client.get('/missing-model')
+        with self.assertRaisesMessage(ImproperlyConfigured,
+            'InvalidModelView.model is not an instance of TenantModelBase.'):
+            self.client.get('/invalid-model')
+
+    def test_get_object(self):
+        specific_model = self.tenant.specificmodels.create()
+        response = self.client.get("/specific-model/%s" % specific_model.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            specific_model,
+            next(serializers.deserialize('json', response.content)).object
+        )

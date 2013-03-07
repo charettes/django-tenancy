@@ -18,6 +18,7 @@ class AbstractTenantModel(TenantModel):
 
 class SpecificModel(AbstractTenantModel):
     class Meta:
+        app_label = 'tenancy'
         db_table = 'custom_db_table'
 
 
