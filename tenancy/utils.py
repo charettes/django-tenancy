@@ -1,5 +1,8 @@
 from __future__ import unicode_literals
 
+import imp
+from contextlib import contextmanager
+
 from django.db.models.loading import cache as app_cache
 
 
@@ -9,7 +12,6 @@ if hasattr(app_cache, 'write_lock'):
         return app_cache.write_lock
 else:
     # django >= 1.5 use imp.lock instead
-    import imp
     @contextmanager
     def app_cache_lock():
         try:
