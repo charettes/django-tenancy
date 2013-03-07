@@ -9,6 +9,7 @@ from django.utils.datastructures import SortedDict
 
 from .. import get_tenant_model
 from ..models import TenantModelBase
+from ..utils import remove_from_app_cache
 
 
 def allow_syncdbs(model):
@@ -78,18 +79,20 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
     """
     connection = connections[using]
     quote_name = connection.ops.quote_name
+    tenant_models = get_tenant_models(instance)
     if connection.vendor == 'postgresql':
         connection.cursor().execute(
             "DROP SCHEMA %s CASCADE" % quote_name(instance.db_schema)
         )
     else:
-        for model in get_tenant_models(instance):
+        for model in tenant_models:
             table_name = quote_name(model._meta.db_table)
             for db in allow_syncdbs(model):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)
     ContentType.objects.filter(model__startswith="tenant_%s" % instance.pk).delete()
     ContentType.objects.clear_cache()
-
+    for model in tenant_models:
+        remove_from_app_cache(model)
 
 model_sender_signals = (
     models.signals.pre_init,
