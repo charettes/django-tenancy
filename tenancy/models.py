@@ -124,7 +124,7 @@ class TenantModelBase(models.base.ModelBase):
                     elif not base._meta.abstract:
                         # model already extends this base
                         type_bases.append(base)
-                return super_new(cls, name, tuple(type_bases), attrs)
+                return super_new(cls, str("Tenant_%s_%s" % (tenant.pk, name)), tuple(type_bases), attrs)
             descriptor = TenantModelDescriptor(new, opts)
             tenant_model = get_tenant_model(model._meta.app_label)
             setattr(tenant_model, related_name, descriptor)
@@ -140,11 +140,11 @@ class TenantModelDescriptor(object):
         self.new = new
         self.opts = opts
 
-    def app_label(self, tenant):
-        return "tenant_%s_%s" % (tenant.pk, self.opts.app_label)
-
     def natural_key(self, tenant):
-        return (self.app_label(tenant), self.opts.module_name)
+        return (
+            self.opts.app_label,
+            "tenant_%s_%s" % (tenant.pk, self.opts.module_name)
+        )
 
     def __get__(self, instance, owner):
         if not instance:
@@ -165,7 +165,7 @@ class TenantModelDescriptor(object):
             db_table = db_schema_table(instance, self.opts.db_table)
             model_class = self.new(
                 tenant=instance,
-                Meta=meta(app_label=self.app_label(instance), db_table=db_table)
+                Meta=meta(app_label=self.opts.app_label, db_table=db_table)
             )
             # Make sure to create the content type associated with this model
             # class that was just created.
