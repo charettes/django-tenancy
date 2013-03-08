@@ -9,10 +9,12 @@ from django.core.management.base import CommandError
 from django.db import models as django_models
 from django.test.testcases import TransactionTestCase
 from django.test.utils import override_settings
+from django.utils.unittest.case import skipIf, skipUnless
 
 from .. import get_tenant_model
 from ..forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
+from ..middleware import TenantHostMiddleware
 from ..models import Tenant, TenantModelBase
 from ..views import SingleTenantObjectMixin
 
@@ -24,6 +26,8 @@ from .views import (InvalidModelFormClass, InvalidModelMixin,
     MissingModelMixin, NonTenantModelFormClass, SpecificModelMixin,
     SpecificModelFormMixin, UnspecifiedFormClass)
 from .utils import skipIfCustomTenant, TenancyTestCase
+from django.utils.functional import cached_property
+from django.template.base import TemplateDoesNotExist
 
 
 class TenantTest(TransactionTestCase):
@@ -359,3 +363,78 @@ class TenantInlineFormsetFactoryTest(TenancyTestCase):
         self.assertEqual(formset.model, tenant_related_model)
         fk = tenant_related_model._meta.get_field('fk')
         self.assertEqual(fk, formset.fk)
+
+
+try:
+    import django_hosts
+except ImportError:
+    django_hosts_installed = False
+else:
+    django_hosts_installed = True
+
+
+def django_hosts_installed_setup(func):
+    func = override_settings(
+        ROOT_URLCONF='tenancy.tests.urls',
+        DEFAULT_HOST='default',
+        ROOT_HOSTCONF='tenancy.tests.hosts',
+        MIDDLEWARE_CLASSES=(
+            'django_hosts.middleware.HostsMiddleware',
+            'tenancy.middleware.TenantHostMiddleware'
+        )
+    )(func)
+    return skipUnless(
+        django_hosts_installed,
+        'django-hosts is not installed.'
+    )(func)
+
+
+class TenantHostMiddlewareTest(TenancyTestCase):
+    @classmethod
+    def tenant_client(cls, tenant):
+        domain = "%s.testserver" % tenant.name
+        return cls.client_class(SERVER_NAME=domain)
+
+    @skipIf(django_hosts_installed, 'django-hosts is installed.')
+    def test_not_installed(self):
+        self.assertRaisesMessage(
+            ImproperlyConfigured,
+            'You must install django-hosts in order to use '
+            '`TenantHostMiddleware`.',
+            TenantHostMiddleware
+        )
+
+    @skipUnless(django_hosts_installed, 'django-hosts is not installed.')
+    @override_settings(
+        MIDDLEWARE_CLASSES=(
+            'tenancy.middleware.TenantHostMiddleware',
+            'django_hosts.middleware.HostsMiddleware'
+        )
+    )
+    def test_wrong_order(self):
+        self.assertRaisesMessage(
+            ImproperlyConfigured,
+            "Make sure that 'django_hosts.middleware.HostsMiddleware' is "
+            "placed before 'tenancy.middleware.TenantHostMiddleware' in your "
+            "`MIDDLEWARE_CLASSES` setting.",
+            TenantHostMiddleware
+        )
+
+    @django_hosts_installed_setup
+    def test_tenant_not_found(self):
+        tenant = Tenant(name='inexistent')
+        client = self.tenant_client(tenant)
+        # TODO: Remove when support for Django < 1.5 is dropped
+        try:
+            response = client.get('/')
+        except TemplateDoesNotExist as e:
+            self.assertEqual(str(e), '404.html')
+        else:
+            self.assertEqual(response.status_code, 404)
+
+    @django_hosts_installed_setup
+    def test_tenant_found(self):
+        client = self.tenant_client(self.tenant)
+        response = client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, self.tenant.name)

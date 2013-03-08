@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import unicode_literals
 from setuptools import setup, find_packages
 
 from tenancy import __version__
@@ -27,4 +28,7 @@ setup(
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
+    extras_require={
+        'hosts': ['django-hosts']
+    }
 )
