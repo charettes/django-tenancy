@@ -9,6 +9,7 @@ from django.db.models.fields.related import RelatedField
 from django.utils.datastructures import SortedDict
 
 from . import get_tenant_model
+from .utils import model_name_from_opts
 
 
 class AbstractTenant(models.Model):
@@ -161,7 +162,7 @@ class TenantModelDescriptor(object):
     def natural_key(self, tenant):
         return (
             self.opts.app_label,
-            "tenant_%s_%s" % (tenant.pk, self.opts.module_name)
+            "tenant_%s_%s" % (tenant.pk, model_name_from_opts(self.opts))
         )
 
     def __get__(self, instance, owner):

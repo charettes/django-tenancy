@@ -61,3 +61,12 @@ def receivers_for_model(model):
 def disconnect_signals(model):
     for signal, receiver in receivers_for_model(model):
         signal.disconnect(receiver, sender=model)
+
+
+# TODO: Remove when support for django < 1.6 is dropped
+_model_name_attr = 'model_name' if django.VERSION >= (1, 6) else 'module_name'
+def model_name_from_opts(opts):
+    """
+    `Options.module_name` was renamed to `model_name` in Django 1.6.
+    """
+    return getattr(opts, _model_name_attr)

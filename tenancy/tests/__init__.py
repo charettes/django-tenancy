@@ -7,8 +7,10 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import models as django_models
+from django.template.base import TemplateDoesNotExist
 from django.test.testcases import TransactionTestCase
 from django.test.utils import override_settings
+from django.utils.functional import cached_property
 from django.utils.unittest.case import skipIf, skipUnless
 
 from .. import get_tenant_model
@@ -17,6 +19,7 @@ from ..forms import (tenant_inlineformset_factory, tenant_modelform_factory,
 from ..middleware import TenantHostMiddleware
 from ..models import Tenant, TenantModelBase
 from ..views import SingleTenantObjectMixin
+from ..utils import model_name_from_opts
 
 from .forms import SpecificModelForm
 from .models import (AbstractTenantModel, AbstractSpecificModelSubclass,
@@ -26,8 +29,6 @@ from .views import (InvalidModelFormClass, InvalidModelMixin,
     MissingModelMixin, NonTenantModelFormClass, SpecificModelMixin,
     SpecificModelFormMixin, UnspecifiedFormClass)
 from .utils import skipIfCustomTenant, TenancyTestCase
-from django.utils.functional import cached_property
-from django.template.base import TemplateDoesNotExist
 
 
 class TenantTest(TransactionTestCase):
@@ -117,7 +118,7 @@ class TenantModelDescriptorTest(TenancyTestCase):
         self.assertTrue(
             ContentType.objects.filter(
                 app_label=opts.app_label,
-                model=opts.module_name
+                model=model_name_from_opts(opts)
             ).exists()
         )
 
