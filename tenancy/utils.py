@@ -52,7 +52,12 @@ model_sender_signals = (
 
 def receivers_for_model(model):
     # TODO: Remove when support for django < 1.6 is dropped
-    sender_id = model if django.VERSION >= (1, 6) else _make_id(model)
+    sender = model if django.VERSION >= (1, 6) else _make_id(model)
     for signal in model_sender_signals:
-        for receiver in signal._live_receivers(sender_id):
+        for receiver in signal._live_receivers(sender):
             yield signal, receiver
+
+
+def disconnect_signals(model):
+    for signal, receiver in receivers_for_model(model):
+        signal.disconnect(receiver, sender=model)

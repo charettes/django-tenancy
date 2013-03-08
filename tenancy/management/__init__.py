@@ -9,7 +9,8 @@ from django.utils.datastructures import SortedDict
 
 from .. import get_tenant_model
 from ..models import TenantModelBase
-from ..utils import allow_syncdbs, receivers_for_model, remove_from_app_cache
+from ..utils import (allow_syncdbs, disconnect_signals, receivers_for_model,
+    remove_from_app_cache)
 
 
 def get_tenant_models(tenant):
@@ -87,8 +88,7 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
     ContentType.objects.clear_cache()
     for model in tenant_models:
         remove_from_app_cache(model)
-        for signal, receiver in receivers_for_model(model):
-            signal.disconnect(receiver, sender=sender)
+        disconnect_signals(model)
 
 
 @receiver(models.signals.class_prepared)
