@@ -14,8 +14,10 @@ from ..utils import (allow_syncdbs, disconnect_signals, receivers_for_model,
 
 
 def get_tenant_models(tenant):
-    models = [getattr(tenant, base.related_name).model for base in TenantModelBase.instances.values()]
-    for model in list(models):
+    models = []
+    for reference in TenantModelBase.references.values():
+        model = getattr(tenant, reference.related_name).model
+        models.append(model)
         for m2m in model._meta.local_many_to_many:
             if isinstance(m2m.rel.to, TenantModelBase):
                 through = m2m.rel.through

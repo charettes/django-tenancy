@@ -43,7 +43,7 @@ class TenantOptions(object):
             field = copy.deepcopy(related_field)
             rel_to = related_field.rel.to
             if isinstance(rel_to, basestring):
-                rel_to = TenantModelBase.instances[rel_to].model
+                rel_to = TenantModelBase.references[rel_to].model
             related_name = rel_to._tenant_meta.related_name
             field.rel.to = getattr(tenant, related_name).model
             if (isinstance(field, models.ManyToManyField) and
@@ -76,7 +76,8 @@ Reference = namedtuple('Reference', ['related_name', 'model'])
 
 
 class TenantModelBase(models.base.ModelBase):
-    instances = SortedDict()
+    # Map of instances "app_label.ObjectName" -> TenantModelSubclass
+    references = SortedDict()
 
     def __new__(cls, name, bases, attrs):
         super_new = super(TenantModelBase, cls).__new__
@@ -85,7 +86,7 @@ class TenantModelBase(models.base.ModelBase):
             if isinstance(value, RelatedField):
                 rel_to = value.rel.to
                 if isinstance(rel_to, basestring):
-                    if rel_to in cls.instances:
+                    if rel_to in cls.references:
                         related_fields[key] = attrs.pop(key)
         Meta = attrs.setdefault('Meta', meta())
         # It's not an abstract model
@@ -101,7 +102,8 @@ class TenantModelBase(models.base.ModelBase):
             model = super_new(cls, name, bases, attrs)
             opts = model._meta
             # Store instances in order to reference them with related fields
-            cls.instances["%s.%s" % (opts.app_label, opts.object_name)] = Reference(related_name, model)
+            reference_key = "%s.%s" % (opts.app_label, opts.object_name)
+            cls.references[reference_key] = Reference(related_name, model)
             # Attach a descriptor to the tenant model to access the underlying
             # model based on the tenant instance.
             def new(tenant, **attrs):
