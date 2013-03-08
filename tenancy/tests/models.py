@@ -9,6 +9,11 @@ from ..utils import model_sender_signals
 
 patch_related_fields()
 
+
+class NonTenantModel(models.Model):
+    pass
+
+
 class AbstractTenantModel(TenantModel):
     date = models.DateField(null=True)
 
@@ -17,6 +22,8 @@ class AbstractTenantModel(TenantModel):
 
 
 class SpecificModel(AbstractTenantModel):
+    non_tenant = models.ForeignKey(NonTenantModel, null=True)
+
     class Meta:
         app_label = 'tenancy'
         db_table = 'custom_db_table'
@@ -40,7 +47,6 @@ class AbstractSpecificModelSubclass(TenantModel):
 
 
 class RelatedTenantModel(AbstractSpecificModelSubclass):
-    fk = models.ForeignKey(SpecificModel, related_name='fks', null=True)
     m2m = models.ManyToManyField(SpecificModel, related_name='m2ms')
     m2m_through = models.ManyToManyField(SpecificModel, related_name='m2ms_through',
                                          through='M2MSpecific')

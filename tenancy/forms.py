@@ -1,0 +1,33 @@
+from __future__ import unicode_literals
+
+from django.core.exceptions import ImproperlyConfigured
+from django.forms.models import (inlineformset_factory, ModelForm,
+    modelform_factory, modelformset_factory)
+
+from .models import TenantModelBase
+
+
+def _get_tenant_model(tenant, model):
+    if not isinstance(model, TenantModelBase):
+        raise ImproperlyConfigured(
+            "%s must be an instance of TenantModelBase" % model.__name__
+        )
+    return getattr(tenant, model._tenant_meta.related_name).model
+
+
+def tenant_modelform_factory(tenant, model, *args, **kwargs):
+    return modelform_factory(_get_tenant_model(tenant, model), *args, **kwargs)
+
+
+def tenant_modelformset_factory(tenant, model, *args, **kwargs):
+    return modelformset_factory(_get_tenant_model(tenant, model), *args, **kwargs)
+
+
+def tenant_inlineformset_factory(tenant, parent_model, model, form=ModelForm, *args, **kwargs):
+    try:
+        parent_model = _get_tenant_model(tenant, parent_model)
+    except ImproperlyConfigured:
+        # Allow parent model to be non-tenant model
+        pass
+    tenant_model = _get_tenant_model(tenant, model)
+    return inlineformset_factory(parent_model, tenant_model, *args, **kwargs)
