@@ -2,9 +2,9 @@ from __future__ import unicode_literals
 
 from django.db import models
 
-from ..management import model_sender_signals
 from ..models import TenantModel
 from ..monkey import patch_related_fields
+from ..utils import model_sender_signals
 
 
 patch_related_fields()

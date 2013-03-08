@@ -4,18 +4,12 @@ import django
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.color import no_style
 from django.db import connections, models, router, transaction
-from django.dispatch.dispatcher import _make_id, receiver
+from django.dispatch.dispatcher import receiver
 from django.utils.datastructures import SortedDict
 
 from .. import get_tenant_model
 from ..models import TenantModelBase
-from ..utils import remove_from_app_cache
-
-
-def allow_syncdbs(model):
-    for db in connections:
-        if router.allow_syncdb(db, model):
-            yield db
+from ..utils import allow_syncdbs, receivers_for_model, remove_from_app_cache
 
 
 def get_tenant_models(tenant):
@@ -93,15 +87,9 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
     ContentType.objects.clear_cache()
     for model in tenant_models:
         remove_from_app_cache(model)
+        for signal, receiver in receivers_for_model(model):
+            signal.disconnect(receiver, sender=sender)
 
-model_sender_signals = (
-    models.signals.pre_init,
-    models.signals.post_init,
-    models.signals.pre_save,
-    models.signals.post_save,
-    models.signals.pre_delete,
-    models.signals.post_delete,
-)
 
 @receiver(models.signals.class_prepared)
 def attach_signals(signal, sender, **kwargs):
@@ -109,9 +97,5 @@ def attach_signals(signal, sender, **kwargs):
     Re-attach signals to tenant models
     """
     if isinstance(sender, TenantModelBase) and sender._meta.managed:
-        abstract_sender = sender.__bases__[0]
-        # TODO: Remove when support for Django < 1.6 is dropped
-        sender_id = abstract_sender if django.VERSION >= (1, 6) else _make_id(abstract_sender)
-        for signal in model_sender_signals:
-            for receiver in signal._live_receivers(sender_id):
-                signal.connect(receiver, sender=sender)
+        for signal, receiver in receivers_for_model(sender.__bases__[0]):
+            signal.connect(receiver, sender=sender)
