@@ -1,7 +1,9 @@
 from __future__ import unicode_literals
 
 from django.core.exceptions import ImproperlyConfigured
+from django.forms.models import ModelForm, modelform_factory
 from django.views.generic.detail import SingleObjectMixin
+from django.views.generic.edit import ModelFormMixin
 
 from .models import TenantModelBase
 
@@ -32,3 +34,34 @@ class SingleTenantObjectMixin(TenantMixin, SingleObjectMixin):
             return getattr(tenant, related_name).all()
         raise ImproperlyConfigured("%s is missing a model." %
                                    self.__class__.__name__)
+
+
+class TenantModelFormMixin(SingleTenantObjectMixin, ModelFormMixin):
+    def get_form_class(self):
+        """
+        Provide a model form class based on tenant specific model.
+
+        If a `form_class` attribute is specified it makes sure it's associated
+        model is coherent with the one specified on this class.
+        """
+        form_class = self.form_class
+        model = self.get_queryset().model
+        if form_class:
+            form_class_model = form_class._meta.model
+            if form_class_model:
+                if isinstance(form_class_model, TenantModelBase):
+                    if not issubclass(model, form_class_model):
+                        msg = "%s's model: %s, is not a subclass of it's `form_class` model: %s."
+                        raise ImproperlyConfigured(
+                            msg % (
+                                self.__class__.__name__,
+                                model.__name__,
+                                form_class_model.__name__
+                            )
+                        )
+                else:
+                    msg = "%s.form_class' model is not an instance of TenantModelBase."
+                    raise ImproperlyConfigured(msg % self.__class__.__name__)
+        else:
+            form_class = ModelForm
+        return modelform_factory(model, form_class)
