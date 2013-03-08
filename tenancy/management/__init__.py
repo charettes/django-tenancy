@@ -18,10 +18,11 @@ def get_tenant_models(tenant):
     for reference in TenantModelBase.references.values():
         model = getattr(tenant, reference.related_name).model
         models.append(model)
-        for m2m in model._meta.local_many_to_many:
+        opts = model._meta
+        for m2m in opts.local_many_to_many:
             if isinstance(m2m.rel.to, TenantModelBase):
                 through = m2m.rel.through
-                if through not in models:
+                if not isinstance(through, (basestring, TenantModelBase)):
                     models.append(through)
     return models
 

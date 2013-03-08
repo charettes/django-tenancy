@@ -33,24 +33,38 @@ class Tenant(AbstractTenant):
 
 
 class TenantOptions(object):
-    def __init__(self, related_name, related_fields):
+    def __init__(self, model_name, related_name, related_fields):
+        self.model_name = model_name
         self.related_name = related_name
         self.related_fields = related_fields
+
+    def model_name_for_tenant(self, tenant):
+        return "Tenant_%s_%s" % (tenant.pk, self.model_name)
 
     def related_fields_for_tenant(self, tenant, opts):
         fields = {}
         for fname, related_field in self.related_fields.items():
             field = copy.deepcopy(related_field)
-            rel_to = related_field.rel.to
-            if isinstance(rel_to, basestring):
-                rel_to = TenantModelBase.references[rel_to].model
-            related_name = rel_to._tenant_meta.related_name
+            to = related_field.rel.to
+            if isinstance(to, basestring):
+                to = TenantModelBase.references[to].model
+            related_name = to._tenant_meta.related_name
             field.rel.to = getattr(tenant, related_name).model
-            if (isinstance(field, models.ManyToManyField) and
-                not field.rel.through):
-                if field.name is None:
-                    field.name = fname
-                field.db_table = db_schema_table(tenant, field._get_m2m_db_table(opts))
+            if isinstance(field, models.ManyToManyField):
+                through = field.rel.through
+                if field.rel.through:
+                    if isinstance(through, basestring):
+                        if '.' in through:
+                            reference_key = through
+                        else:
+                            reference_key = "%s.%s" % (opts.app_label, through)
+                        model = TenantModelBase.references[reference_key].model
+                        model_name = model._tenant_meta.model_name_for_tenant(tenant)
+                        field.rel.through = "%s.%s" % (model._meta.app_label, model_name)
+                else:
+                    if field.name is None:
+                        field.name = fname
+                    field.db_table = db_schema_table(tenant, field._get_m2m_db_table(opts))
             fields[fname] = field
         return fields
 
@@ -107,10 +121,12 @@ class TenantModelBase(models.base.ModelBase):
             # Attach a descriptor to the tenant model to access the underlying
             # model based on the tenant instance.
             def new(tenant, **attrs):
+                tenant_opts = model._tenant_meta
+                model_name = str(tenant_opts.model_name_for_tenant(tenant))
                 attrs.update(
                     tenant=tenant,
                     __module__=module,
-                    **model._tenant_meta.related_fields_for_tenant(tenant, opts)
+                    **tenant_opts.related_fields_for_tenant(tenant, opts)
                 )
                 type_bases = [model]
                 for base in bases:
@@ -126,14 +142,14 @@ class TenantModelBase(models.base.ModelBase):
                     elif not base._meta.abstract:
                         # model already extends this base
                         type_bases.append(base)
-                return super_new(cls, str("Tenant_%s_%s" % (tenant.pk, name)), tuple(type_bases), attrs)
+                return super_new(cls, model_name, tuple(type_bases), attrs)
             descriptor = TenantModelDescriptor(new, opts)
             tenant_model = get_tenant_model(model._meta.app_label)
             setattr(tenant_model, related_name, descriptor)
         else:
             related_name = None
             model = super_new(cls, name, bases, attrs)
-        model._tenant_meta = TenantOptions(related_name, related_fields)
+        model._tenant_meta = TenantOptions(name, related_name, related_fields)
         return model
 
 

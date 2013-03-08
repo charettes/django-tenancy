@@ -42,9 +42,19 @@ class AbstractSpecificModelSubclass(TenantModel):
 class RelatedTenantModel(AbstractSpecificModelSubclass):
     fk = models.ForeignKey(SpecificModel, related_name='fks', null=True)
     m2m = models.ManyToManyField(SpecificModel, related_name='m2ms')
+    m2m_through = models.ManyToManyField(SpecificModel, related_name='m2ms_through',
+                                         through='M2MSpecific')
 
     class TenantMeta:
         related_name = 'related_tenant_models'
+
+
+class M2MSpecific(TenantModel):
+    related = models.ForeignKey(RelatedTenantModel)
+    specific = models.ForeignKey(SpecificModel)
+
+    class TenantMeta:
+        related_name = 'm2m_specifics'
 
 
 class RelatedTenantModelSubclass(RelatedTenantModel):

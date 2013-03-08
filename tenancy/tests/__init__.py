@@ -16,7 +16,7 @@ from ..views import SingleTenantObjectMixin
 
 from .forms import SpecificModelForm
 from .models import (AbstractTenantModel, AbstractSpecificModelSubclass,
-    RelatedSpecificModel, SpecificModel, SpecificModelSubclass)
+    M2MSpecific, RelatedSpecificModel, SpecificModel, SpecificModelSubclass)
 from .views import (InvalidModelFormClass, InvalidModelMixin,
     MissingModelMixin, NonTenantModelFormClass, SpecificModelMixin,
     SpecificModelFormMixin, UnspecifiedFormClass)
@@ -139,7 +139,7 @@ class TenantModelTest(TenancyTestCase):
             # Test reverse filtering
             self.assertEqual(tenant.specificmodels.filter(fks=related).get(), specific)
 
-    def test_m2m_between_tenant_models(self):
+    def test_m2m(self):
         """
         Make sure m2m between TenantModels work correctly.
         """
@@ -151,6 +151,17 @@ class TenantModelTest(TenancyTestCase):
             self.assertEqual(specific_model.m2ms.get(), related)
             # Test reverse filtering
             self.assertEqual(tenant.specificmodels.filter(m2ms=related).get(), specific_model)
+
+    def test_m2m_with_through(self):
+        for tenant in Tenant.objects.all():
+            related = tenant.related_tenant_models.create()
+            specific = tenant.specificmodels.create()
+            tenant.m2m_specifics.create(
+                related=related,
+                specific=specific
+            )
+            self.assertEqual(related.m2m_through.get(), specific)
+            self.assertEqual(specific.m2ms_through.get(), related)
 
     def test_subclassing(self):
         """
