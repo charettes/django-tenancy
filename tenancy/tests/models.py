@@ -11,7 +11,8 @@ patch_related_fields()
 
 
 class NonTenantModel(models.Model):
-    pass
+    class Meta:
+        app_label = 'tenancy'
 
 
 class AbstractTenantModel(TenantModel):
@@ -22,7 +23,11 @@ class AbstractTenantModel(TenantModel):
 
 
 class SpecificModel(AbstractTenantModel):
-    non_tenant = models.ForeignKey(NonTenantModel, null=True)
+    non_tenant = models.ForeignKey(
+        NonTenantModel,
+        related_name="%(tenant)s_specificmodels",
+        null=True
+    )
 
     class Meta:
         app_label = 'tenancy'

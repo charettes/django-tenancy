@@ -4,8 +4,11 @@ import copy
 
 import django
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, models
-from django.db.models.fields.related import RelatedField
+from django.db.models.fields.related import (RelatedField,
+    RECURSIVE_RELATIONSHIP_CONSTANT)
+from django.db.models.loading import get_model
 from django.utils.datastructures import SortedDict
 
 from . import get_tenant_model
@@ -33,41 +36,10 @@ class Tenant(AbstractTenant):
         return "tenant_%s" % self.name
 
 
-class TenantOptions(object):
-    def __init__(self, model_name, related_name, related_fields):
-        self.model_name = model_name
-        self.related_name = related_name
-        self.related_fields = related_fields
-
-    def model_name_for_tenant(self, tenant):
-        return "Tenant_%s_%s" % (tenant.pk, self.model_name)
-
-    def related_fields_for_tenant(self, tenant, opts):
-        fields = {}
-        for fname, related_field in self.related_fields.items():
-            field = copy.deepcopy(related_field)
-            to = related_field.rel.to
-            if isinstance(to, basestring):
-                to = TenantModelBase.references[to].model
-            related_name = to._tenant_meta.related_name
-            field.rel.to = getattr(tenant, related_name).model
-            if isinstance(field, models.ManyToManyField):
-                through = field.rel.through
-                if field.rel.through:
-                    if isinstance(through, basestring):
-                        if '.' in through:
-                            reference_key = through
-                        else:
-                            reference_key = "%s.%s" % (opts.app_label, through)
-                        model = TenantModelBase.references[reference_key].model
-                        model_name = model._tenant_meta.model_name_for_tenant(tenant)
-                        field.rel.through = "%s.%s" % (model._meta.app_label, model_name)
-                else:
-                    if field.name is None:
-                        field.name = fname
-                    field.db_table = db_schema_table(tenant, field._get_m2m_db_table(opts))
-            fields[fname] = field
-        return fields
+TenantOptions = namedtuple(
+    'TenantOptions',
+    ('model_name',  'related_name', 'model')
+)
 
 
 def meta(**opts):
@@ -87,22 +59,33 @@ def db_schema_table(tenant, db_table):
         return "%s_%s" % (tenant.db_schema, db_table)
 
 
-Reference = namedtuple('Reference', ['related_name', 'model'])
+class Reference(object):
+    __slots__ = ('identifier', 'related_name', 'model')
+
+    def __init__(self, identifier, related_name, model):
+        self.identifier = identifier
+        self.related_name = related_name
+        self.model = model
+
+    def object_name_for_tenant(self, tenant):
+        return "Tenant_%s_%s" % (tenant.pk, self.model._meta.object_name)
+
+    def model_for_tenant(self, tenant, identifier=False):
+        app_label = self.model._meta.app_label
+        object_name = self.object_name_for_tenant(tenant)
+        model = get_model(app_label, object_name.lower(), only_installed=False)
+        if model:
+            return model
+        elif identifier:
+            return "%s.%s" % (app_label, object_name)
 
 
 class TenantModelBase(models.base.ModelBase):
-    # Map of instances "app_label.ObjectName" -> TenantModelSubclass
-    references = SortedDict()
+    references = SortedDict() # Map of instances "app_label.ObjectName" -> TenantModelBaseInstance
+    base = None # Reference to the first declared instance of TenantModelBase
 
     def __new__(cls, name, bases, attrs):
         super_new = super(TenantModelBase, cls).__new__
-        related_fields = {}
-        for key, value in attrs.items():
-            if isinstance(value, RelatedField):
-                rel_to = value.rel.to
-                if isinstance(rel_to, basestring):
-                    if rel_to in cls.references:
-                        related_fields[key] = attrs.pop(key)
         Meta = attrs.setdefault('Meta', meta())
         # It's not an abstract model
         if not getattr(Meta, 'abstract', False):
@@ -113,84 +96,200 @@ class TenantModelBase(models.base.ModelBase):
                 related_name = attrs.pop('TenantMeta').related_name
             except (KeyError, AttributeError):
                 related_name = name.lower() + 's'
-            # Create the abstract model to be returned.
-            model = super_new(cls, name, bases, attrs)
+            # Make sure the tenant model base is not subclassing other tenant
+            # model bases.
+            model_bases = tuple(
+                base for base in bases
+                if not isinstance(base, cls) or
+                   not base._tenant_meta.related_name
+            ) or (cls.base,)
+            model = super_new(cls, name, model_bases, attrs)
             opts = model._meta
             # Store instances in order to reference them with related fields
-            reference_key = "%s.%s" % (opts.app_label, opts.object_name)
-            cls.references[reference_key] = Reference(related_name, model)
-            # Attach a descriptor to the tenant model to access the underlying
-            # model based on the tenant instance.
+            identifier = "%s.%s" % (opts.app_label, opts.object_name)
+            reference = Reference(identifier, related_name, model)
+            cls.references[identifier] = reference
+            # Create missing intermediary models
+            for m2m in opts.local_many_to_many:
+                if not m2m.rel.through:
+                    through = cls.intermediary_model_factory(m2m, reference)
+                    m2m.rel.through = through
             def new(tenant, **attrs):
-                tenant_opts = model._tenant_meta
-                model_name = str(tenant_opts.model_name_for_tenant(tenant))
                 attrs.update(
                     tenant=tenant,
                     __module__=module,
-                    **tenant_opts.related_fields_for_tenant(tenant, opts)
+                    _tenant_meta=TenantOptions(name, related_name, model)
                 )
-                type_bases = [model]
+                new_bases = [cls.base_for_tenant(model, tenant, reference)]
                 for base in bases:
                     if isinstance(base, cls):
                         base_tenant_opts = base._tenant_meta
                         base_related_name = base_tenant_opts.related_name
                         if base_related_name:
-                            type_bases.append(getattr(tenant, base_related_name).model)
-                            continue
-                        else:
-                            # Add related tenant fields of the base since it's abstract
-                            attrs.update(base_tenant_opts.related_fields_for_tenant(tenant, opts))
-                    elif not base._meta.abstract:
-                        # model already extends this base
-                        type_bases.append(base)
-                return super_new(cls, model_name, tuple(type_bases), attrs)
-            descriptor = TenantModelDescriptor(new, opts)
+                            tenant_base = getattr(tenant, base_related_name).model
+                            new_bases.append(tenant_base)
+                        else: assert issubclass(model, base)  # Safeguard
+                    else:
+                        new_bases.append(base)
+                object_name = str(reference.object_name_for_tenant(tenant))
+                if opts.auto_created:
+                    from_related_name = opts.auto_created._tenant_meta.related_name
+                    auto_created_for = getattr(tenant, from_related_name).model
+                    attrs['Meta'] = meta(auto_created=auto_created_for)
+                tenant_model = super_new(cls, object_name, tuple(new_bases), attrs)
+                ContentType.objects.get_for_model(tenant_model)
+                return tenant_model
+            # Attach a descriptor to the tenant model to access the underlying
+            # model based on the tenant instance.
+            descriptor = TenantModelDescriptor(new, reference)
             tenant_model = get_tenant_model(model._meta.app_label)
             setattr(tenant_model, related_name, descriptor)
         else:
             related_name = None
             model = super_new(cls, name, bases, attrs)
-        model._tenant_meta = TenantOptions(name, related_name, related_fields)
+            if not cls.base:
+                cls.base = model
+        model._tenant_meta = TenantOptions(name, related_name, None)
         return model
+
+    @classmethod
+    def intermediary_model_factory(cls, field, reference):
+        from_model = reference.model
+        to_model = field.rel.to
+        opts = from_model._meta
+        from_model_name = model_name_from_opts(opts)
+        managed = True
+        if to_model == RECURSIVE_RELATIONSHIP_CONSTANT:
+            from_ = "from_%s" % from_model_name
+            to = "to_%s" % from_model_name
+            to_model = from_model
+            managed = opts.managed
+        else:
+            from_ = from_model_name
+            if isinstance(to_model, basestring):
+                to = to_model.split('.')[-1].lower()
+                # TODO: Handle managed in this case
+            else:
+                to = model_name_from_opts(to_model)
+                managed = opts.managed or to_model._meta.managed
+        name = '%s_%s' % (opts.object_name, field.name)
+        Meta = meta(
+            db_table=field._get_m2m_db_table(opts),
+            managed=managed,
+            auto_created=reference.model,
+            app_label=opts.app_label,
+            db_tablespace=opts.db_tablespace,
+            unique_together=(from_, to),
+            verbose_name="%(from)s-%(to)s relationship" % {'from': from_, 'to': to},
+            verbose_name_plural="%(from)s-%(to)s relationships" % {'from': from_, 'to': to}
+        )
+        # TODO: Add support for db_constraints
+        return cls(str(name), (TenantModel,), {
+            'Meta': Meta,
+            '__module__': reference.model.__module__,
+            from_: models.ForeignKey(
+                reference.identifier, related_name="%s+" % name,
+                db_tablespace=field.db_tablespace
+            ),
+            to: models.ForeignKey(
+                to_model, related_name="%s+" % name,
+                db_tablespace=field.db_tablespace
+            ),
+        })
+
+    @classmethod
+    def base_for_tenant(cls, model, tenant, reference):
+        """
+        Creates an abstract base with replaced related fields to be used when
+        creating concrete tenant models.
+        """
+        name = model.__name__
+        object_name = str("Abstract%s" % reference.object_name_for_tenant(tenant))
+        attrs = {
+            'Meta': meta(abstract=True),
+            '__module__': model.__module__
+        }
+        base = cls(object_name, (model,), attrs)
+        opts = base._meta
+        related_fields = [
+            field for field in opts.local_fields
+            if isinstance(field, RelatedField)
+        ] + opts.local_many_to_many
+        for related_field in related_fields:
+            to = related_field.rel.to
+            if isinstance(to, basestring):
+                if '.' not in to:
+                    to = "%s.%s" % (opts.app_label, to)
+                to_reference = cls.references.get(to)
+                if to_reference:
+                    # This field points to a tenant model, we must replace it.
+                    field = copy.deepcopy(related_field)
+                    field.rel.to = to_reference.model_for_tenant(tenant, identifier=True)
+                    if isinstance(field, models.ManyToManyField):
+                        through = field.rel.through
+                        if isinstance(through, cls):
+                            through_opts = through._meta
+                            through = "%s.%s" % (through_opts.app_label, through_opts.object_name)
+                        if isinstance(through, basestring):
+                            if '.' not in through:
+                                through = "%s.%s" % (opts.app_label, through)
+                            through_reference = cls.references[through]
+                            field.rel.through = through_reference.model_for_tenant(tenant, identifier=True)
+                        else:
+                            raise ImproperlyConfigured(
+                                "Since `%s.%s` is originating from an "
+                                "instance of `TenantModelBase` it's "
+                                "`through` option must also be an "
+                                "instance of `TenantModelBase`."  % (
+                                    name, related_field.name
+                                )
+                            )
+                        opts.local_many_to_many.remove(related_field)
+                    else:
+                        opts.local_fields.remove(related_field)
+                    field.contribute_to_class(base, field.name)
+            elif not isinstance(to, cls):
+                to_related_name = related_field.rel.related_name
+                if (not to_related_name or
+                    not (to_related_name.endswith('+') or
+                         '%(tenant)s' in to_related_name)):
+                    raise ImproperlyConfigured(
+                        "Since `%s.%s` is originating for an instance "
+                        "of `TenantModelBase` and not pointing to one "
+                        "it's `related_name` option must ends with a "
+                        "'+' or contain the '%%(tenant)s' format "
+                        "placeholder." % (name, related_field.name)
+                    )
+                else:
+                    field = copy.deepcopy(related_field)
+                    field.rel.related_name = to_related_name % {
+                        'app_label': '%(app_label)s',
+                        'class': '%(class)s',
+                        'tenant': tenant.db_schema,
+                    }
+                    opts.local_fields.remove(related_field)
+                    field.contribute_to_class(base, field.name)
+        return base
 
 
 class TenantModelDescriptor(object):
-    def __init__(self, new, opts):
+    def __init__(self, new, reference):
         self.new = new
-        self.opts = opts
+        self.reference = reference
+        self.opts = reference.model._meta
 
-    def natural_key(self, tenant):
-        return (
-            self.opts.app_label,
-            "tenant_%s_%s" % (tenant.pk, model_name_from_opts(self.opts))
-        )
-
-    def __get__(self, instance, owner):
-        if not instance:
+    def __get__(self, tenant, owner):
+        if not tenant:
             return self
-        try:
-            natural_key = self.natural_key(instance)
-            content_type = ContentType.objects.get_by_natural_key(*natural_key)
-        except ContentType.DoesNotExist:
-            # We must create the content type and the model class
-            content_type = model_class = None
-        else:
-            # Attempt to retrieve the model class from the content type.
-            # At this point, the model class can be None if it's cached yet.
-            model_class = content_type.model_class()
-        if model_class is None:
-            # The model class has not been created yet, we define it.
+        model = self.reference.model_for_tenant(tenant)
+        if not model:
             # TODO: Use `db_schema` once django #6148 is fixed.
-            db_table = db_schema_table(instance, self.opts.db_table)
-            model_class = self.new(
-                tenant=instance,
+            db_table = db_schema_table(tenant, self.opts.db_table)
+            model = self.new(
+                tenant=tenant,
                 Meta=meta(app_label=self.opts.app_label, db_table=db_table)
             )
-            # Make sure to create the content type associated with this model
-            # class that was just created.
-            if content_type is None:
-                ContentType.objects.get_for_model(model_class)
-        return model_class._default_manager
+        return model._default_manager
 
 
 class TenantModel(models.Model):

@@ -100,5 +100,5 @@ def attach_signals(signal, sender, **kwargs):
     Re-attach signals to tenant models
     """
     if isinstance(sender, TenantModelBase) and sender._meta.managed:
-        for signal, receiver in receivers_for_model(sender.__bases__[0]):
+        for signal, receiver in receivers_for_model(sender._tenant_meta.model):
             signal.connect(receiver, sender=sender)
