@@ -169,6 +169,17 @@ class TenantModelTest(TenancyTestCase):
             self.assertEqual(related.m2m_through.get(), specific)
             self.assertEqual(specific.m2ms_through.get(), related)
 
+    def test_non_tenant_related_descriptor(self):
+        """
+        Make sure related descriptor are correctly attached to non-tenant
+        models and removed on tenant deletion.
+        """
+        for tenant in Tenant.objects.all():
+            attr = "tenant_%s_specificmodels" % tenant.name
+            self.assertTrue(hasattr(NonTenantModel, attr))
+            tenant.delete()
+            self.assertFalse(hasattr(NonTenantModel, attr))
+
     def test_subclassing(self):
         """
         Make sure tenant model subclasses share the same tenant.

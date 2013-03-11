@@ -4,6 +4,7 @@ import django
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.color import no_style
 from django.db import connections, models, router, transaction
+from django.db.models.fields.related import RelatedField
 from django.dispatch.dispatcher import receiver
 from django.utils.datastructures import SortedDict
 
@@ -92,6 +93,15 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
     for model in tenant_models:
         remove_from_app_cache(model)
         disconnect_signals(model)
+        related_fields = [
+            field for field in model._meta.local_fields
+            if isinstance(field, RelatedField)
+        ] + model._meta.local_many_to_many
+        for field in related_fields:
+            to = field.rel.to
+            if (not isinstance(to, TenantModelBase) and
+                not field.rel.is_hidden()):
+                delattr(to, field.related.get_accessor_name())
 
 
 @receiver(models.signals.class_prepared)
