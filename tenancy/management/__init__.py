@@ -10,8 +10,8 @@ from django.utils.datastructures import SortedDict
 
 from .. import get_tenant_model
 from ..models import TenantModelBase
-from ..utils import (allow_syncdbs, disconnect_signals, receivers_for_model,
-    remove_from_app_cache)
+from ..utils import (allow_syncdbs, clear_opts_related_cache,
+    disconnect_signals, receivers_for_model, remove_from_app_cache)
 
 
 def get_tenant_models(tenant):
@@ -99,9 +99,10 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
         ] + model._meta.local_many_to_many
         for field in related_fields:
             to = field.rel.to
-            if (not isinstance(to, TenantModelBase) and
-                not field.rel.is_hidden()):
-                delattr(to, field.related.get_accessor_name())
+            if not isinstance(to, TenantModelBase):
+                clear_opts_related_cache(to)
+                if not field.rel.is_hidden():
+                    delattr(to, field.related.get_accessor_name())
 
 
 @receiver(models.signals.class_prepared)

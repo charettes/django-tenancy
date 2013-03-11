@@ -178,6 +178,21 @@ class TenantModelTest(TenancyTestCase):
             self.assertEqual(related.m2m_through.get(), specific)
             self.assertEqual(specific.m2ms_through.get(), related)
 
+    def test_m2m_to_non_tenant(self):
+        """
+        Make sure m2m between TenantModels work correctly.
+        """
+        for tenant in Tenant.objects.all():
+            # Test object creation
+            related = tenant.related_tenant_models.create()
+            non_tenant = related.m2m_non_tenant.create()
+            # Test reverse related manager
+            reverse_descriptor_name = "tenant_%s_relatedtenantmodels" % tenant.name
+            self.assertEqual(getattr(non_tenant, reverse_descriptor_name).get(), related)
+            # Test reverse filtering
+            self.assertEqual(NonTenantModel.objects.filter(
+                **{reverse_descriptor_name:related}).get(), non_tenant)
+
     def test_invalid_foreign_key_related_name(self):
         with self.assertRaisesMessage(ImproperlyConfigured,
             "Since `MissingRelatedName.fk` is originating for an instance "

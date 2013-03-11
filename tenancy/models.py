@@ -12,7 +12,7 @@ from django.db.models.loading import get_model
 from django.utils.datastructures import SortedDict
 
 from . import get_tenant_model
-from .utils import model_name_from_opts
+from .utils import clear_opts_related_cache, model_name_from_opts
 
 
 class AbstractTenant(models.Model):
@@ -196,9 +196,13 @@ class TenantModelBase(models.base.ModelBase):
             to_model = from_model
             managed = opts.managed
         else:
-            # TODO: Handle managed in this case
             from_ = from_model_name
-            to = to_model.split('.')[-1].lower()
+            if isinstance(to_model, basestring):
+                to = to_model.split('.')[-1].lower()
+                # TODO: Handle managed in this case
+            else:
+                to = model_name_from_opts(to_model._meta)
+                managed = opts.managed or to_model._meta.managed
         name = '%s_%s' % (opts.object_name, field.name)
         Meta = meta(
             db_table=field._get_m2m_db_table(opts),
@@ -242,7 +246,8 @@ class TenantModelBase(models.base.ModelBase):
             if isinstance(field, RelatedField)
         ] + opts.local_many_to_many
         for related_field in local_related_fields:
-            to = related_field.rel.to
+            field = copy.deepcopy(related_field)
+            to = field.rel.to
             if isinstance(to, basestring):
                 if '.' not in to:
                     to = "%s.%s" % (opts.app_label, to)
@@ -251,23 +256,6 @@ class TenantModelBase(models.base.ModelBase):
                     # This field points to a tenant model, we must replace it.
                     field = copy.deepcopy(related_field)
                     field.rel.to = to_reference.model_for_tenant(tenant, identifier=True)
-                    if isinstance(field, models.ManyToManyField):
-                        through = field.rel.through
-                        if isinstance(through, cls):
-                            through = "%s.%s" % (
-                                through._meta.app_label,
-                                through._meta.object_name
-                            )
-                        elif '.' not in through:
-                            through = "%s.%s" % (opts.app_label, through)
-                        through_reference = cls.references[through]
-                        field.rel.through = through_reference.model_for_tenant(
-                            tenant, identifier=True
-                        )
-                        opts.local_many_to_many.remove(related_field)
-                    else:
-                        opts.local_fields.remove(related_field)
-                    field.contribute_to_class(base, field.name)
             elif not isinstance(to, cls):
                 field = copy.deepcopy(related_field)
                 field.rel.related_name = field.rel.related_name % {
@@ -275,8 +263,24 @@ class TenantModelBase(models.base.ModelBase):
                     'class': model_name_from_opts(model._meta),
                     'tenant': tenant.db_schema
                 }
+                clear_opts_related_cache(to)
+            if isinstance(field, models.ManyToManyField):
+                through = field.rel.through
+                if isinstance(through, cls):
+                    through = "%s.%s" % (
+                        through._meta.app_label,
+                        through._meta.object_name
+                    )
+                elif '.' not in through:
+                    through = "%s.%s" % (opts.app_label, through)
+                through_reference = cls.references[through]
+                field.rel.through = through_reference.model_for_tenant(
+                    tenant, identifier=True
+                )
+                opts.local_many_to_many.remove(related_field)
+            else:
                 opts.local_fields.remove(related_field)
-                field.contribute_to_class(base, field.name)
+            field.contribute_to_class(base, field.name)
         return base
 
 

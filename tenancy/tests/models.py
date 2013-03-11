@@ -60,6 +60,10 @@ class RelatedTenantModel(AbstractSpecificModelSubclass):
     m2m_through = models.ManyToManyField(SpecificModel, related_name='m2ms_through',
                                          through='M2MSpecific')
     m2m_recursive = models.ManyToManyField('self')
+    m2m_non_tenant = models.ManyToManyField(
+        NonTenantModel,
+        related_name="%(tenant)s_%(class)ss"
+    )
 
     class TenantMeta:
         related_name = 'related_tenant_models'
