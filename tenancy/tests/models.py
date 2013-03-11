@@ -25,7 +25,7 @@ class AbstractTenantModel(TenantModel):
 class SpecificModel(AbstractTenantModel):
     non_tenant = models.ForeignKey(
         NonTenantModel,
-        related_name="%(tenant)s_specificmodels",
+        related_name="%(tenant)s_%(class)ss",
         null=True
     )
 

@@ -114,12 +114,21 @@ class TenantModelBase(models.base.ModelBase):
                 if not m2m.rel.through:
                     through = cls.intermediary_model_factory(m2m, reference)
                     m2m.rel.through = through
-            def new(tenant, **attrs):
-                attrs.update(
-                    tenant=tenant,
-                    __module__=module,
-                    _tenant_meta=TenantOptions(name, related_name, model)
-                )
+            def new(tenant):
+                attrs = {
+                    'tenant': tenant,
+                    '__module__': module,
+                    'Meta': meta(
+                        app_label=opts.app_label,
+                        # TODO: Use `db_schema` once django #6148 is fixed.
+                        db_table=db_schema_table(tenant, opts.db_table),
+                    ),
+                    '_tenant_meta': TenantOptions(name, related_name, model)
+                }
+                if opts.auto_created:
+                    from_related_name = opts.auto_created._tenant_meta.related_name
+                    auto_created_for = getattr(tenant, from_related_name).model
+                    attrs['Meta'].auto_created = auto_created_for
                 new_bases = [cls.base_for_tenant(model, tenant, reference)]
                 for base in bases:
                     if isinstance(base, cls):
@@ -132,10 +141,6 @@ class TenantModelBase(models.base.ModelBase):
                     else:
                         new_bases.append(base)
                 object_name = str(reference.object_name_for_tenant(tenant))
-                if opts.auto_created:
-                    from_related_name = opts.auto_created._tenant_meta.related_name
-                    auto_created_for = getattr(tenant, from_related_name).model
-                    attrs['Meta'] = meta(auto_created=auto_created_for)
                 tenant_model = super_new(cls, object_name, tuple(new_bases), attrs)
                 ContentType.objects.get_for_model(tenant_model)
                 return tenant_model
@@ -211,11 +216,11 @@ class TenantModelBase(models.base.ModelBase):
         }
         base = cls(object_name, (model,), attrs)
         opts = base._meta
-        related_fields = [
+        local_related_fields = [
             field for field in opts.local_fields
             if isinstance(field, RelatedField)
         ] + opts.local_many_to_many
-        for related_field in related_fields:
+        for related_field in local_related_fields:
             to = related_field.rel.to
             if isinstance(to, basestring):
                 if '.' not in to:
@@ -263,9 +268,9 @@ class TenantModelBase(models.base.ModelBase):
                 else:
                     field = copy.deepcopy(related_field)
                     field.rel.related_name = to_related_name % {
-                        'app_label': '%(app_label)s',
-                        'class': '%(class)s',
-                        'tenant': tenant.db_schema,
+                        'app_label': model._meta.app_label,
+                        'class': model_name_from_opts(model._meta),
+                        'tenant': tenant.db_schema
                     }
                     opts.local_fields.remove(related_field)
                     field.contribute_to_class(base, field.name)
@@ -276,19 +281,13 @@ class TenantModelDescriptor(object):
     def __init__(self, new, reference):
         self.new = new
         self.reference = reference
-        self.opts = reference.model._meta
 
     def __get__(self, tenant, owner):
         if not tenant:
             return self
         model = self.reference.model_for_tenant(tenant)
         if not model:
-            # TODO: Use `db_schema` once django #6148 is fixed.
-            db_table = db_schema_table(tenant, self.opts.db_table)
-            model = self.new(
-                tenant=tenant,
-                Meta=meta(app_label=self.opts.app_label, db_table=db_table)
-            )
+            model = self.new(tenant)
         return model._default_manager
 
 
