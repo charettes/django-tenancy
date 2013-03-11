@@ -17,7 +17,7 @@ from .. import get_tenant_model
 from ..forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
 from ..middleware import TenantHostMiddleware
-from ..models import Tenant, TenantModelBase
+from ..models import Tenant, TenantModelBase, TenantModelDescriptor
 from ..views import SingleTenantObjectMixin
 from ..utils import model_name_from_opts
 
@@ -95,6 +95,12 @@ class TenantModelBaseTest(TenancyTestCase):
 
 
 class TenantModelDescriptorTest(TenancyTestCase):
+    def test_class_accessing(self):
+        """
+        Make sure the descriptor is available from the class.
+        """
+        self.assertIsInstance(Tenant.specificmodels, TenantModelDescriptor)
+
     def test_related_name(self):
         """
         Make sure the descriptor is correctly attached to the Tenant model
