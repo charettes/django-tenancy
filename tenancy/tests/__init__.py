@@ -194,15 +194,6 @@ class TenantModelTest(TenancyTestCase):
                 **{reverse_descriptor_name:related}).get(), non_tenant)
 
     def test_invalid_foreign_key_related_name(self):
-        with self.assertRaisesMessage(ImproperlyConfigured,
-            "Since `MissingRelatedName.fk` is originating for an instance "
-            "of `TenantModelBase` and not pointing to one "
-            "it's `related_name` option must ends with a "
-            "'+' or contain the '%(tenant)s' format "
-            "placeholder."
-        ):
-            class MissingRelatedName(TenantModel):
-                fk = django_models.ForeignKey(NonTenantModel)
         # Ensure `related_name` with no %(tenant)s format placeholder also
         # raises an improperly configured error.
         with self.assertRaisesMessage(ImproperlyConfigured,
@@ -221,6 +212,7 @@ class TenantModelTest(TenancyTestCase):
         models and removed on tenant deletion.
         """
         for tenant in Tenant.objects.all():
+            self.assertFalse(hasattr(NonTenantModel, 'specificmodel_set'))
             attr = "tenant_%s_specificmodels" % tenant.name
             self.assertTrue(hasattr(NonTenantModel, attr))
             tenant.delete()
@@ -396,7 +388,8 @@ class TenantInlineFormsetFactoryTest(TenancyTestCase):
         formset = tenant_inlineformset_factory(
             self.tenant,
             NonTenantModel,
-            SpecificModel
+            SpecificModel,
+            fk_name='non_tenant'
         )
         tenant_specific_model = self.tenant.specificmodels.model
         self.assertEqual(formset.model, tenant_specific_model)

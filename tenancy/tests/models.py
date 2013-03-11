@@ -32,6 +32,7 @@ class SpecificModel(AbstractTenantModel, TenantModelMixin):
         related_name="%(tenant)s_%(class)ss",
         null=True
     )
+    hidden_non_tenant = models.ForeignKey(NonTenantModel, null=True)
 
     class Meta:
         app_label = 'tenancy'

@@ -171,9 +171,10 @@ class TenantModelBase(models.base.ModelBase):
             pass
         elif not isinstance(to, cls):
             related_name = field.rel.related_name
-            if (not related_name or
-                not (field.rel.is_hidden() or
-                     '%(tenant)s' in related_name)):
+            if not related_name:
+                # Make the reverse relationship hidden by default.
+                field.rel.related_name = '+'
+            elif not (field.rel.is_hidden() or '%(tenant)s' in related_name):
                     raise ImproperlyConfigured(
                         "Since `%s.%s` is originating for an instance "
                         "of `TenantModelBase` and not pointing to one "
