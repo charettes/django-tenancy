@@ -25,7 +25,7 @@ from ..utils import model_name_from_opts
 from .forms import SpecificModelForm
 from .models import (AbstractTenantModel, AbstractSpecificModelSubclass,
     M2MSpecific, NonTenantModel, RelatedSpecificModel, RelatedTenantModel,
-    SpecificModel, SpecificModelSubclass)
+    SpecificModel, SpecificModelSubclass, TenantModelMixin)
 from .views import (InvalidModelFormClass, InvalidModelMixin,
     MissingModelMixin, NonTenantModelFormClass, SpecificModelMixin,
     SpecificModelFormMixin, UnspecifiedFormClass)
@@ -71,6 +71,7 @@ class TenantTest(TransactionTestCase):
 class TenantModelBaseTest(TenancyTestCase):
     def test_instancecheck(self):
         instance = self.tenant.specificmodels.create()
+        self.assertIsInstance(instance, TenantModelMixin)
         self.assertIsInstance(instance, SpecificModel)
         self.assertNotIsInstance(instance, RelatedSpecificModel)
         self.assertIsInstance(instance, django_models.Model)
@@ -84,6 +85,7 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertFalse(issubclass(cls, base))
 
     def test_subclasscheck(self):
+        self.assertIsSubclass(SpecificModel, TenantModelMixin)
         tenant_specific_model = self.tenant.specificmodels.model
         self.assertIsSubclass(tenant_specific_model, AbstractTenantModel)
         self.assertIsSubclass(tenant_specific_model, SpecificModel)

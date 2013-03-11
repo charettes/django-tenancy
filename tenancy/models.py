@@ -196,13 +196,9 @@ class TenantModelBase(models.base.ModelBase):
             to_model = from_model
             managed = opts.managed
         else:
+            # TODO: Handle managed in this case
             from_ = from_model_name
-            if isinstance(to_model, basestring):
-                to = to_model.split('.')[-1].lower()
-                # TODO: Handle managed in this case
-            else:
-                to = model_name_from_opts(to_model)
-                managed = opts.managed or to_model._meta.managed
+            to = to_model.split('.')[-1].lower()
         name = '%s_%s' % (opts.object_name, field.name)
         Meta = meta(
             db_table=field._get_m2m_db_table(opts),

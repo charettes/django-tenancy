@@ -22,7 +22,11 @@ class AbstractTenantModel(TenantModel):
         abstract = True
 
 
-class SpecificModel(AbstractTenantModel):
+class TenantModelMixin(object):
+    pass
+
+
+class SpecificModel(AbstractTenantModel, TenantModelMixin):
     non_tenant = models.ForeignKey(
         NonTenantModel,
         related_name="%(tenant)s_%(class)ss",
@@ -55,13 +59,14 @@ class RelatedTenantModel(AbstractSpecificModelSubclass):
     m2m = models.ManyToManyField(SpecificModel, related_name='m2ms')
     m2m_through = models.ManyToManyField(SpecificModel, related_name='m2ms_through',
                                          through='M2MSpecific')
+    m2m_recursive = models.ManyToManyField('self')
 
     class TenantMeta:
         related_name = 'related_tenant_models'
 
 
 class M2MSpecific(TenantModel):
-    related = models.ForeignKey(RelatedTenantModel)
+    related = models.ForeignKey('RelatedTenantModel')
     specific = models.ForeignKey(SpecificModel)
 
     class TenantMeta:
