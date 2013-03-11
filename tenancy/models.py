@@ -86,6 +86,9 @@ class TenantModelBase(models.base.ModelBase):
 
     def __new__(cls, name, bases, attrs):
         super_new = super(TenantModelBase, cls).__new__
+        for attr, value in attrs.items():
+            if isinstance(value, RelatedField):
+                cls.validate_related_name(name, attr, value)
         Meta = attrs.setdefault('Meta', meta())
         # It's not an abstract model
         if not getattr(Meta, 'abstract', False):
@@ -109,11 +112,10 @@ class TenantModelBase(models.base.ModelBase):
             identifier = "%s.%s" % (opts.app_label, opts.object_name)
             reference = Reference(identifier, related_name, model)
             cls.references[identifier] = reference
-            # Create missing intermediary models
+            # Create missing intermediary model
             for m2m in opts.local_many_to_many:
                 if not m2m.rel.through:
-                    through = cls.intermediary_model_factory(m2m, reference)
-                    m2m.rel.through = through
+                    m2m.rel.through = cls.intermediary_model_factory(m2m, reference)
             def new(tenant):
                 attrs = {
                     'tenant': tenant,
@@ -156,6 +158,30 @@ class TenantModelBase(models.base.ModelBase):
                 cls.base = model
         model._tenant_meta = TenantOptions(name, related_name, None)
         return model
+
+    @classmethod
+    def validate_related_name(cls, name, attr, field):
+        """
+        Make sure that related fields pointing to non-tenant models specify
+        a related name containing a %(tenant)s format placeholder.
+        """
+        to = field.rel.to
+        if isinstance(to, basestring):
+            # TODO: Post-pone validation
+            pass
+        elif not isinstance(to, cls):
+            related_name = field.rel.related_name
+            if (not related_name or
+                not (field.rel.is_hidden() or
+                     '%(tenant)s' in related_name)):
+                    raise ImproperlyConfigured(
+                        "Since `%s.%s` is originating for an instance "
+                        "of `TenantModelBase` and not pointing to one "
+                        "it's `related_name` option must ends with a "
+                        "'+' or contain the '%%(tenant)s' format "
+                        "placeholder." % (name, attr)
+                    )
+
 
     @classmethod
     def intermediary_model_factory(cls, field, reference):
@@ -208,7 +234,6 @@ class TenantModelBase(models.base.ModelBase):
         Creates an abstract base with replaced related fields to be used when
         creating concrete tenant models.
         """
-        name = model.__name__
         object_name = str("Abstract%s" % reference.object_name_for_tenant(tenant))
         attrs = {
             'Meta': meta(abstract=True),
@@ -233,47 +258,29 @@ class TenantModelBase(models.base.ModelBase):
                     if isinstance(field, models.ManyToManyField):
                         through = field.rel.through
                         if isinstance(through, cls):
-                            through_opts = through._meta
-                            through = "%s.%s" % (through_opts.app_label, through_opts.object_name)
-                        if isinstance(through, basestring):
-                            if '.' not in through:
-                                through = "%s.%s" % (opts.app_label, through)
-                            through_reference = cls.references[through]
-                            field.rel.through = through_reference.model_for_tenant(tenant, identifier=True)
-                        else:
-                            raise ImproperlyConfigured(
-                                "Since `%s.%s` is originating from an "
-                                "instance of `TenantModelBase` it's "
-                                "`through` option must also be an "
-                                "instance of `TenantModelBase`."  % (
-                                    name, related_field.name
-                                )
+                            through = "%s.%s" % (
+                                through._meta.app_label,
+                                through._meta.object_name
                             )
+                        elif '.' not in through:
+                            through = "%s.%s" % (opts.app_label, through)
+                        through_reference = cls.references[through]
+                        field.rel.through = through_reference.model_for_tenant(
+                            tenant, identifier=True
+                        )
                         opts.local_many_to_many.remove(related_field)
                     else:
                         opts.local_fields.remove(related_field)
                     field.contribute_to_class(base, field.name)
             elif not isinstance(to, cls):
-                to_related_name = related_field.rel.related_name
-                if (not to_related_name or
-                    not (to_related_name.endswith('+') or
-                         '%(tenant)s' in to_related_name)):
-                    raise ImproperlyConfigured(
-                        "Since `%s.%s` is originating for an instance "
-                        "of `TenantModelBase` and not pointing to one "
-                        "it's `related_name` option must ends with a "
-                        "'+' or contain the '%%(tenant)s' format "
-                        "placeholder." % (name, related_field.name)
-                    )
-                else:
-                    field = copy.deepcopy(related_field)
-                    field.rel.related_name = to_related_name % {
-                        'app_label': model._meta.app_label,
-                        'class': model_name_from_opts(model._meta),
-                        'tenant': tenant.db_schema
-                    }
-                    opts.local_fields.remove(related_field)
-                    field.contribute_to_class(base, field.name)
+                field = copy.deepcopy(related_field)
+                field.rel.related_name = field.rel.related_name % {
+                    'app_label': model._meta.app_label,
+                    'class': model_name_from_opts(model._meta),
+                    'tenant': tenant.db_schema
+                }
+                opts.local_fields.remove(related_field)
+                field.contribute_to_class(base, field.name)
         return base
 
 

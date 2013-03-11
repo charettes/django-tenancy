@@ -17,7 +17,8 @@ from .. import get_tenant_model
 from ..forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
 from ..middleware import TenantHostMiddleware
-from ..models import Tenant, TenantModelBase, TenantModelDescriptor
+from ..models import (Tenant, TenantModel, TenantModelBase,
+    TenantModelDescriptor)
 from ..views import SingleTenantObjectMixin
 from ..utils import model_name_from_opts
 
@@ -174,6 +175,28 @@ class TenantModelTest(TenancyTestCase):
             )
             self.assertEqual(related.m2m_through.get(), specific)
             self.assertEqual(specific.m2ms_through.get(), related)
+
+    def test_invalid_foreign_key_related_name(self):
+        with self.assertRaisesMessage(ImproperlyConfigured,
+            "Since `MissingRelatedName.fk` is originating for an instance "
+            "of `TenantModelBase` and not pointing to one "
+            "it's `related_name` option must ends with a "
+            "'+' or contain the '%(tenant)s' format "
+            "placeholder."
+        ):
+            class MissingRelatedName(TenantModel):
+                fk = django_models.ForeignKey(NonTenantModel)
+        # Ensure `related_name` with no %(tenant)s format placeholder also
+        # raises an improperly configured error.
+        with self.assertRaisesMessage(ImproperlyConfigured,
+            "Since `InvalidRelatedName.fk` is originating for an instance "
+            "of `TenantModelBase` and not pointing to one "
+            "it's `related_name` option must ends with a "
+            "'+' or contain the '%(tenant)s' format "
+            "placeholder."
+        ):
+            class InvalidRelatedName(TenantModel):
+                fk = django_models.ForeignKey(NonTenantModel, related_name='no-tenant')
 
     def test_non_tenant_related_descriptor(self):
         """
