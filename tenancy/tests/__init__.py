@@ -100,13 +100,11 @@ class TenantModelDescriptorTest(TenancyTestCase):
         Make sure the descriptor is correctly attached to the Tenant model
         when the related_name is specified or not.
         """
-        self.assertEqual(
-            Tenant.specificmodels.opts,
-            SpecificModel._meta
+        self.assertTrue(issubclass(
+            self.tenant.specificmodels.model, SpecificModel)
         )
-        self.assertEqual(
-            Tenant.related_specific_models.opts,
-            RelatedSpecificModel._meta
+        self.assertTrue(issubclass(
+            self.tenant.related_specific_models.model, RelatedSpecificModel)
         )
 
     def test_model_class_cached(self):
