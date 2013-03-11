@@ -6,6 +6,7 @@ import django
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, models
+from django.db.models.base import ModelBase
 from django.db.models.fields.related import (RelatedField,
     RECURSIVE_RELATIONSHIP_CONSTANT)
 from django.db.models.loading import get_model
@@ -80,7 +81,7 @@ class Reference(object):
             return "%s.%s" % (app_label, object_name)
 
 
-class TenantModelBase(models.base.ModelBase):
+class TenantModelBase(ModelBase):
     references = SortedDict() # Map of instances "app_label.ObjectName" -> TenantModelBaseInstance
     base = None # Reference to the first declared instance of TenantModelBase
 
@@ -140,7 +141,7 @@ class TenantModelBase(models.base.ModelBase):
                             tenant_base = getattr(tenant, base_related_name).model
                             new_bases.append(tenant_base)
                         else: assert issubclass(model, base)  # Safeguard
-                    else:
+                    elif not isinstance(base, ModelBase) or not base._meta.abstract:
                         new_bases.append(base)
                 object_name = str(reference.object_name_for_tenant(tenant))
                 tenant_model = super_new(cls, object_name, tuple(new_bases), attrs)
@@ -171,10 +172,8 @@ class TenantModelBase(models.base.ModelBase):
             pass
         elif not isinstance(to, cls):
             related_name = field.rel.related_name
-            if not related_name:
-                # Make the reverse relationship hidden by default.
-                field.rel.related_name = '+'
-            elif not (field.rel.is_hidden() or '%(tenant)s' in related_name):
+            if (related_name is not None and
+                not (field.rel.is_hidden() or '%(tenant)s' in related_name)):
                     raise ImproperlyConfigured(
                         "Since `%s.%s` is originating for an instance "
                         "of `TenantModelBase` and not pointing to one "
@@ -258,12 +257,17 @@ class TenantModelBase(models.base.ModelBase):
                     field = copy.deepcopy(related_field)
                     field.rel.to = to_reference.model_for_tenant(tenant, identifier=True)
             elif not isinstance(to, cls):
-                field = copy.deepcopy(related_field)
-                field.rel.related_name = field.rel.related_name % {
-                    'app_label': model._meta.app_label,
-                    'class': model_name_from_opts(model._meta),
-                    'tenant': tenant.db_schema
-                }
+                related_name = field.rel.related_name
+                if related_name is None:
+                    # Hide reverse relationships with unspecified related name
+                    related_name = 'unspecified_for_tenant_model+'
+                else:
+                    related_name = related_name % {
+                        'app_label': model._meta.app_label,
+                        'class': model_name_from_opts(model._meta),
+                        'tenant': tenant.db_schema
+                    }
+                field.rel.related_name = related_name
                 clear_opts_related_cache(to)
             if isinstance(field, models.ManyToManyField):
                 through = field.rel.through

@@ -15,6 +15,13 @@ class NonTenantModel(models.Model):
         app_label = 'tenancy'
 
 
+class AbstractNonTenant(models.Model):
+    hidden_non_tenant = models.ForeignKey(NonTenantModel, null=True)
+
+    class Meta:
+        abstract = True
+
+
 class AbstractTenantModel(TenantModel):
     date = models.DateField(null=True)
 
@@ -26,13 +33,12 @@ class TenantModelMixin(object):
     pass
 
 
-class SpecificModel(AbstractTenantModel, TenantModelMixin):
+class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
     non_tenant = models.ForeignKey(
         NonTenantModel,
         related_name="%(tenant)s_%(class)ss",
         null=True
     )
-    hidden_non_tenant = models.ForeignKey(NonTenantModel, null=True)
 
     class Meta:
         app_label = 'tenancy'
