@@ -200,7 +200,7 @@ class TenantModelTest(TenancyTestCase):
             "Since `InvalidRelatedName.fk` is originating for an instance "
             "of `TenantModelBase` and not pointing to one "
             "it's `related_name` option must ends with a "
-            "'+' or contain the '%(tenant)s' format "
+            "'+' or contain the '%(class)s' format "
             "placeholder."
         ):
             class InvalidRelatedName(TenantModel):
@@ -212,7 +212,6 @@ class TenantModelTest(TenancyTestCase):
         models and removed on tenant deletion.
         """
         for tenant in Tenant.objects.all():
-            self.assertFalse(hasattr(NonTenantModel, 'specificmodel_set'))
             attr = "tenant_%s_specificmodels" % tenant.name
             self.assertTrue(hasattr(NonTenantModel, attr))
             tenant.delete()

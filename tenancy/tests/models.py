@@ -3,11 +3,7 @@ from __future__ import unicode_literals
 from django.db import models
 
 from ..models import TenantModel
-from ..monkey import patch_related_fields
 from ..utils import model_sender_signals
-
-
-patch_related_fields()
 
 
 class NonTenantModel(models.Model):
@@ -36,7 +32,7 @@ class TenantModelMixin(object):
 class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
     non_tenant = models.ForeignKey(
         NonTenantModel,
-        related_name="%(tenant)s_%(class)ss",
+        related_name="%(class)ss",
         null=True
     )
 
@@ -64,12 +60,13 @@ class AbstractSpecificModelSubclass(TenantModel):
 
 class RelatedTenantModel(AbstractSpecificModelSubclass):
     m2m = models.ManyToManyField(SpecificModel, related_name='m2ms')
+    m2m_to_undefined = models.ManyToManyField('SignalTenantModel')
     m2m_through = models.ManyToManyField(SpecificModel, related_name='m2ms_through',
                                          through='M2MSpecific')
     m2m_recursive = models.ManyToManyField('self')
     m2m_non_tenant = models.ManyToManyField(
         NonTenantModel,
-        related_name="%(tenant)s_%(class)ss"
+        related_name="%(class)ss"
     )
 
     class TenantMeta:
