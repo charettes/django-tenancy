@@ -13,7 +13,8 @@ from django.db.models.loading import get_model
 from django.utils.datastructures import SortedDict
 
 from . import get_tenant_model
-from .utils import clear_opts_related_cache, model_name_from_opts
+from .utils import (clear_opts_related_cache, model_name_from_opts,
+    remove_from_app_cache)
 
 
 class AbstractTenant(models.Model):
@@ -119,6 +120,7 @@ class TenantModelBase(ModelBase):
                 'Meta': meta(app_label=opts.app_label, managed=False)}
             )
             reference = Reference(related_name, model)
+            cls.references[model] = reference
             for field in opts.local_fields:
                 if isinstance(field, RelatedField):
                     cls.validate_related_name(field, field.rel.to, model)
@@ -127,10 +129,8 @@ class TenantModelBase(ModelBase):
                 if not m2m.rel.through:
                     m2m.rel.through = cls.intermediary_model_factory(m2m, reference)
                 else:
-                    #TODO: Validate through
-                    pass
+                    cls.validate_through(m2m, m2m.rel.to, model)
             model._tenant_meta = TenantOptions(name, related_name, model)
-            cls.references[model] = reference
             def factory(tenant):
                 object_name = str(reference.object_name_for_tenant(tenant))
                 base = cls.abstract_tenant_model_factory(
@@ -170,13 +170,33 @@ class TenantModelBase(ModelBase):
             related_name = field.rel.related_name
             if (related_name is not None and
                 not (field.rel.is_hidden() or '%(class)s' in related_name)):
+                    del cls.references[model]
+                    remove_from_app_cache(model)
                     raise ImproperlyConfigured(
-                        "Since `%s.%s` is originating for an instance "
+                        "Since `%s.%s` is originating from an instance "
                         "of `TenantModelBase` and not pointing to one "
-                        "it's `related_name` option must ends with a "
+                        "its `related_name` option must ends with a "
                         "'+' or contain the '%%(class)s' format "
                         "placeholder." % (model.__name__, field.name)
                     )
+
+    @classmethod
+    def validate_through(cls, field, rel_to, model):
+        """
+        Make sure the related fields with a specified through points to an
+        instance of `TenantModelBase`.
+        """
+        through = field.rel.through
+        if isinstance(through, basestring):
+            add_lazy_relation(model, field, through, cls.validate_through)
+        elif not isinstance(through, cls):
+            del cls.references[model]
+            remove_from_app_cache(model)
+            raise ImproperlyConfigured(
+                "Since `%s.%s` is originating from an instance of "
+                "`TenantModelBase` its `through` option must also be pointing "
+                "to one." % (model.__name__, field.name)
+            )
 
     @classmethod
     def intermediary_model_factory(cls, field, reference):
@@ -204,8 +224,8 @@ class TenantModelBase(ModelBase):
             verbose_name_plural="%(from)s-%(to)s relationships" % {'from': from_, 'to': to}
         )
         # TODO: Add support for db_constraints
-        name = str("%s_%s" % (opts.object_name, field.name))
-        return cls(name, (cls.tenant_model_class,), {
+        name = str("Tenant_%s_%s" % (opts.object_name, field.name))
+        return type(name, (cls.tenant_model_class,), {
             'Meta': Meta,
             '__module__': reference.model.__module__,
             from_: models.ForeignKey(

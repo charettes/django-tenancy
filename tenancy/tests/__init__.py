@@ -197,14 +197,24 @@ class TenantModelTest(TenancyTestCase):
         # Ensure `related_name` with no %(tenant)s format placeholder also
         # raises an improperly configured error.
         with self.assertRaisesMessage(ImproperlyConfigured,
-            "Since `InvalidRelatedName.fk` is originating for an instance "
+            "Since `InvalidRelatedName.fk` is originating from an instance "
             "of `TenantModelBase` and not pointing to one "
-            "it's `related_name` option must ends with a "
+            "its `related_name` option must ends with a "
             "'+' or contain the '%(class)s' format "
-            "placeholder."
-        ):
+            "placeholder."):
             class InvalidRelatedName(TenantModel):
                 fk = django_models.ForeignKey(NonTenantModel, related_name='no-tenant')
+
+    def test_invalid_m2m_through(self):
+        with self.assertRaisesMessage(ImproperlyConfigured,
+            "Since `InvalidThrough.m2m` is originating from an instance of "
+            "`TenantModelBase` its `through` option must also be pointing "
+            "to one."):
+            class InvalidThrough(TenantModel):
+                m2m = django_models.ManyToManyField(NonTenantModel,
+                                                    through='InvalidIntermediary')
+            class InvalidIntermediary(django_models.Model):
+                pass
 
     def test_non_tenant_related_descriptor(self):
         """
