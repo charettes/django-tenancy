@@ -128,6 +128,9 @@ class TenantModelBase(ModelBase):
                 cls.validate_related_name(m2m, m2m.rel.to, model)
                 if not m2m.rel.through:
                     m2m.rel.through = cls.intermediary_model_factory(m2m, reference)
+                    # Set the automatically created intermediary model of the
+                    # to un-managed mode since it's really just a facade.
+                    model._meta.get_field(m2m.name).rel.through._meta.managed = False
                 else:
                     cls.validate_through(m2m, m2m.rel.to, model)
             model._tenant_meta = TenantOptions(name, related_name, model)

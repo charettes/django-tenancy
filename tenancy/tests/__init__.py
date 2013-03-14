@@ -193,6 +193,18 @@ class TenantModelTest(TenancyTestCase):
             self.assertEqual(NonTenantModel.objects.filter(
                 **{reverse_descriptor_name:related}).get(), non_tenant)
 
+    def test_not_managed_auto_intermediary_model(self):
+        """
+        Make sure that exposed un-managed models with m2m relations have their
+        intermediary models also un-managed.
+        """
+        get_field = RelatedTenantModel._meta.get_field
+        self.assertFalse(get_field('m2m').rel.through._meta.managed)
+        self.assertFalse(get_field('m2m_to_undefined').rel.through._meta.managed)
+        self.assertFalse(get_field('m2m_through').rel.through._meta.managed)
+        self.assertFalse(get_field('m2m_recursive').rel.through._meta.managed)
+        self.assertFalse(get_field('m2m_non_tenant').rel.through._meta.managed)
+
     def test_invalid_foreign_key_related_name(self):
         # Ensure `related_name` with no %(tenant)s format placeholder also
         # raises an improperly configured error.
