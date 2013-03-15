@@ -1,11 +1,12 @@
 from __future__ import unicode_literals
 from collections import namedtuple
 import copy
+from contextlib import contextmanager
 
 import django
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
-from django.db import connections, models
+from django.db import connections, DEFAULT_DB_ALIAS, models
 from django.db.models.base import ModelBase
 from django.db.models.fields.related import (add_lazy_relation,
     RECURSIVE_RELATIONSHIP_CONSTANT)
@@ -20,6 +21,19 @@ from .utils import (clear_opts_related_cache, model_name_from_opts,
 class AbstractTenant(models.Model):
     class Meta:
         abstract = True
+
+    @contextmanager
+    def as_global(self):
+        """
+        Expose this tenant as thread local object. This is required by parts
+        of django relying on global states such as authentification backends.
+        """
+        connection = connections[DEFAULT_DB_ALIAS]
+        try:
+            connection.tenant = self
+            yield
+        finally:
+            del connection.tenant
 
     @property
     def model_name_prefix(self):

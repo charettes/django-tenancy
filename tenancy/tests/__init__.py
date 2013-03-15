@@ -7,8 +7,7 @@ from django.core import serializers
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import (connection, connections, DEFAULT_DB_ALIAS,
-    models as django_models)
+from django.db import connection, models as django_models
 from django.template.base import TemplateDoesNotExist
 from django.test.testcases import TransactionTestCase
 from django.test.utils import override_settings
@@ -607,12 +606,8 @@ else:
 def custom_user_setup(func):
     @wraps(func)
     def wrapped(self, *args, **kwargs):
-        connection = connections[DEFAULT_DB_ALIAS]
-        connection.tenant = self.tenant
-        try:
+        with self.tenant.as_global():
             func(self, *args, **kwargs)
-        finally:
-            delattr(connection, 'tenant')
     return skipUnless(
         has_custom_user_support,
         'No custom user support.'
