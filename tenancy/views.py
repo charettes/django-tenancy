@@ -4,6 +4,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import ModelForm, modelform_factory
 
 from .models import TenantModelBase
+from .utils import model_name_from_opts
 
 
 class TenantMixin(object):
@@ -22,17 +23,40 @@ class TenantObjectMixin(TenantMixin):
     on the retrieved tenant.
     """
     model = None
+    template_name_suffix = ''
 
-    def get_queryset(self):
+    def get_model(self):
         if self.model:
             if not isinstance(self.model, TenantModelBase):
                 msg = "%s.model is not an instance of TenantModelBase."
                 raise ImproperlyConfigured(msg % self.__class__.__name__)
-            tenant = self.get_tenant()
-            related_name = self.model._tenant_meta.related_name
-            return getattr(tenant, related_name).all()
-        raise ImproperlyConfigured("%s is missing a model." %
-                                   self.__class__.__name__)
+            return self.model
+        raise ImproperlyConfigured(
+            "%s is missing a model." % self.__class__.__name__
+        )
+
+    def get_tenant_model(self):
+        model = self.get_model()
+        tenant = self.get_tenant()
+        return getattr(tenant, model._tenant_meta.related_name).model
+
+    def get_queryset(self):
+        return self.get_tenant_model()._default_manager.all()
+
+    def get_template_names(self):
+        try:
+            names = super(TenantObjectMixin, self).get_template_names()
+        except (AttributeError, ImproperlyConfigured):
+            names = []
+
+        model = self.get_model()
+        names.append("%s/%s%s.html" % (
+            model._meta.app_label,
+            model_name_from_opts(model._meta),
+            self.template_name_suffix
+        ))
+
+        return names
 
 
 class TenantModelFormMixin(TenantObjectMixin):

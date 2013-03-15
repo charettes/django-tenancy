@@ -372,19 +372,19 @@ class CreateTenantCommandTest(TransactionTestCase):
         Tenant.objects.get(name='tenant').delete()
 
 
-class SingleTenantObjectMixinTest(TenancyTestCase):
+class TenantObjectMixinTest(TenancyTestCase):
     def test_missing_model(self):
         self.assertRaisesMessage(
             ImproperlyConfigured,
             'MissingModelMixin is missing a model.',
-            MissingModelMixin().get_queryset
+            MissingModelMixin().get_model
         )
 
     def test_invalid_model(self):
         self.assertRaisesMessage(
             ImproperlyConfigured,
             'InvalidModelMixin.model is not an instance of TenantModelBase.',
-            InvalidModelMixin().get_queryset
+            InvalidModelMixin().get_model
         )
 
     def test_get_queryset(self):
@@ -392,6 +392,12 @@ class SingleTenantObjectMixinTest(TenancyTestCase):
         self.assertEqual(
             specific_model,
             SpecificModelMixin().get_queryset().get()
+        )
+
+    def test_get_template_names(self):
+        self.assertIn(
+            'tenancy/specificmodel.html',
+            SpecificModelMixin().get_template_names()
         )
 
 
