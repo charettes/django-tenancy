@@ -2,8 +2,6 @@ from __future__ import unicode_literals
 
 from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import ModelForm, modelform_factory
-from django.views.generic.detail import SingleObjectMixin
-from django.views.generic.edit import ModelFormMixin
 
 from .models import TenantModelBase
 
@@ -18,11 +16,12 @@ class TenantMixin(object):
         return self.request.tenant
 
 
-class SingleTenantObjectMixin(TenantMixin, SingleObjectMixin):
+class TenantObjectMixin(TenantMixin):
     """
     View mixin that returns the correct queryset for the specified model based
     on the retrieved tenant.
     """
+    model = None
 
     def get_queryset(self):
         if self.model:
@@ -36,7 +35,9 @@ class SingleTenantObjectMixin(TenantMixin, SingleObjectMixin):
                                    self.__class__.__name__)
 
 
-class TenantModelFormMixin(SingleTenantObjectMixin, ModelFormMixin):
+class TenantModelFormMixin(TenantObjectMixin):
+    form_class = None
+
     def get_form_class(self):
         """
         Provide a model form class based on tenant specific model.

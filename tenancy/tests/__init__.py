@@ -21,7 +21,7 @@ from ..forms import (tenant_inlineformset_factory, tenant_modelform_factory,
 from ..middleware import TenantHostMiddleware
 from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
     TenantModelDescriptor)
-from ..views import SingleTenantObjectMixin
+from ..views import TenantObjectMixin
 from ..utils import model_name_from_opts
 
 from .client import TenantClient

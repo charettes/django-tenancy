@@ -4,7 +4,7 @@ from django.db import models
 from django.forms.models import modelform_factory
 
 from ..models import Tenant
-from ..views import SingleTenantObjectMixin, TenantModelFormMixin
+from ..views import TenantObjectMixin, TenantModelFormMixin
 
 from .forms import SpecificModelForm
 from .models import RelatedSpecificModel, SpecificModel
@@ -20,15 +20,15 @@ class TenancyTestMixin(object):
 
 
 # Classes used by SingleTenantObjectMixinTest
-class MissingModelMixin(SingleTenantObjectMixin):
+class MissingModelMixin(TenantObjectMixin):
     pass
 
 
-class InvalidModelMixin(SingleTenantObjectMixin):
+class InvalidModelMixin(TenantObjectMixin):
     model = models.Model
 
 
-class SpecificModelMixin(TenancyTestMixin, SingleTenantObjectMixin):
+class SpecificModelMixin(TenancyTestMixin, TenantObjectMixin):
     model = SpecificModel
 
 
