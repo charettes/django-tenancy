@@ -5,7 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.color import no_style
 from django.db import connections, models, router, transaction
-from django.db.models.fields.related import add_lazy_relation, RelatedField
+from django.db.models.fields.related import add_lazy_relation
 from django.dispatch.dispatcher import receiver
 from django.utils.datastructures import SortedDict
 
@@ -89,8 +89,7 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
         remove_from_app_cache(model)
         disconnect_signals(model)
         related_fields = [
-            field for field in model._meta.local_fields
-            if isinstance(field, RelatedField)
+            field for field in model._meta.local_fields if field.rel
         ] + model._meta.local_many_to_many
         for field in related_fields:
             to = field.rel.to
@@ -139,7 +138,7 @@ def validate_relationships(signal, sender, **kwargs):
         # improper configuration.
         if not opts.auto_created:
             for field in opts.local_fields:
-                if isinstance(field, RelatedField):
+                if field.rel:
                     validate_not_to_tenant_model(field, field.rel.to, sender)
             for m2m in opts.local_many_to_many:
                 validate_not_to_tenant_model(m2m, m2m.rel.to, sender)

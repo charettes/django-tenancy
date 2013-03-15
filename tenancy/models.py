@@ -7,8 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, models
 from django.db.models.base import ModelBase
-from django.db.models.fields.related import (RelatedField,
-    RECURSIVE_RELATIONSHIP_CONSTANT, add_lazy_relation)
+from django.db.models.fields.related import (add_lazy_relation,
+    RECURSIVE_RELATIONSHIP_CONSTANT)
 from django.db.models.loading import get_model
 from django.utils.datastructures import SortedDict
 
@@ -122,7 +122,7 @@ class TenantModelBase(ModelBase):
             reference = Reference(related_name, model)
             cls.references[model] = reference
             for field in opts.local_fields:
-                if isinstance(field, RelatedField):
+                if field.rel:
                     cls.validate_related_name(field, field.rel.to, model)
             for m2m in opts.local_many_to_many:
                 cls.validate_related_name(m2m, m2m.rel.to, model)
@@ -258,7 +258,7 @@ class TenantModelBase(ModelBase):
         # tenant specific class.
         local_related_fields = [
             field for field in opts.local_fields
-            if isinstance(field, RelatedField) and not field.rel.parent_link
+            if field.rel and not field.rel.parent_link
         ] + opts.local_many_to_many
         for related_field in local_related_fields:
             field = copy.deepcopy(related_field)
