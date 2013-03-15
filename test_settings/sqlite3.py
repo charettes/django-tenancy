@@ -1,4 +1,4 @@
-from . import INSTALLED_APPS, SECRET_KEY
+from . import *
 
 
 DATABASES = {

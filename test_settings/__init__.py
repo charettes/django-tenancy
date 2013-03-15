@@ -11,3 +11,8 @@ except ImportError:
     pass
 else:
     INSTALLED_APPS.append('django_coverage')
+    COVERAGE_MODULE_EXCLUDES = [
+        'tests$',
+        'settings$',
+        'django'
+    ]
