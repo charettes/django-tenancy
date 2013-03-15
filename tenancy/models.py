@@ -145,7 +145,7 @@ class TenantModelBase(ModelBase):
                 )
                 tenant_Meta = meta(**Meta.__dict__)
                 # TODO: Use `db_schema` once django #6148 is fixed.
-                tenant_Meta.db_table = db_schema_table(tenant, opts.db_table)
+                tenant_Meta.db_table = db_schema_table(tenant, model._meta.db_table)
                 tenant_model = super_new(cls, object_name, (base,), {
                     'tenant': tenant,
                     '__module__': module,

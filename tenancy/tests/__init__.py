@@ -17,7 +17,7 @@ from .. import get_tenant_model
 from ..forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
 from ..middleware import TenantHostMiddleware
-from ..models import (Tenant, TenantModel, TenantModelBase,
+from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
     TenantModelDescriptor)
 from ..views import SingleTenantObjectMixin
 from ..utils import model_name_from_opts
@@ -140,6 +140,21 @@ class TenantModelTest(TenancyTestCase):
         self.assertEqual(self.other_tenant.related_specific_models.count(), 0)
         self.other_tenant.related_specific_models.create()
         self.assertEqual(self.tenant.related_specific_models.count(), 1)
+
+    def test_db_table(self):
+        """
+        Make sure the `db_table` associated with tenant models is correctly
+        prefixed based on the tenant and suffixed by the un-managed model's
+        `db_table`.
+        """
+        self.assertEqual(
+            self.tenant.specificmodels.model._meta.db_table,
+            db_schema_table(self.tenant, SpecificModel._meta.db_table)
+        )
+        self.assertEqual(
+            self.tenant.specific_models_subclasses.model._meta.db_table,
+            db_schema_table(self.tenant, SpecificModelSubclass._meta.db_table)
+        )
 
     def test_foreign_key_between_tenant_models(self):
         """
