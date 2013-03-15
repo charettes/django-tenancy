@@ -2,9 +2,10 @@ from __future__ import unicode_literals
 
 import django
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.color import no_style
 from django.db import connections, models, router, transaction
-from django.db.models.fields.related import RelatedField
+from django.db.models.fields.related import add_lazy_relation, RelatedField
 from django.dispatch.dispatcher import receiver
 from django.utils.datastructures import SortedDict
 
@@ -113,3 +114,38 @@ def attach_signals(signal, sender, **kwargs):
     if isinstance(sender, TenantModelBase) and sender._meta.managed:
         for signal, receiver in receivers_for_model(sender._tenant_meta.model):
             signal.connect(receiver, sender=sender)
+
+
+def validate_not_to_tenant_model(field, to, model):
+    """
+    Make sure the `to` relationship is not pointing to an instance of
+    `TenantModelBase`.
+    """
+    if isinstance(to, basestring):
+        add_lazy_relation(model, field, to, validate_not_to_tenant_model)
+    elif isinstance(to, TenantModelBase):
+        remove_from_app_cache(model)
+        raise ImproperlyConfigured(
+            "`%s.%s`'s `to` option` can't point to an instance of "
+            "`TenantModelBase` since it's not one itself." % (
+                model.__name__, field.name
+            )
+        )
+
+
+@receiver(models.signals.class_prepared)
+def validate_relationships(signal, sender, **kwargs):
+    """
+    Non-tenant models can't have relationships pointing to tenant models.
+    """
+    if not isinstance(sender, TenantModelBase):
+        opts = sender._meta
+        # Don't validate auto-intermediary models since they are created
+        # before their origin model (from) and cloak the actual, user-defined
+        # improper configuration.
+        if not opts.auto_created:
+            for field in opts.local_fields:
+                if isinstance(field, RelatedField):
+                    validate_not_to_tenant_model(field, field.rel.to, sender)
+            for m2m in opts.local_many_to_many:
+                validate_not_to_tenant_model(m2m, m2m.rel.to, sender)

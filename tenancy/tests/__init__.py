@@ -273,6 +273,32 @@ class TenantModelTest(TenancyTestCase):
             )
 
 
+class NonTenantModelTest(TransactionTestCase):
+    def test_fk_to_tenant(self):
+        """
+        Non-tenant models shouldn't be allowed to have a ForeignKey pointing
+        to an instance of `TenantModelBase`.
+        """
+        with self.assertRaisesMessage(ImproperlyConfigured,
+            "`NonTenantFkToTenant.fk`'s `to` option` can't point to an "
+            "instance of `TenantModelBase` since it's not one itself."):
+            class NonTenantFkToTenant(django_models.Model):
+                fk = django_models.ForeignKey('UndeclaredSpecificModel')
+            class UndeclaredSpecificModel(TenantModel):
+                pass
+
+    def test_m2m_to_tenant(self):
+        """
+        Non-tenant models shouldn't be allowed to have ManyToManyField pointing
+        to an instance of `TenantModelBase`.
+        """
+        with self.assertRaisesMessage(ImproperlyConfigured,
+            "`NonTenantM2MToTenant.m2m`'s `to` option` can't point to an "
+            "instance of `TenantModelBase` since it's not one itself."):
+            class NonTenantM2MToTenant(django_models.Model):
+                m2m = django_models.ManyToManyField(SpecificModel)
+
+
 # TODO: Remove when support for django 1.4 is dropped
 class raise_cmd_error_stderr(object):
     def write(self, msg):
