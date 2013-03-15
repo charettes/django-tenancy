@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from functools import wraps
 
 import django
 from django.contrib.contenttypes.models import ContentType
@@ -6,7 +7,8 @@ from django.core import serializers
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import models as django_models
+from django.db import (connection, connections, DEFAULT_DB_ALIAS,
+    models as django_models)
 from django.template.base import TemplateDoesNotExist
 from django.test.testcases import TransactionTestCase
 from django.test.utils import override_settings
@@ -14,6 +16,7 @@ from django.utils.functional import cached_property
 from django.utils.unittest.case import skipIf, skipUnless
 
 from .. import get_tenant_model
+from ..auth.backends import CustomTenantUserBackend
 from ..forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
 from ..middleware import TenantHostMiddleware
@@ -22,6 +25,7 @@ from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
 from ..views import SingleTenantObjectMixin
 from ..utils import model_name_from_opts
 
+from .client import TenantClient
 from .forms import SpecificModelForm
 from .models import (AbstractTenantModel, AbstractSpecificModelSubclass,
     M2MSpecific, NonTenantModel, RelatedSpecificModel, RelatedTenantModel,
@@ -495,6 +499,29 @@ class TenantInlineFormsetFactoryTest(TenancyTestCase):
         self.assertEqual(fk, formset.fk)
 
 
+@override_settings(
+    ROOT_URLCONF='tenancy.tests.urls',
+    MIDDLEWARE_CLASSES=(
+        'tenancy.middleware.GlobalTenantMiddleware',
+    )
+)
+class GlobalTenantMiddlewareTest(TenancyTestCase):
+    def setUp(self):
+        super(GlobalTenantMiddlewareTest, self).setUp()
+        self.client = TenantClient(self.tenant)
+
+    def test_process_response(self):
+        response = self.client.get('/tenant')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, self.tenant.name)
+        self.assertRaises(AttributeError, getattr, connection, 'tenant')
+
+    def test_process_exception(self):
+        with self.assertRaisesMessage(Exception, self.tenant.name):
+            self.client.get('/exception')
+        self.assertRaises(AttributeError, getattr, connection, 'tenant')
+
+
 try:
     import django_hosts
 except ImportError:
@@ -542,8 +569,7 @@ class TenantHostMiddlewareTest(TenancyTestCase):
         )
     )
     def test_wrong_order(self):
-        self.assertRaisesMessage(
-            ImproperlyConfigured,
+        self.assertRaisesMessage(ImproperlyConfigured,
             "Make sure that 'django_hosts.middleware.HostsMiddleware' is "
             "placed before 'tenancy.middleware.TenantHostMiddleware' in your "
             "`MIDDLEWARE_CLASSES` setting.",
@@ -568,3 +594,76 @@ class TenantHostMiddlewareTest(TenancyTestCase):
         response = client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, self.tenant.name)
+
+
+try:
+    from django.contrib.auth import get_user_model
+except ImportError:
+    has_custom_user_support = False
+else:
+    has_custom_user_support = True
+
+
+def custom_user_setup(func):
+    @wraps(func)
+    def wrapped(self, *args, **kwargs):
+        connection = connections[DEFAULT_DB_ALIAS]
+        connection.tenant = self.tenant
+        try:
+            func(self, *args, **kwargs)
+        finally:
+            delattr(connection, 'tenant')
+    return skipUnless(
+        has_custom_user_support,
+        'No custom user support.'
+    )(wrapped)
+
+
+@override_settings(AUTH_USER_MODEL='tenancy.TenantUser')
+class CustomTenantUserBackendTest(TenancyTestCase):
+    @skipIf(has_custom_user_support, 'Has custom user support.')
+    def test_no_custom_user_support(self):
+        self.assertRaisesMessage(ImproperlyConfigured,
+            "The `tenancy.auth.backends.CustomTenantUserBackend` "
+            "authentification backend requires custom user support a "
+            "feature introduced in django 1.5",
+            CustomTenantUserBackend
+        )
+
+    @skipUnless(has_custom_user_support, 'No custom user support.')
+    @override_settings(AUTH_USER_MODEL='auth.User')
+    def test_custom_user_not_tenant(self):
+        self.assertRaisesMessage(ImproperlyConfigured,
+            "The `tenancy.auth.backends.CustomTenantUserBackend` "
+            "authentification backend can only be used with a custom "
+            "tenant user model.",
+            CustomTenantUserBackend
+        )
+
+    @skipUnless(has_custom_user_support, 'No custom user support.')
+    def test_missing_connection_tenant(self):
+        self.assertRaisesMessage(ImproperlyConfigured,
+            "The `tenancy.auth.backends.CustomTenantUserBackend` "
+            "authentification backend requires that a `tenant` attribute "
+            "be set on the default connection to work properly. The "
+            "`tenancy.middleware.GlobalTenantMiddlewareTest` does "
+            "just that.",
+            CustomTenantUserBackend
+        )
+
+    @custom_user_setup
+    def test_authenticate(self):
+        backend = CustomTenantUserBackend()
+        user = self.tenant.users.model(email='p.roy@habs.ca')
+        user.set_password('numero 33')
+        user.save()
+        self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca'))
+        self.assertIsNone(backend.authenticate('p.roy@habs.ca'))
+        self.assertTrue(backend.authenticate('p.roy@habs.ca', 'numero 33'))
+
+    @custom_user_setup
+    def test_get_user(self):
+        backend = CustomTenantUserBackend()
+        user = self.tenant.users.create(email='latitude-e4200@dell.com')
+        self.assertIsNone(backend.get_user(user.pk+1))
+        self.assertEqual(user, backend.get_user(user.pk))

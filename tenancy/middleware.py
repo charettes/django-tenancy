@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.db import connections, DEFAULT_DB_ALIAS
 from django.http import Http404
 
 from . import get_tenant_model
@@ -9,7 +10,7 @@ from . import get_tenant_model
 
 class TenantHostMiddleware(object):
     def __init__(self):
-        try:  #pragma: no cover
+        try:
             import django_hosts
         except ImportError:  #pragma: no cover
             raise ImproperlyConfigured(
@@ -37,3 +38,24 @@ class TenantHostMiddleware(object):
             except tenant_model.DoesNotExist:
                 raise Http404("No tenant found for specified lookups: %r" % lookups)
             request.tenant = tenant
+
+
+class GlobalTenantMiddleware(object):
+    """
+    Middleware that assigns the request's tenant attribute to the default
+    connection object. This unfortunate global state is required in order to
+    allow things such as a tenant custom user with the required auth backend.
+    """
+
+    def get_global_state(self):
+        return connections[DEFAULT_DB_ALIAS]
+
+    def process_request(self, request):
+        setattr(self.get_global_state(), 'tenant', getattr(request, 'tenant'))
+
+    def process_response(self, request, response):
+        self.process_exception(request, None)
+        return response
+
+    def process_exception(self, request, exception):
+        delattr(self.get_global_state(), 'tenant')

@@ -104,3 +104,22 @@ def add_to_dispatched(signal, sender, **kwargs):
 
 for signal in model_sender_signals:
     signal.connect(add_to_dispatched, sender=SignalTenantModel)
+
+
+try:
+    from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+except ImportError:
+    pass
+else:
+    class TenantUser(TenantModel, AbstractBaseUser):
+        email = models.EmailField(unique=True)
+
+        objects = BaseUserManager()
+
+        USERNAME_FIELD = 'email'
+
+        class Meta:
+            app_label = 'tenancy'
+
+        class TenantMeta:
+            related_name = 'users'

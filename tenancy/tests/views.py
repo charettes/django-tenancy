@@ -10,6 +10,10 @@ from .forms import SpecificModelForm
 from .models import RelatedSpecificModel, SpecificModel
 
 
+def raise_exception(request):
+    raise Exception(request.tenant.name)
+
+
 class TenancyTestMixin(object):
     def get_tenant(self):
         return Tenant.objects.get(name='tenant')
