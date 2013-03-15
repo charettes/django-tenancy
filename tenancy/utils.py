@@ -15,7 +15,7 @@ def allow_syncdbs(model):
 
 
 # TODO: Remove when support for django < 1.5 is dropped
-if django.VERSION >= (1, 5):
+if django.VERSION >= (1, 5):  #pragma: no cover
     @contextmanager
     def app_cache_lock():
         try:

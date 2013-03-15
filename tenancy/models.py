@@ -37,7 +37,7 @@ class Tenant(AbstractTenant):
     name = models.CharField(unique=True, max_length=20)
 
     class Meta:
-        if django.VERSION >= (1, 5):
+        if django.VERSION >= (1, 5):  #pragma: no cover
             swappable = 'TENANCY_TENANT_MODEL'
 
     def natural_key(self):
@@ -60,7 +60,7 @@ def meta(**opts):
 
 def db_schema_table(tenant, db_table):
     connection = connections[tenant._state.db]
-    if connection.vendor == 'postgresql':
+    if connection.vendor == 'postgresql':  #pragma: no cover
         # See https://code.djangoproject.com/ticket/6148#comment:47
         return '%s\".\"%s' % (tenant.db_schema, db_table)
     else:

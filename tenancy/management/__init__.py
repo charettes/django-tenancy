@@ -20,12 +20,6 @@ def get_tenant_models(tenant):
     for reference in TenantModelBase.references.values():
         model = getattr(tenant, reference.related_name).model
         models.append(model)
-        opts = model._meta
-        for m2m in opts.local_many_to_many:
-            if isinstance(m2m.rel.to, TenantModelBase):
-                through = m2m.rel.through
-                if not isinstance(through, (basestring, TenantModelBase)):
-                    models.append(through)
     return models
 
 
@@ -36,7 +30,7 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
     """
     if created:
         connection = connections[using]
-        if connection.vendor == 'postgresql':
+        if connection.vendor == 'postgresql':  #pragma: no cover
             schema = connection.ops.quote_name(instance.db_schema)
             connection.cursor().execute("CREATE SCHEMA %s" % schema)
         # Here we don't use south's API to avoid detecting things such
@@ -80,7 +74,7 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
     connection = connections[using]
     quote_name = connection.ops.quote_name
     tenant_models = get_tenant_models(instance)
-    if connection.vendor == 'postgresql':
+    if connection.vendor == 'postgresql':  #pragma: no cover
         connection.cursor().execute(
             "DROP SCHEMA %s CASCADE" % quote_name(instance.db_schema)
         )
