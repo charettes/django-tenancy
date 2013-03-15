@@ -23,7 +23,6 @@ class TenantObjectMixin(TenantMixin):
     on the retrieved tenant.
     """
     model = None
-    template_name_suffix = ''
 
     def get_model(self):
         if self.model:
@@ -53,7 +52,7 @@ class TenantObjectMixin(TenantMixin):
         names.append("%s/%s%s.html" % (
             model._meta.app_label,
             model_name_from_opts(model._meta),
-            self.template_name_suffix
+            getattr(self, 'template_name_suffix', '')
         ))
 
         return names
