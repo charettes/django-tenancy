@@ -156,6 +156,25 @@ class TenantModelTest(TenancyTestCase):
             db_schema_table(self.tenant, SpecificModelSubclass._meta.db_table)
         )
 
+    def test_field_names(self):
+        """
+        Make sure tenant specific models' fields are the same as the one
+        defined on the un-managed one.
+        """
+        models = (
+            SpecificModel,
+            SpecificModelSubclass,  # Test inheritance scenarios
+            RelatedTenantModel,  # And models with m2m fields
+        )
+        for tenant in Tenant.objects.all():
+            for model in models:
+                opts = model._meta
+                tenant_model = getattr(tenant, model._tenant_meta.related_name).model
+                tenant_opts = tenant_model._meta
+                for field in (opts.local_fields + opts.many_to_many):
+                    tenant_field = tenant_opts.get_field(field.name)
+                    self.assertEqual(tenant_field.__class__, field.__class__)
+
     def test_foreign_key_between_tenant_models(self):
         """
         Make sure foreign keys between TenantModels work correctly.

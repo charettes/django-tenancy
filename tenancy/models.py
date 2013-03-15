@@ -257,14 +257,17 @@ class TenantModelBase(ModelBase):
         # Replace related fields pointing to tenant models by their correct
         # tenant specific class.
         local_related_fields = [
-            field for field in opts.local_fields
-            if field.rel and not field.rel.parent_link
+            field for field in opts.local_fields if field.rel
         ] + opts.local_many_to_many
+        tenant_model_name_prefix = "%s_" % tenant.model_name_prefix.lower()
         for related_field in local_related_fields:
             field = copy.deepcopy(related_field)
             rel = field.rel
             to = rel.to
-            if isinstance(to, cls):
+            if getattr(rel, 'parent_link', False):
+                field.name = field.name.replace(tenant_model_name_prefix, '')
+                opts.parents[to] = field
+            elif isinstance(to, cls):
                 rel.to = cls.references[to].model_for_tenant(tenant, identifier=True)
             elif to != RECURSIVE_RELATIONSHIP_CONSTANT:
                 related_name = rel.related_name
