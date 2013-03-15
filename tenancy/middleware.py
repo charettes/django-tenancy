@@ -58,4 +58,6 @@ class GlobalTenantMiddleware(object):
         return response
 
     def process_exception(self, request, exception):
-        delattr(self.get_global_state(), 'tenant')
+        global_state = self.get_global_state()
+        if hasattr(global_state, 'tenant'):
+            delattr(self.get_global_state(), 'tenant')
