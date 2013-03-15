@@ -63,7 +63,7 @@ def db_schema_table(tenant, db_table):
     if connection.vendor == 'postgresql':  #pragma: no cover
         # See https://code.djangoproject.com/ticket/6148#comment:47
         return '%s\".\"%s' % (tenant.db_schema, db_table)
-    else:
+    else:  #pragma: no cover
         return "%s_%s" % (tenant.db_schema, db_table)
 
 

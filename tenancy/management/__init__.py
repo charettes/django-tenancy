@@ -78,7 +78,7 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
         connection.cursor().execute(
             "DROP SCHEMA %s CASCADE" % quote_name(instance.db_schema)
         )
-    else:
+    else:  #pragma: no cover
         for model in tenant_models:
             table_name = quote_name(model._meta.db_table)
             for db in allow_syncdbs(model):

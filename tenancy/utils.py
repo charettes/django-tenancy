@@ -23,7 +23,7 @@ if django.VERSION >= (1, 5):  #pragma: no cover
             yield
         finally:
             imp.release_lock()
-else:
+else:  #pragma: no cover
     def app_cache_lock():
         return app_cache.write_lock
 

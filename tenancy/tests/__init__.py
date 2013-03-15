@@ -616,10 +616,9 @@ def custom_user_setup(func):
     return skipUnless(
         has_custom_user_support,
         'No custom user support.'
-    )(wrapped)
+    )(override_settings(AUTH_USER_MODEL='tenancy.TenantUser')(wrapped))
 
 
-@override_settings(AUTH_USER_MODEL='tenancy.TenantUser')
 class CustomTenantUserBackendTest(TenancyTestCase):
     @skipIf(has_custom_user_support, 'Has custom user support.')
     def test_no_custom_user_support(self):
@@ -641,6 +640,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
         )
 
     @skipUnless(has_custom_user_support, 'No custom user support.')
+    @override_settings(AUTH_USER_MODEL='tenancy.TenantUser')
     def test_missing_connection_tenant(self):
         self.assertRaisesMessage(ImproperlyConfigured,
             "The `tenancy.auth.backends.CustomTenantUserBackend` "
