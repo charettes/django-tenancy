@@ -1,7 +1,9 @@
 from __future__ import unicode_literals
 from collections import namedtuple
 import copy
+import copy_reg
 from contextlib import contextmanager
+import sys
 
 import django
 from django.contrib.contenttypes.models import ContentType
@@ -150,7 +152,7 @@ class TenantModelBase(ModelBase):
             model._tenant_meta = TenantOptions(name, related_name, model)
             def factory(tenant):
                 object_name = str(reference.object_name_for_tenant(tenant))
-                base = cls.abstract_tenant_model_factory(
+                tenant_base = cls.abstract_tenant_model_factory(
                     tenant,
                     object_name,
                     bases,
@@ -160,7 +162,7 @@ class TenantModelBase(ModelBase):
                 tenant_Meta = meta(**Meta.__dict__)
                 # TODO: Use `db_schema` once django #6148 is fixed.
                 tenant_Meta.db_table = db_schema_table(tenant, model._meta.db_table)
-                tenant_model = super_new(cls, object_name, (base,), {
+                tenant_model = super_new(cls, object_name, (tenant_base,), {
                     'tenant': tenant,
                     '__module__': module,
                     'Meta': tenant_Meta,
@@ -308,6 +310,24 @@ class TenantModelBase(ModelBase):
                 getattr(subclass, '_tenant_meta', None)):
                 return True
             return any(self.__subclasscheck__(b) for b in subclass.__bases__)
+
+
+def _pickle_tenant_model_base(model):
+    if hasattr(model, 'tenant'):
+        return (
+            _unpickle_tenant_model_base,
+            (model._tenant_meta.model, model.tenant.pk)
+        )
+    return model.__name__
+
+copy_reg.pickle(TenantModelBase, _pickle_tenant_model_base)
+
+
+def _unpickle_tenant_model_base(model, tenant_pk):
+    related_name = TenantModelBase.references[model].related_name
+    tenant_model = get_tenant_model()
+    tenant = tenant_model._default_manager.get(pk=tenant_pk)
+    return getattr(tenant, related_name).model
 
 
 class TenantModelDescriptor(object):

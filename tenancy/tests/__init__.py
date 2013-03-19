@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 from functools import wraps
+import pickle
 
 import django
 from django.contrib.contenttypes.models import ContentType
@@ -98,6 +99,15 @@ class TenantModelBaseTest(TenancyTestCase):
         tenant_specific_model_subclass = self.tenant.specific_models_subclasses.model
         self.assertIsSubclass(tenant_specific_model_subclass, SpecificModel)
         self.assertIsSubclass(tenant_specific_model_subclass, tenant_specific_model)
+
+    def assertPickleEqual(self, obj):
+        pickled = pickle.dumps(obj)
+        self.assertEqual(pickle.loads(pickled), obj)
+
+    def test_pickling(self):
+        self.assertPickleEqual(SpecificModel)
+        self.assertPickleEqual(self.tenant.specificmodels.model)
+        self.assertPickleEqual(self.tenant.specific_models_subclasses.model)
 
 
 class TenantModelDescriptorTest(TenancyTestCase):
