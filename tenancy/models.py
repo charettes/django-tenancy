@@ -3,7 +3,6 @@ from collections import namedtuple
 import copy
 import copy_reg
 from contextlib import contextmanager
-import sys
 
 import django
 from django.contrib.contenttypes.models import ContentType
@@ -113,14 +112,18 @@ class TenantModelBase(ModelBase):
     def __new__(cls, name, bases, attrs):
         super_new = super(TenantModelBase, cls).__new__
         Meta = attrs.setdefault('Meta', meta())
-        if getattr(Meta, 'abstract', False):
-            related_name = None
+        if (getattr(Meta, 'abstract', False) or
+            any(isinstance(base, cls) and base._meta.managed and
+                not base._meta.abstract for base in bases)):
+            # Abstract model definition and ones subclassing tenant specific
+            # ones shouldn't get any special treatment.
             model = super_new(cls, name, bases, attrs)
             if not cls.tenant_model_class:
                 cls.tenant_model_class = model
         elif getattr(Meta, 'proxy', False):
-            # TODO: Handle this :D
-            pass
+            raise NotImplementedError(
+                "Tenant model proxies haven't been implemented yet"
+            )
         else:
             # Extract the specified related name if it exists.
             try:

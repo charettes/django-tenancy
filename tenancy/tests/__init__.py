@@ -109,6 +109,18 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertPickleEqual(self.tenant.specificmodels.model)
         self.assertPickleEqual(self.tenant.specific_models_subclasses.model)
 
+    def test_tenant_specific_model_subclassing(self):
+        """
+        Make sure tenant specific models can be dynamically subclassed.
+        """
+        model = self.tenant.specificmodels.model
+        model_subclass = type(
+            str("%sSubclass" % model.__name__),
+            (model,),
+            {'__module__': model.__module__}
+        )
+        self.assertEqual(model.tenant, model_subclass.tenant)
+
 
 class TenantModelDescriptorTest(TenancyTestCase):
     def test_class_accessing(self):
