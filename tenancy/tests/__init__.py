@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from functools import wraps
 import pickle
+import sys
 
 import django
 from django.contrib.contenttypes.models import ContentType
@@ -104,6 +105,8 @@ class TenantModelBaseTest(TenancyTestCase):
         pickled = pickle.dumps(obj)
         self.assertEqual(pickle.loads(pickled), obj)
 
+    @skipIf(sys.version_info < (2, 7),
+            "Model class can't be pickled on python < 2.7")
     def test_pickling(self):
         self.assertPickleEqual(SpecificModel)
         self.assertPickleEqual(self.tenant.specificmodels.model)
