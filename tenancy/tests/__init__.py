@@ -137,7 +137,9 @@ class TenantModelBaseTest(TenancyTestCase):
     def test_pickling(self):
         self.assertPickleEqual(SpecificModel)
         self.assertPickleEqual(self.tenant.specificmodels.model)
+        self.assertPickleEqual(self.tenant.specificmodels.model.__bases__[0])
         self.assertPickleEqual(self.tenant.specific_models_subclasses.model)
+        self.assertPickleEqual(self.tenant.specific_models_subclasses.model.__bases__[0])
 
     def test_tenant_specific_model_dynamic_subclassing(self):
         """

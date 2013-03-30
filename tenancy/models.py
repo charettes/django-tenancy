@@ -345,16 +345,19 @@ class TenantModelBase(ModelBase):
             return any(self.__subclasscheck__(b) for b in subclass.__bases__)
 
 
-def __unpickle_tenant_model_base(model, tenant_pk):
+def __unpickle_tenant_model_base(model, tenant_pk, abstract):
     tenant = get_tenant_model()._default_manager.get(pk=tenant_pk)
-    return model.for_tenant(tenant)
+    tenant_model = model.for_tenant(tenant)
+    if abstract:
+        tenant_model = tenant_model.__bases__[0]
+    return tenant_model
 
 
 def __pickle_tenant_model_base(model):
     if hasattr(model, 'tenant'):
         return (
             __unpickle_tenant_model_base,
-            (model._for_tenant_model, model.tenant.pk)
+            (model._for_tenant_model, model.tenant.pk, model._meta.abstract)
         )
     return model.__name__
 
