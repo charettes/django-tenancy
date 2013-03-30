@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-from collections import namedtuple
 import copy
 import copy_reg
 from contextlib import contextmanager
@@ -114,6 +113,7 @@ class TenantModelBase(ModelBase):
             if not cls.tenant_model_class:
                 cls.tenant_model_class = model
         elif getattr(Meta, 'proxy', False):
+            # TODO: Add support for proxy models
             raise NotImplementedError(
                 "Tenant model proxies haven't been implemented yet"
             )
@@ -156,7 +156,8 @@ class TenantModelBase(ModelBase):
                 # Attach a descriptor to the tenant model to access the
                 # underlying model based on the tenant instance.
                 tenant_model = get_tenant_model(model._meta.app_label)
-                setattr(tenant_model, related_name, TenantModelDescriptor(model))
+                descriptor = TenantModelDescriptor(model)
+                setattr(tenant_model, related_name, descriptor)
             model._for_tenant_model = model
         return model
 
@@ -225,18 +226,19 @@ class TenantModelBase(ModelBase):
             verbose_name="%(from)s-%(to)s relationship" % {'from': from_, 'to': to},
             verbose_name_plural="%(from)s-%(to)s relationships" % {'from': from_, 'to': to}
         )
-        # TODO: Add support for db_constraints
         name = str("Tenant_%s_%s" % (opts.object_name, field.name))
+        field_opts = {'db_tablespace': field.db_tablespace}
+        # Django 1.6 introduced `db_contraint`.
+        if hasattr(field, 'db_constraint'):
+            field_opts['db_constraint'] = field.db_constraint
         return type(name, (cls.tenant_model_class,), {
             'Meta': Meta,
             '__module__': reference.model.__module__,
             from_: models.ForeignKey(
-                from_model, related_name="%s+" % name,
-                db_tablespace=field.db_tablespace
+                from_model, related_name="%s+" % name, **field_opts
             ),
             to: models.ForeignKey(
-                to_model, related_name="%s+" % name,
-                db_tablespace=field.db_tablespace
+                to_model, related_name="%s+" % name, **field_opts
             ),
         })
 
