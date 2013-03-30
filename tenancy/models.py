@@ -5,7 +5,6 @@ import copy_reg
 from contextlib import contextmanager
 
 import django
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, DEFAULT_DB_ALIAS, models
 from django.db.models.base import ModelBase
@@ -65,11 +64,13 @@ TenantOptions = namedtuple(
 )
 
 
-def meta(**opts):
+def meta(Meta=None, **opts):
     """
     Create a class with specified opts as attributes to be used as model
     definition options.
     """
+    if Meta:
+        opts = dict(Meta.__dict__, **opts)
     return type(str('Meta'), (), opts)
 
 
@@ -83,11 +84,13 @@ def db_schema_table(tenant, db_table):
 
 
 class Reference(object):
-    __slots__ = ('related_name', 'model')
+    __slots__ = ('model', 'bases', 'attrs', 'Meta')
 
-    def __init__(self, related_name, model):
-        self.related_name = related_name
+    def __init__(self, model, bases, attrs, Meta):
         self.model = model
+        self.bases = bases
+        self.attrs = attrs
+        self.Meta = Meta
 
     def object_name_for_tenant(self, tenant):
         return "%s_%s" % (
@@ -95,14 +98,10 @@ class Reference(object):
             self.model._meta.object_name
         )
 
-    def model_for_tenant(self, tenant, identifier=False):
+    def for_tenant(self, tenant):
         app_label = self.model._meta.app_label
         object_name = self.object_name_for_tenant(tenant)
-        model = get_model(app_label, object_name.lower(), only_installed=False)
-        if model:
-            return model
-        elif identifier:
-            return "%s.%s" % (app_label, object_name)
+        return "%s.%s" % (app_label, object_name)
 
 
 class TenantModelBase(ModelBase):
@@ -130,15 +129,22 @@ class TenantModelBase(ModelBase):
                 related_name = attrs.pop('TenantMeta').related_name
             except (KeyError, AttributeError):
                 related_name = name.lower() + 's'
-            Meta.abstract = True
-            module = attrs.get('__module__')
-            base = super_new(cls, str("Abstract%s" % name), bases, attrs)
+            # Create an intermediary abstract model to validate related fields
+            # and assign a tenant specific intermediary model to m2m fields.
+            # This is needed because creating the concrete model automatically
+            # interpolate the `related_name` and create and intermediary model
+            # if None is specified using the `through` argument. This is really
+            # just a original field definition reference.
+            base = super_new(
+                cls, str("Abstract%s" % name), bases,
+                dict(attrs, Meta=meta(Meta, abstract=True))
+            )
             opts = base._meta
             model = super_new(cls, name, (base,), {
-                '__module__': module,
-                'Meta': meta(app_label=opts.app_label, managed=False)}
+                '__module__': base.__module__,
+                'Meta': meta(Meta, managed=False)}
             )
-            reference = Reference(related_name, model)
+            reference = Reference(model, bases, attrs, Meta)
             cls.references[model] = reference
             for field in opts.local_fields:
                 if field.rel:
@@ -153,31 +159,10 @@ class TenantModelBase(ModelBase):
                 else:
                     cls.validate_through(m2m, m2m.rel.to, model)
             model._tenant_meta = TenantOptions(name, related_name, model)
-            def factory(tenant):
-                object_name = str(reference.object_name_for_tenant(tenant))
-                tenant_base = cls.abstract_tenant_model_factory(
-                    tenant,
-                    object_name,
-                    bases,
-                    # Add back the popped Meta and module attributes
-                    dict(Meta=meta(**Meta.__dict__), __module__=module, **attrs)
-                )
-                tenant_Meta = meta(**Meta.__dict__)
-                # TODO: Use `db_schema` once django #6148 is fixed.
-                tenant_Meta.db_table = db_schema_table(tenant, model._meta.db_table)
-                tenant_model = super_new(cls, object_name, (tenant_base,), {
-                    'tenant': tenant,
-                    '__module__': module,
-                    'Meta': tenant_Meta,
-                    '_tenant_meta': model._tenant_meta
-                })
-                ContentType.objects.get_for_model(tenant_model)
-                return tenant_model
             # Attach a descriptor to the tenant model to access the underlying
             # model based on the tenant instance.
-            descriptor = TenantModelDescriptor(factory, reference)
             tenant_model = get_tenant_model(model._meta.app_label)
-            setattr(tenant_model, related_name, descriptor)
+            setattr(tenant_model, related_name, TenantModelDescriptor(model))
         return model
 
     @classmethod
@@ -260,17 +245,22 @@ class TenantModelBase(ModelBase):
             ),
         })
 
-    @classmethod
-    def abstract_tenant_model_factory(cls, tenant, name, bases, attrs):
-        attrs['Meta'].abstract = True
-        model = super(TenantModelBase, cls).__new__(cls,
-            str("Abstract%s" % name),
+    def abstract_tenant_model_factory(self, tenant):
+        cls = self.__class__
+        reference = cls.references[self]
+        model = super(TenantModelBase, self).__new__(cls,
+            str("Abstract%s" % str(reference.object_name_for_tenant(tenant))),
             tuple(
-                cls.references[base].model_for_tenant(tenant)
-                    if isinstance(base, cls) and not base._meta.abstract
-                else base for base in bases
+                base.for_tenant(tenant) if isinstance(base, cls)
+                    and not base._meta.abstract
+                else base for base in reference.bases
             ),
-            attrs
+            dict(
+                 reference.attrs,
+                 Meta=meta(reference.Meta, abstract=True),
+                 tenant=tenant,
+                 _tenant_meta=self._tenant_meta
+            )
         )
         opts = model._meta
         # Replace related fields pointing to tenant models by their correct
@@ -287,7 +277,7 @@ class TenantModelBase(ModelBase):
                 field.name = field.name.replace(tenant_model_name_prefix, '')
                 opts.parents[to] = field
             elif isinstance(to, cls):
-                rel.to = cls.references[to].model_for_tenant(tenant, identifier=True)
+                rel.to = cls.references[to].for_tenant(tenant)
             elif to != RECURSIVE_RELATIONSHIP_CONSTANT:
                 related_name = rel.related_name
                 if not related_name:
@@ -297,12 +287,40 @@ class TenantModelBase(ModelBase):
                 clear_opts_related_cache(to)
             if isinstance(field, models.ManyToManyField):
                 through = field.rel.through
-                rel.through = cls.references[through].model_for_tenant(tenant, identifier=True)
+                rel.through = cls.references[through].for_tenant(tenant)
                 opts.local_many_to_many.remove(related_field)
             else:
                 opts.local_fields.remove(related_field)
             field.contribute_to_class(model, field.name)
         return model
+
+    def for_tenant(self, tenant):
+        """
+        Returns the model for the specific tenant.
+        """
+        cls = self.__class__
+        reference = cls.references[self]
+        opts = self._meta
+        object_name = reference.object_name_for_tenant(tenant)
+        # Return the already cached model instead of creating a new one.
+        tenant_model = get_model(opts.app_label, object_name.lower())
+        if tenant_model:
+            return tenant_model
+        # Create an abstract base to replace related fields with
+        # relationships pointing to tenant models with their correct
+        # tenant specific equivalent.
+        return super(TenantModelBase, self).__new__(cls,
+            str(object_name),
+            (self.abstract_tenant_model_factory(tenant),),
+            {
+                '__module__': self.__module__,
+                'Meta': meta(
+                    reference.Meta,
+                    # TODO: Use `db_schema` once django #6148 is fixed.
+                    db_table=db_schema_table(tenant, opts.db_table)
+                )
+            }
+        )
 
     def __instancecheck__(self, instance):
         return self.__subclasscheck__(instance.__class__)
@@ -315,36 +333,32 @@ class TenantModelBase(ModelBase):
             return any(self.__subclasscheck__(b) for b in subclass.__bases__)
 
 
-def _pickle_tenant_model_base(model):
+def __unpickle_tenant_model_base(model, tenant_pk):
+    tenant = get_tenant_model()._default_manager.get(pk=tenant_pk)
+    return model.for_tenant(tenant)
+
+
+def __pickle_tenant_model_base(model):
     if hasattr(model, 'tenant'):
         return (
-            _unpickle_tenant_model_base,
+            __unpickle_tenant_model_base,
             (model._tenant_meta.model, model.tenant.pk)
         )
     return model.__name__
 
-copy_reg.pickle(TenantModelBase, _pickle_tenant_model_base)
-
-
-def _unpickle_tenant_model_base(model, tenant_pk):
-    related_name = TenantModelBase.references[model].related_name
-    tenant_model = get_tenant_model()
-    tenant = tenant_model._default_manager.get(pk=tenant_pk)
-    return getattr(tenant, related_name).model
+copy_reg.pickle(TenantModelBase, __pickle_tenant_model_base)
 
 
 class TenantModelDescriptor(object):
-    def __init__(self, factory, reference):
-        self.factory = factory
-        self.reference = reference
+    __slots__ = ('model',)
+
+    def __init__(self, model):
+        self.model = model
 
     def __get__(self, tenant, owner):
         if not tenant:
             return self
-        model = self.reference.model_for_tenant(tenant)
-        if not model:
-            model = self.factory(tenant)
-        return model._default_manager
+        return self.model.for_tenant(tenant)._default_manager
 
 
 class TenantModel(models.Model):

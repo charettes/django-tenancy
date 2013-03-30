@@ -17,9 +17,8 @@ from ..utils import (allow_syncdbs, clear_opts_related_cache,
 
 def get_tenant_models(tenant):
     models = []
-    for reference in TenantModelBase.references.values():
-        model = getattr(tenant, reference.related_name).model
-        models.append(model)
+    for model in TenantModelBase.references:
+        models.append(model.for_tenant(tenant))
     return models
 
 
@@ -49,6 +48,7 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
         created_models = dict((db, set()) for db in connections)
         pending_references = dict((db, {}) for db in connections)
         for model in get_tenant_models(instance):
+            ContentType.objects.get_for_model(model)
             for db in allow_syncdbs(model):
                 connection = connections[db]
                 sql, references = connection.creation.sql_create_model(model, style, seen_models)
