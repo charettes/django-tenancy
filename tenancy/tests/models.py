@@ -44,9 +44,27 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
         related_name = 'specificmodels'
 
 
+class SpecificModelProxy(SpecificModel):
+    class Meta:
+        proxy = True
+
+    class TenantMeta:
+        related_name = 'specific_model_proxies'
+
+
+class SpecificModelProxySubclass(SpecificModelProxy):
+    class Meta:
+        proxy = True
+
+
 class SpecificModelSubclass(SpecificModel):
     class TenantMeta:
         related_name = 'specific_models_subclasses'
+
+
+class SpecificModelSubclassProxy(SpecificModelSubclass):
+    class Meta:
+        proxy = True
 
 
 class RelatedSpecificModel(TenantModel):

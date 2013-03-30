@@ -30,7 +30,8 @@ from .client import TenantClient
 from .forms import SpecificModelForm
 from .models import (AbstractTenantModel, AbstractSpecificModelSubclass,
     M2MSpecific, NonTenantModel, RelatedSpecificModel, RelatedTenantModel,
-    SpecificModel, SpecificModelSubclass, TenantModelMixin)
+    SpecificModel, SpecificModelProxy, SpecificModelProxySubclass,
+    SpecificModelSubclass, SpecificModelSubclassProxy, TenantModelMixin)
 from .views import (InvalidModelFormClass, InvalidModelMixin,
     MissingModelMixin, NonTenantModelFormClass, SpecificModelMixin,
     SpecificModelFormMixin, UnspecifiedFormClass)
@@ -74,12 +75,29 @@ class TenantTest(TransactionTestCase):
 
 
 class TenantModelBaseTest(TenancyTestCase):
-    def test_instancecheck(self):
+    def test_simple_instancecheck(self):
         instance = self.tenant.specificmodels.create()
+        self.assertIsInstance(instance, django_models.Model)
         self.assertIsInstance(instance, TenantModelMixin)
         self.assertIsInstance(instance, SpecificModel)
         self.assertNotIsInstance(instance, RelatedSpecificModel)
+        self.assertNotIsInstance(instance, TenantModelBaseTest)
+
+    def test_concrete_inheritance_instancecheck(self):
+        instance = self.tenant.specific_models_subclasses.create()
         self.assertIsInstance(instance, django_models.Model)
+        self.assertIsInstance(instance, TenantModelMixin)
+        self.assertIsInstance(instance, SpecificModel)
+        self.assertIsInstance(instance, SpecificModelSubclass)
+        self.assertNotIsInstance(instance, RelatedSpecificModel)
+        self.assertNotIsInstance(instance, TenantModelBaseTest)
+
+    def test_proxy_inheritance_instancecheck(self):
+        instance = self.tenant.specific_model_proxies.create()
+        self.assertIsInstance(instance, django_models.Model)
+        self.assertIsInstance(instance, TenantModelMixin)
+        self.assertIsInstance(instance, SpecificModel)
+        self.assertIsInstance(instance, SpecificModelProxy)
         self.assertNotIsInstance(instance, RelatedSpecificModel)
         self.assertNotIsInstance(instance, TenantModelBaseTest)
 
@@ -97,9 +115,18 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertIsNotSubclass(tenant_specific_model, RelatedSpecificModel)
         self.assertIsNotSubclass(tenant_specific_model, tuple)
         self.assertIsSubclass(tenant_specific_model, django_models.Model)
+
+    def test_concrete_inheritance_subclasscheck(self):
+        tenant_specific_model = self.tenant.specificmodels.model
         tenant_specific_model_subclass = self.tenant.specific_models_subclasses.model
         self.assertIsSubclass(tenant_specific_model_subclass, SpecificModel)
         self.assertIsSubclass(tenant_specific_model_subclass, tenant_specific_model)
+
+    def test_proxy_inheritance_subclasscheck(self):
+        tenant_specific_model = self.tenant.specificmodels.model
+        tenant_specific_model_proxy = SpecificModelProxy.for_tenant(self.tenant)
+        self.assertIsSubclass(tenant_specific_model_proxy, SpecificModel)
+        self.assertIsSubclass(tenant_specific_model_proxy, tenant_specific_model)
 
     def assertPickleEqual(self, obj):
         pickled = pickle.dumps(obj)
@@ -112,7 +139,7 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertPickleEqual(self.tenant.specificmodels.model)
         self.assertPickleEqual(self.tenant.specific_models_subclasses.model)
 
-    def test_tenant_specific_model_subclassing(self):
+    def test_tenant_specific_model_dynamic_subclassing(self):
         """
         Make sure tenant specific models can be dynamically subclassed.
         """
@@ -144,7 +171,7 @@ class TenantModelDescriptorTest(TenancyTestCase):
             self.tenant.related_specific_models.model, RelatedSpecificModel)
         )
 
-    def test_model_class_cached(self):
+    def test_content_type_created(self):
         """
         Make sure the content type associated with the returned model is
         always created.

@@ -18,7 +18,8 @@ from ..utils import (allow_syncdbs, clear_opts_related_cache,
 def get_tenant_models(tenant):
     models = []
     for model in TenantModelBase.references:
-        models.append(model.for_tenant(tenant))
+        if model._meta.concrete_model is model:
+            models.append(model.for_tenant(tenant))
     return models
 
 

@@ -112,41 +112,44 @@ class TenantModelBase(ModelBase):
             model = super_new(cls, name, bases, attrs)
             if not cls.tenant_model_class:
                 cls.tenant_model_class = model
-        elif getattr(Meta, 'proxy', False):
-            # TODO: Add support for proxy models
-            raise NotImplementedError(
-                "Tenant model proxies haven't been implemented yet"
-            )
         else:
-            # Create an intermediary abstract model to validate related fields
-            # and assign a tenant specific intermediary model to m2m fields.
-            # This is needed because creating the concrete model automatically
-            # interpolate the `related_name` and create and intermediary model
-            # if None is specified using the `through` argument. This is really
-            # just a original field definition reference.
-            base = super_new(
-                cls, str("Abstract%s" % name), bases,
-                dict(attrs, Meta=meta(Meta, abstract=True))
-            )
-            opts = base._meta
-            model = super_new(cls, name, (base,), {
-                '__module__': base.__module__,
-                'Meta': meta(Meta, managed=False)}
-            )
-            reference = Reference(model, bases, attrs, Meta)
-            cls.references[model] = reference
-            for field in opts.local_fields:
-                if field.rel:
-                    cls.validate_related_name(field, field.rel.to, model)
-            for m2m in opts.local_many_to_many:
-                cls.validate_related_name(m2m, m2m.rel.to, model)
-                if not m2m.rel.through:
-                    m2m.rel.through = cls.intermediary_model_factory(m2m, reference)
-                    # Set the automatically created intermediary model of the
-                    # to un-managed mode since it's really just a facade.
-                    model._meta.get_field(m2m.name).rel.through._meta.managed = False
-                else:
-                    cls.validate_through(m2m, m2m.rel.to, model)
+            if getattr(Meta, 'proxy', False):
+                model = super_new(
+                    cls, name, bases,
+                    dict(attrs, meta=meta(Meta, managed=False))
+                )
+                cls.references[model] = Reference(model, bases, attrs, Meta)
+            else:
+                # Create an intermediary abstract model to validate related
+                # fields and assign a tenant specific intermediary model to m2m
+                # fields. This is needed because creating the concrete model
+                # automatically interpolate the `related_name` and create and
+                # intermediary model if None is specified using the `through`
+                # argument. This is really just a original field definition
+                # reference.
+                base = super_new(
+                    cls, str("Abstract%s" % name), bases,
+                    dict(attrs, Meta=meta(Meta, abstract=True))
+                )
+                opts = base._meta
+                model = super_new(cls, name, (base,), {
+                    '__module__': base.__module__,
+                    'Meta': meta(Meta, managed=False)}
+                )
+                reference = Reference(model, bases, attrs, Meta)
+                cls.references[model] = reference
+                for field in opts.local_fields:
+                    if field.rel:
+                        cls.validate_related_name(field, field.rel.to, model)
+                for m2m in opts.local_many_to_many:
+                    cls.validate_related_name(m2m, m2m.rel.to, model)
+                    if not m2m.rel.through:
+                        m2m.rel.through = cls.intermediary_model_factory(m2m, reference)
+                        # Set the automatically created intermediary model of the
+                        # to un-managed mode since it's really just a facade.
+                        model._meta.get_field(m2m.name).rel.through._meta.managed = False
+                    else:
+                        cls.validate_through(m2m, m2m.rel.to, model)
             # Extract the specified related name if it exists.
             try:
                 related_name = attrs.pop('TenantMeta').related_name
@@ -242,16 +245,20 @@ class TenantModelBase(ModelBase):
             ),
         })
 
+    @classmethod
+    def tenant_model_bases(cls, tenant, bases):
+        return tuple(
+            base.for_tenant(tenant) if isinstance(base, cls)
+                and not base._meta.abstract
+            else base for base in bases
+        )
+
     def abstract_tenant_model_factory(self, tenant):
         cls = self.__class__
         reference = cls.references[self]
         model = super(TenantModelBase, self).__new__(cls,
             str("Abstract%s" % str(reference.object_name_for_tenant(tenant))),
-            tuple(
-                base.for_tenant(tenant) if isinstance(base, cls)
-                    and not base._meta.abstract
-                else base for base in reference.bases
-            ),
+            self.tenant_model_bases(tenant, reference.bases),
             dict(
                  reference.attrs,
                  Meta=meta(reference.Meta, abstract=True),
@@ -298,25 +305,33 @@ class TenantModelBase(ModelBase):
         cls = self.__class__
         reference = cls.references[self]
         opts = self._meta
-        object_name = reference.object_name_for_tenant(tenant)
+        name = reference.object_name_for_tenant(tenant)
+
         # Return the already cached model instead of creating a new one.
-        tenant_model = get_model(opts.app_label, object_name.lower())
+        tenant_model = get_model(opts.app_label, name.lower())
         if tenant_model:
             return tenant_model
-        # Create an abstract base to replace related fields with
-        # relationships pointing to tenant models with their correct
-        # tenant specific equivalent.
-        return super(TenantModelBase, self).__new__(cls,
-            str(object_name),
-            (self.abstract_tenant_model_factory(tenant),),
-            {
-                '__module__': self.__module__,
-                'Meta': meta(
-                    reference.Meta,
-                    # TODO: Use `db_schema` once django #6148 is fixed.
-                    db_table=db_schema_table(tenant, opts.db_table)
-                )
-            }
+
+        attrs = {
+            '__module__': self.__module__,
+            'Meta': meta(
+                reference.Meta,
+                # TODO: Use `db_schema` once django #6148 is fixed.
+                db_table=db_schema_table(tenant, opts.db_table)
+            ),
+        }
+
+        if opts.proxy:
+            bases = self.tenant_model_bases(tenant, reference.bases)
+            attrs.update(tenant=tenant, _for_tenant_model=self)
+        else:
+            # Create an abstract base to replace related fields with
+            # relationships pointing to tenant models with their correct
+            # tenant specific equivalent.
+            bases = (self.abstract_tenant_model_factory(tenant),)
+
+        return super(TenantModelBase, self).__new__(
+            cls, str(name), bases, attrs
         )
 
     def __instancecheck__(self, instance):
