@@ -50,14 +50,20 @@ class GlobalTenantMiddleware(object):
     def get_global_state(self):
         return connections[DEFAULT_DB_ALIAS]
 
+    def pollute_global_state(self, tenant):
+        setattr(self.get_global_state(), 'tenant', tenant)
+
+    def clean_global_state(self):
+        global_state = self.get_global_state()
+        if hasattr(global_state, 'tenant'):
+            delattr(global_state, 'tenant')
+
     def process_request(self, request):
-        setattr(self.get_global_state(), 'tenant', getattr(request, 'tenant'))
+        self.pollute_global_state(getattr(request, 'tenant'))
 
     def process_response(self, request, response):
-        self.process_exception(request, None)
+        self.clean_global_state()
         return response
 
     def process_exception(self, request, exception):
-        global_state = self.get_global_state()
-        if hasattr(global_state, 'tenant'):
-            delattr(self.get_global_state(), 'tenant')
+        self.clean_global_state()
