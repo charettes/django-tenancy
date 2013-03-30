@@ -12,7 +12,7 @@ def _get_tenant_model(tenant, model):
         raise ImproperlyConfigured(
             "%s must be an instance of TenantModelBase" % model.__name__
         )
-    return getattr(tenant, model._tenant_meta.related_name).model
+    return model.for_tenant(tenant)
 
 
 def tenant_modelform_factory(tenant, model, *args, **kwargs):

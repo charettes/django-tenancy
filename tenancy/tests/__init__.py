@@ -197,7 +197,7 @@ class TenantModelTest(TenancyTestCase):
         for tenant in Tenant.objects.all():
             for model in models:
                 opts = model._meta
-                tenant_model = getattr(tenant, model._tenant_meta.related_name).model
+                tenant_model = model.for_tenant(tenant)
                 tenant_opts = tenant_model._meta
                 for field in (opts.local_fields + opts.many_to_many):
                     tenant_field = tenant_opts.get_field(field.name)

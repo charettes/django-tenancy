@@ -58,12 +58,6 @@ class Tenant(AbstractTenant):
         return (self.name,)
 
 
-TenantOptions = namedtuple(
-    'TenantOptions',
-    ('model_name',  'related_name', 'model')
-)
-
-
 def meta(Meta=None, **opts):
     """
     Create a class with specified opts as attributes to be used as model
@@ -124,11 +118,6 @@ class TenantModelBase(ModelBase):
                 "Tenant model proxies haven't been implemented yet"
             )
         else:
-            # Extract the specified related name if it exists.
-            try:
-                related_name = attrs.pop('TenantMeta').related_name
-            except (KeyError, AttributeError):
-                related_name = name.lower() + 's'
             # Create an intermediary abstract model to validate related fields
             # and assign a tenant specific intermediary model to m2m fields.
             # This is needed because creating the concrete model automatically
@@ -158,11 +147,17 @@ class TenantModelBase(ModelBase):
                     model._meta.get_field(m2m.name).rel.through._meta.managed = False
                 else:
                     cls.validate_through(m2m, m2m.rel.to, model)
-            model._tenant_meta = TenantOptions(name, related_name, model)
-            # Attach a descriptor to the tenant model to access the underlying
-            # model based on the tenant instance.
-            tenant_model = get_tenant_model(model._meta.app_label)
-            setattr(tenant_model, related_name, TenantModelDescriptor(model))
+            # Extract the specified related name if it exists.
+            try:
+                related_name = attrs.pop('TenantMeta').related_name
+            except (KeyError, AttributeError):
+                pass
+            else:
+                # Attach a descriptor to the tenant model to access the
+                # underlying model based on the tenant instance.
+                tenant_model = get_tenant_model(model._meta.app_label)
+                setattr(tenant_model, related_name, TenantModelDescriptor(model))
+            model._for_tenant_model = model
         return model
 
     @classmethod
@@ -259,7 +254,7 @@ class TenantModelBase(ModelBase):
                  reference.attrs,
                  Meta=meta(reference.Meta, abstract=True),
                  tenant=tenant,
-                 _tenant_meta=self._tenant_meta
+                 _for_tenant_model=self._for_tenant_model
             )
         )
         opts = model._meta
@@ -327,8 +322,8 @@ class TenantModelBase(ModelBase):
 
     def __subclasscheck__(self, subclass):
         if isinstance(subclass, TenantModelBase):
-            if (getattr(self, '_tenant_meta', None) is
-                getattr(subclass, '_tenant_meta', None)):
+            if (getattr(self, '_for_tenant_model', None) is
+                getattr(subclass, '_for_tenant_model', None)):
                 return True
             return any(self.__subclasscheck__(b) for b in subclass.__bases__)
 
@@ -342,7 +337,7 @@ def __pickle_tenant_model_base(model):
     if hasattr(model, 'tenant'):
         return (
             __unpickle_tenant_model_base,
-            (model._tenant_meta.model, model.tenant.pk)
+            (model._for_tenant_model, model.tenant.pk)
         )
     return model.__name__
 

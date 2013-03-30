@@ -40,6 +40,9 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
         app_label = 'tenancy'
         db_table = 'custom_db_table'
 
+    class TenantMeta:
+        related_name = 'specificmodels'
+
 
 class SpecificModelSubclass(SpecificModel):
     class TenantMeta:

@@ -34,8 +34,7 @@ class CustomTenantUserBackend(object):
                 "`tenancy.middleware.GlobalTenantMiddlewareTest` does "
                 "just that."
             )
-        related_name = user_model._tenant_meta.related_name
-        self.tenant_user_model = getattr(tenant, related_name).model
+        self.tenant_user_model = user_model.for_tenant(tenant)
 
     def authenticate(self, username=None, password=None, **kwargs):
         if username is None:
