@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from abc import ABCMeta
 import copy
 import copy_reg
 from contextlib import contextmanager
@@ -97,6 +98,17 @@ class Reference(object):
         return "%s.%s" % (app_label, object_name)
 
 
+class TenantSpecificModel(object):
+    __metaclass__ = ABCMeta
+
+    @classmethod
+    def __subclasshook__(cls, subclass):
+        if (isinstance(subclass, TenantModelBase) and
+            isinstance(getattr(subclass, 'tenant', None), get_tenant_model())):
+            return True
+        return NotImplemented
+
+
 class TenantModelBase(ModelBase):
     references = SortedDict()
     tenant_model_class = None
@@ -105,8 +117,7 @@ class TenantModelBase(ModelBase):
         super_new = super(TenantModelBase, cls).__new__
         Meta = attrs.setdefault('Meta', meta())
         if (getattr(Meta, 'abstract', False) or
-            any(isinstance(base, cls) and base._meta.managed and
-                not base._meta.abstract for base in bases)):
+            any(issubclass(base, TenantSpecificModel) for base in bases)):
             # Abstract model definition and ones subclassing tenant specific
             # ones shouldn't get any special treatment.
             model = super_new(cls, name, bases, attrs)
@@ -254,6 +265,8 @@ class TenantModelBase(ModelBase):
         )
 
     def abstract_tenant_model_factory(self, tenant):
+        if issubclass(self, TenantSpecificModel):
+            raise ValueError('Can only be called on non-tenant specific model.')
         cls = self.__class__
         reference = cls.references[self]
         model = super(TenantModelBase, self).__new__(cls,
@@ -302,6 +315,8 @@ class TenantModelBase(ModelBase):
         """
         Returns the model for the specific tenant.
         """
+        if issubclass(self, TenantSpecificModel):
+            raise ValueError('Can only be called on non-tenant specific model.')
         cls = self.__class__
         reference = cls.references[self]
         opts = self._meta
@@ -354,7 +369,7 @@ def __unpickle_tenant_model_base(model, tenant_pk, abstract):
 
 
 def __pickle_tenant_model_base(model):
-    if hasattr(model, 'tenant'):
+    if issubclass(model, TenantSpecificModel):
         return (
             __unpickle_tenant_model_base,
             (model._for_tenant_model, model.tenant.pk, model._meta.abstract)
