@@ -29,6 +29,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
     extras_require={
-        'hosts': ['django-hosts']
+        'hosts': ['django-hosts'],
+        'mutant': ['django-mutant>=0.0.3.1'],
     }
 )

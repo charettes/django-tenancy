@@ -144,3 +144,19 @@ else:
 
         class TenantMeta:
             related_name = 'users'
+
+
+try:
+    from ..mutant.models import MutableMutantModel
+except ImportError:
+    pass
+else:
+    class MutableTenantModel(MutableMutantModel):
+        field = models.BooleanField()
+
+        class TenantMeta:
+            related_name = 'mutable_models'
+
+
+    class MutableTenantModelSubclass(MutableTenantModel):
+        non_mutable_fk = models.ForeignKey(SpecificModel)

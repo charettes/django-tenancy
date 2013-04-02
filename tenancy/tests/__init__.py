@@ -722,3 +722,39 @@ class CustomTenantUserBackendTest(TenancyTestCase):
         user = self.tenant.users.create(email='latitude-e4200@dell.com')
         self.assertIsNone(backend.get_user(user.pk+1))
         self.assertEqual(user, backend.get_user(user.pk))
+
+
+try:
+    from mutant.contrib.boolean.models import NullBooleanFieldDefinition
+    from .models import MutableTenantModel, MutableTenantModelSubclass
+except ImportError:
+    mutant_installed = False
+else:
+    mutant_installed = True
+
+
+@skipUnless(mutant_installed, 'django-mutant is not installed.')
+class MutableTenantModelTest(TenancyTestCase):
+    def test_field_creation(self):
+        model_class = MutableTenantModel.for_tenant(self.tenant)
+        model_def = model_class.definition()
+        NullBooleanFieldDefinition.objects.create(
+            model_def=model_def,
+            name='is_cool'
+        )
+        tenant_mutable_models = self.tenant.mutable_models
+        tenant_mutable_models.create(field='test', is_cool=False)
+        self.assertEqual(1, tenant_mutable_models.filter(is_cool=False).count())
+
+    def test_subclassing(self):
+        model_class = MutableTenantModelSubclass.for_tenant(self.tenant)
+        specific_model = self.tenant.specificmodels.create()
+        model_class.objects.create(field='test', non_mutable_fk=specific_model)
+        # Add a field to the parent class
+        NullBooleanFieldDefinition.objects.create_with_default(False,
+            model_def=MutableTenantModel.for_tenant(self.tenant).definition(),
+            name='is_cool',
+        )
+        self.assertEqual(1,
+            model_class.objects.filter(field='test', is_cool=False).count()
+        )

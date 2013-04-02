@@ -67,6 +67,14 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
             transaction.commit_unless_managed(db)
 
 
+@receiver(models.signals.pre_delete, sender=get_tenant_model())
+def collect_tenant_models(sender, instance, using, **kwargs):
+    """
+    Collect tenant models prior to tenant deletion.
+    """
+    instance._state._deletion_tenant_models = get_tenant_models(instance)
+
+
 @receiver(models.signals.post_delete, sender=get_tenant_model())
 def drop_tenant_schema(sender, instance, using, **kwargs):
     """
@@ -74,13 +82,16 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
     """
     connection = connections[using]
     quote_name = connection.ops.quote_name
-    tenant_models = get_tenant_models(instance)
+    tenant_models = instance._state._deletion_tenant_models
+    del instance._state._deletion_tenant_models
     if connection.vendor == 'postgresql':  #pragma: no cover
         connection.cursor().execute(
             "DROP SCHEMA %s CASCADE" % quote_name(instance.db_schema)
         )
     else:  #pragma: no cover
         for model in tenant_models:
+            if not model._meta.managed:
+                continue
             table_name = quote_name(model._meta.db_table)
             for db in allow_syncdbs(model):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)

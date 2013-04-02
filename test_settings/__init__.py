@@ -17,3 +17,10 @@ else:
         'settings$',
         'django'
     ]
+
+try:
+    import mutant
+except ImportError:
+    pass
+else:
+    INSTALLED_APPS.append('mutant')
