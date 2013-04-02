@@ -6,6 +6,7 @@ from django.dispatch.dispatcher import receiver
 from mutant.models import BaseDefinition, ModelDefinition
 
 from .. import get_tenant_model
+from ..management import create_tenant_schema
 from ..models import (db_schema_table, TenantModel, TenantModelBase,
     TenantSpecificModel)
 
@@ -28,14 +29,20 @@ class MutableTenantModelBase(TenantModelBase):
             return super(MutableTenantModelBase, self).for_tenant(tenant)
         reference = self.references[self]
         base = self.abstract_tenant_model_factory(tenant)
-        model_def, _created = ModelDefinition.objects.get_or_create(
+        # Create the model definition as managed and unmanaged it right after
+        # to make sure tables are all created on tenant model creation.
+        model_def, created = ModelDefinition.objects.get_or_create(
             app_label=opts.app_label,
             object_name=reference.object_name_for_tenant(tenant),
             defaults={
                 'bases': (BaseDefinition(base=base),),
-                'db_table': db_schema_table(tenant, opts.db_table)
+                'db_table': db_schema_table(tenant, opts.db_table),
+                'managed': True
             }
         )
+        if created:
+            model_def.managed = False
+            model_def.save()
         return model_def.model_class()
 
 
@@ -64,6 +71,12 @@ def __pickle_mutable_tenant_model_base(model):
 copy_reg.pickle(MutableTenantModelBase, __pickle_mutable_tenant_model_base)
 
 
+def get_tenant_mutable_models(tenant):
+    for model in TenantModelBase.references:
+        if isinstance(model, MutableTenantModelBase):
+            yield model.for_tenant(tenant)
+
+
 @receiver(models.signals.pre_delete, sender=get_tenant_model())
 def manage_tenant_mutable_models(sender, instance, using, **kwargs):
     """
@@ -74,6 +87,21 @@ def manage_tenant_mutable_models(sender, instance, using, **kwargs):
     """
     connection = connections[using]
     if connection.vendor == 'postgresql':
-        for model in TenantModelBase.references:
-            if isinstance(model, MutableTenantModelBase):
-                model.for_tenant(instance)._meta.managed = True
+        for mutable_model in get_tenant_mutable_models(instance):
+            mutable_model._meta.managed = True
+
+
+models.signals.post_save.disconnect(create_tenant_schema, sender=get_tenant_model())
+
+@receiver(models.signals.post_save, sender=get_tenant_model())
+def unmanage_tenant_mutable_models(sender, instance, **kwargs):
+    """
+    Wrap the `create_tenant_schema` signal receiver to make sure mutable models
+    are marked as managed for schema creation.
+    """
+    tenant_mutable_models = tuple(get_tenant_mutable_models(instance))
+    for mutable_model in tenant_mutable_models:
+        mutable_model._meta.managed = True
+    create_tenant_schema(sender=sender, instance=instance, **kwargs)
+    for mutable_model in tenant_mutable_models:
+        mutable_model._meta.managed = False
