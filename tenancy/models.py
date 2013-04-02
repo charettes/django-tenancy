@@ -104,7 +104,8 @@ class TenantSpecificModel(object):
     @classmethod
     def __subclasshook__(cls, subclass):
         if (isinstance(subclass, TenantModelBase) and
-            isinstance(getattr(subclass, 'tenant', None), get_tenant_model())):
+            isinstance(getattr(subclass, 'tenant', None),
+                       get_tenant_model(subclass._meta.app_label))):
             return True
         return NotImplemented
 
