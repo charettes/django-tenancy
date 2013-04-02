@@ -726,7 +726,6 @@ class CustomTenantUserBackendTest(TenancyTestCase):
 
 try:
     from mutant.contrib.boolean.models import NullBooleanFieldDefinition
-    from .models import MutableTenantModel, MutableTenantModelSubclass
 except ImportError:
     mutant_installed = False
 else:
@@ -737,6 +736,7 @@ else:
 @skipIf(sys.version_info < (2, 7), "Model class can't be pickled on python < 2.7")
 class MutableTenantModelTest(TenancyTestCase):
     def test_field_creation(self):
+        from .models import MutableTenantModel, MutableTenantModelSubclass
         model_class = MutableTenantModel.for_tenant(self.tenant)
         model_def = model_class.definition()
         NullBooleanFieldDefinition.objects.create(
@@ -748,6 +748,7 @@ class MutableTenantModelTest(TenancyTestCase):
         self.assertEqual(1, tenant_mutable_models.filter(is_cool=False).count())
 
     def test_subclassing(self):
+        from .models import MutableTenantModel, MutableTenantModelSubclass
         model_class = MutableTenantModelSubclass.for_tenant(self.tenant)
         specific_model = self.tenant.specificmodels.create()
         model_class.objects.create(field='test', non_mutable_fk=specific_model)

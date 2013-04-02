@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import sys
 
 from django.db import models
 
@@ -151,12 +152,12 @@ try:
 except ImportError:
     pass
 else:
-    class MutableTenantModel(MutableMutantModel):
-        field = models.BooleanField()
+    if sys.version_info >= (2, 7):
+        class MutableTenantModel(MutableMutantModel):
+            field = models.BooleanField()
 
-        class TenantMeta:
-            related_name = 'mutable_models'
+            class TenantMeta:
+                related_name = 'mutable_models'
 
-
-    class MutableTenantModelSubclass(MutableTenantModel):
-        non_mutable_fk = models.ForeignKey(SpecificModel)
+        class MutableTenantModelSubclass(MutableTenantModel):
+            non_mutable_fk = models.ForeignKey(SpecificModel)
