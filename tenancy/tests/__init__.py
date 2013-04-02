@@ -734,6 +734,7 @@ else:
 
 
 @skipUnless(mutant_installed, 'django-mutant is not installed.')
+@skipIf(sys.version_info < (2, 7), "Model class can't be pickled on python < 2.7")
 class MutableTenantModelTest(TenancyTestCase):
     def test_field_creation(self):
         model_class = MutableTenantModel.for_tenant(self.tenant)
