@@ -360,7 +360,9 @@ class TenantModelBase(ModelBase):
         return self.__subclasscheck__(instance.__class__)
 
     def __subclasscheck__(self, subclass):
-        if isinstance(subclass, TenantModelBase):
+        if issubclass(self, TenantSpecificModel):
+            return super(TenantModelBase, self).__subclasscheck__(subclass)
+        elif isinstance(subclass, TenantModelBase):
             if (getattr(self, '_for_tenant_model', None) is
                 getattr(subclass, '_for_tenant_model', None)):
                 return True

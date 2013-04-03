@@ -61,6 +61,7 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertIsInstance(instance, django_models.Model)
         self.assertIsInstance(instance, TenantModelMixin)
         self.assertIsInstance(instance, SpecificModel)
+        self.assertNotIsInstance(instance, SpecificModelSubclass)
         self.assertNotIsInstance(instance, RelatedSpecificModel)
         self.assertNotIsInstance(instance, TenantModelBaseTest)
 
@@ -93,9 +94,10 @@ class TenantModelBaseTest(TenancyTestCase):
         tenant_specific_model = self.tenant.specificmodels.model
         self.assertIsSubclass(tenant_specific_model, AbstractTenantModel)
         self.assertIsSubclass(tenant_specific_model, SpecificModel)
+        self.assertIsSubclass(tenant_specific_model, django_models.Model)
+        self.assertIsNotSubclass(tenant_specific_model, SpecificModelSubclass)
         self.assertIsNotSubclass(tenant_specific_model, RelatedSpecificModel)
         self.assertIsNotSubclass(tenant_specific_model, tuple)
-        self.assertIsSubclass(tenant_specific_model, django_models.Model)
 
     def test_concrete_inheritance_subclasscheck(self):
         tenant_specific_model = self.tenant.specificmodels.model
@@ -128,11 +130,13 @@ class TenantModelBaseTest(TenancyTestCase):
         """
         model = self.tenant.specificmodels.model
         model_subclass = type(
-            str("%sSubclass" % model.__name__),
+            str("%sDynamicSubclass" % model.__name__),
             (model,),
             {'__module__': model.__module__}
         )
         self.assertEqual(model.tenant, model_subclass.tenant)
+        self.assertIsSubclass(model_subclass, model)
+        self.assertIsNotSubclass(model, model_subclass)
 
 
 class TenantModelDescriptorTest(TenancyTestCase):
