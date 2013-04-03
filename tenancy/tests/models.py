@@ -45,7 +45,7 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
         related_name = 'specificmodels'
 
     def save(self, *args, **kwargs):
-        return self.__super.save(*args, **kwargs)
+        return super(SpecificModel, self).save(*args, **kwargs)
 
 
 class SpecificModelProxy(SpecificModel):
@@ -108,7 +108,7 @@ class M2MSpecific(TenantModel):
 
 class RelatedTenantModelSubclass(RelatedTenantModel):
     def __init__(self, *args, **kwargs):
-        self.__super.__init__(*args, **kwargs)
+        super(RelatedTenantModelSubclass, self).__init__(*args, **kwargs)
 
 
 class SignalTenantModel(TenantModel):

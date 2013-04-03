@@ -8,8 +8,8 @@ import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, DEFAULT_DB_ALIAS, models
 from django.db.models.base import ModelBase
-from django.db.models.fields.related import (add_lazy_relation,
-    RECURSIVE_RELATIONSHIP_CONSTANT)
+from django.db.models.fields import Field
+from django.db.models.fields.related import add_lazy_relation
 from django.db.models.loading import get_model
 from django.utils.datastructures import SortedDict
 
@@ -78,13 +78,12 @@ def db_schema_table(tenant, db_table):
 
 
 class Reference(object):
-    __slots__ = ('model', 'bases', 'attrs', 'Meta')
+    __slots__ = ('model', 'bases', 'Meta', 'related_names')
 
-    def __init__(self, model, bases, attrs, Meta):
+    def __init__(self, model, Meta, related_names=None):
         self.model = model
-        self.bases = bases
-        self.attrs = attrs
         self.Meta = Meta
+        self.related_names = related_names
 
     def object_name_for_tenant(self, tenant):
         return "%s_%s" % (
@@ -130,36 +129,46 @@ class TenantModelBase(ModelBase):
                     cls, name, bases,
                     dict(attrs, meta=meta(Meta, managed=False))
                 )
-                cls.references[model] = Reference(model, bases, attrs, Meta)
+                cls.references[model] = Reference(model, Meta)
             else:
-                # Create an intermediary abstract model to validate related
-                # fields and assign a tenant specific intermediary model to m2m
-                # fields. This is needed because creating the concrete model
-                # automatically interpolate the `related_name` and create and
-                # intermediary model if None is specified using the `through`
-                # argument. This is really just a original field definition
-                # reference.
-                base = super_new(
-                    cls, str("Abstract%s" % name), bases,
-                    dict(attrs, Meta=meta(Meta, abstract=True))
+                # Extract field related names prior to adding them to the model
+                # in order to validate them later on.
+                related_names = dict(
+                    (name, attr.rel.related_name)
+                    for name, attr in attrs.items()
+                    if isinstance(attr, Field) and attr.rel
                 )
-                opts = base._meta
-                model = super_new(cls, name, (base,), {
-                    '__module__': base.__module__,
-                    'Meta': meta(Meta, managed=False)}
+                for base in bases:
+                    if isinstance(base, ModelBase) and base._meta.abstract:
+                        for field in base._meta.local_fields:
+                            if field.rel:
+                                related_names[field.name] = field.rel.related_name
+                        for m2m in base._meta.local_many_to_many:
+                            related_names[m2m.name] = m2m.rel.related_name
+                model = super_new(
+                    cls, name, bases,
+                    dict(attrs, Meta=meta(Meta, managed=False))
                 )
-                reference = Reference(model, bases, attrs, Meta)
-                cls.references[model] = reference
+                cls.references[model] = Reference(model, Meta, related_names)
+                opts = model._meta
                 for field in opts.local_fields:
                     if field.rel:
                         cls.validate_related_name(field, field.rel.to, model)
                 for m2m in opts.local_many_to_many:
-                    cls.validate_related_name(m2m, m2m.rel.to, model)
-                    if not m2m.rel.through:
-                        m2m.rel.through = cls.intermediary_model_factory(m2m, reference)
-                        # Set the automatically created intermediary model of the
-                        # to un-managed mode since it's really just a facade.
-                        model._meta.get_field(m2m.name).rel.through._meta.managed = False
+                    rel = m2m.rel
+                    to = rel.to
+                    cls.validate_related_name(m2m, to, model)
+                    through = rel.through
+                    if (not isinstance(through, basestring) and
+                        through._meta.auto_created):
+                        # Replace the automatically created intermediary model
+                        # by a TenantModelBase instance.
+                        remove_from_app_cache(through)
+                        # Make sure to clear the referenced model cache if
+                        # we have contributed to it already.
+                        if not isinstance(to, basestring):
+                            clear_opts_related_cache(rel.to)
+                        rel.through = cls.intermediary_model_factory(m2m, model)
                     else:
                         cls.validate_through(m2m, m2m.rel.to, model)
             # Extract the specified related name if it exists.
@@ -185,7 +194,7 @@ class TenantModelBase(ModelBase):
         if isinstance(rel_to, basestring):
             add_lazy_relation(model, field, rel_to, cls.validate_related_name)
         elif not isinstance(rel_to, cls):
-            related_name = field.rel.related_name
+            related_name = cls.references[model].related_names[field.name]
             if (related_name is not None and
                 not (field.rel.is_hidden() or '%(class)s' in related_name)):
                     del cls.references[model]
@@ -217,12 +226,11 @@ class TenantModelBase(ModelBase):
             )
 
     @classmethod
-    def intermediary_model_factory(cls, field, reference):
-        from_model = reference.model
+    def intermediary_model_factory(cls, field, from_model):
         to_model = field.rel.to
         opts = from_model._meta
         from_model_name = model_name_from_opts(opts)
-        if to_model == RECURSIVE_RELATIONSHIP_CONSTANT:
+        if to_model == from_model:
             from_ = "from_%s" % from_model_name
             to = "to_%s" % from_model_name
             to_model = from_model
@@ -234,21 +242,21 @@ class TenantModelBase(ModelBase):
                 to = model_name_from_opts(to_model._meta)
         Meta = meta(
             db_table=field._get_m2m_db_table(opts),
-            auto_created=reference.model,
+            auto_created=from_model,
             app_label=opts.app_label,
             db_tablespace=opts.db_tablespace,
             unique_together=(from_, to),
             verbose_name="%(from)s-%(to)s relationship" % {'from': from_, 'to': to},
             verbose_name_plural="%(from)s-%(to)s relationships" % {'from': from_, 'to': to}
         )
-        name = str("Tenant_%s_%s" % (opts.object_name, field.name))
+        name = str("%s_%s" % (opts.object_name, field.name))
         field_opts = {'db_tablespace': field.db_tablespace}
         # Django 1.6 introduced `db_contraint`.
         if hasattr(field, 'db_constraint'):
             field_opts['db_constraint'] = field.db_constraint
         return type(name, (cls.tenant_model_class,), {
             'Meta': Meta,
-            '__module__': reference.model.__module__,
+            '__module__': from_model.__module__,
             from_: models.ForeignKey(
                 from_model, related_name="%s+" % name, **field_opts
             ),
@@ -260,62 +268,82 @@ class TenantModelBase(ModelBase):
     @classmethod
     def tenant_model_bases(cls, tenant, bases):
         return tuple(
-            base.for_tenant(tenant) if isinstance(base, cls)
-                and not base._meta.abstract
-            else base for base in bases
+            base.for_tenant(tenant) for base in bases
+            if isinstance(base, cls) and not base._meta.abstract
         )
 
-    def abstract_tenant_model_factory(self, tenant):
+    def _prepare(self):
+        # Defer preparation of concrete `TenantSpecificModel` to avoid early
+        # primary key assignment.
+        if self._meta.abstract or not issubclass(self, TenantSpecificModel):
+            super(TenantModelBase, self)._prepare()
+
+    def tenant_model_factory(self, tenant, abstract=False):
         if issubclass(self, TenantSpecificModel):
             raise ValueError('Can only be called on non-tenant specific model.')
         cls = self.__class__
         reference = cls.references[self]
+        name = reference.object_name_for_tenant(tenant)
+        if abstract:
+            name = "Abstract%s" % name
         model = super(TenantModelBase, self).__new__(cls,
-            str("Abstract%s" % str(reference.object_name_for_tenant(tenant))),
-            self.tenant_model_bases(tenant, reference.bases),
+            str(name),
+            (self,) + self.tenant_model_bases(tenant, self.__bases__),
             dict(
-                 reference.attrs,
-                 Meta=meta(reference.Meta, abstract=True),
+                 __module__=self.__module__,
+                 Meta=meta(
+                    reference.Meta,
+                    abstract=abstract,
+                    db_table=db_schema_table(tenant, self._meta.db_table)
+                ),
                  tenant=tenant,
-                 _for_tenant_model=self._for_tenant_model
+                 _for_tenant_model=self
             )
         )
-        # Add a `super` helper to provide a sane way of overriding methods.
-        setattr(
-            model,
-            "_%s__super" % reference.model._meta.object_name,
-            property(lambda self: super(model, self))
-        )
         opts = model._meta
-        # Replace related fields pointing to tenant models by their correct
-        # tenant specific class.
-        local_related_fields = [
-            field for field in opts.local_fields if field.rel
-        ] + opts.local_many_to_many
-        tenant_model_name_prefix = "%s_" % tenant.model_name_prefix.lower()
-        for related_field in local_related_fields:
-            field = copy.deepcopy(related_field)
+
+        # Remove ourself from the parent chain
+        opts.local_fields.remove(opts.parents.pop(self))
+
+        # Rename parent link fields
+        for parent, link in opts.parents.items():
+            local_link = self._meta.parents[parent._for_tenant_model]
+            link.name = None
+            link.set_attributes_from_name(local_link.name)
+
+        # Add the local fields of this class
+        local_fields = self._meta.local_fields + self._meta.local_many_to_many
+        for local_field in local_fields:
+            field = copy.deepcopy(local_field)
             rel = field.rel
-            to = rel.to
-            if getattr(rel, 'parent_link', False):
-                field.name = field.name.replace(tenant_model_name_prefix, '')
-                opts.parents[to] = field
-            elif isinstance(to, cls):
-                rel.to = cls.references[to].for_tenant(tenant)
-            elif to != RECURSIVE_RELATIONSHIP_CONSTANT:
-                related_name = rel.related_name
-                if not related_name:
-                    # Hide reverse relationships with unspecified related name
-                    related_name = 'unspecified_for_tenant_model+'
-                rel.related_name = related_name
-                clear_opts_related_cache(to)
-            if isinstance(field, models.ManyToManyField):
-                through = field.rel.through
-                rel.through = cls.references[through].for_tenant(tenant)
-                opts.local_many_to_many.remove(related_field)
-            else:
-                opts.local_fields.remove(related_field)
+            if rel:
+                # Make sure related fields pointing to tenant models are
+                # pointing to their tenant specific counterpart.
+                to = rel.to
+                if isinstance(to, cls):
+                    if getattr(rel, 'parent_link', False):
+                        continue
+                    rel.to = cls.references[to].for_tenant(tenant)
+                else:
+                    clear_opts_related_cache(to)
+                related_name = reference.related_names[field.name]
+                if related_name:
+                    rel.related_name = related_name
+                else:
+                    rel.related_name = 'unspecified_for_tenant_model+'
+                if isinstance(field, models.ManyToManyField):
+                    through = field.rel.through
+                    rel.through = cls.references[through].for_tenant(tenant)
             field.contribute_to_class(model, field.name)
+
+        # Copy managers from ours
+        model.copy_managers(self._meta.concrete_managers)
+
+        # Concrete tenant specific models preparation has been delayed in order
+        # to prevent `pk` assignment.
+        if not abstract:
+            super(TenantModelBase, model)._prepare()
+
         return model
 
     def for_tenant(self, tenant):
@@ -330,43 +358,34 @@ class TenantModelBase(ModelBase):
         name = reference.object_name_for_tenant(tenant)
 
         # Return the already cached model instead of creating a new one.
-        tenant_model = get_model(opts.app_label, name.lower())
+        tenant_model = get_model(
+            opts.app_label, name.lower(),
+            only_installed=False
+        )
         if tenant_model:
             return tenant_model
 
-        attrs = {
-            '__module__': self.__module__,
-            'Meta': meta(
-                reference.Meta,
-                # TODO: Use `db_schema` once django #6148 is fixed.
-                db_table=db_schema_table(tenant, opts.db_table)
-            ),
-        }
-
         if opts.proxy:
-            bases = self.tenant_model_bases(tenant, reference.bases)
-            attrs.update(tenant=tenant, _for_tenant_model=self)
+            bases = self.tenant_model_bases(tenant, self.__bases__)
+            return super(TenantModelBase, self).__new__(
+                cls, str(name), bases, {
+                    '__module__': self.__module__,
+                    'Meta': reference.Meta,
+                    '_for_tenant_model': self
+                }
+            )
         else:
-            # Create an abstract base to replace related fields with
-            # relationships pointing to tenant models with their correct
-            # tenant specific equivalent.
-            bases = (self.abstract_tenant_model_factory(tenant),)
-
-        return super(TenantModelBase, self).__new__(
-            cls, str(name), bases, attrs
-        )
+            return self.tenant_model_factory(tenant)
 
     def __instancecheck__(self, instance):
         return self.__subclasscheck__(instance.__class__)
 
     def __subclasscheck__(self, subclass):
-        if issubclass(self, TenantSpecificModel):
-            return super(TenantModelBase, self).__subclasscheck__(subclass)
-        elif isinstance(subclass, TenantModelBase):
-            if (getattr(self, '_for_tenant_model', None) is
-                getattr(subclass, '_for_tenant_model', None)):
-                return True
-            return any(self.__subclasscheck__(b) for b in subclass.__bases__)
+        if (self._meta.proxy and subclass._meta.proxy and
+            not issubclass(self, TenantSpecificModel) and
+            issubclass(subclass, TenantSpecificModel)):
+            return issubclass(subclass, self.for_tenant(subclass.tenant))
+        return super(TenantModelBase, self).__subclasscheck__(subclass)
 
 
 def __unpickle_tenant_model_base(model, tenant_pk, abstract):

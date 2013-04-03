@@ -9,13 +9,13 @@ from django.test.testcases import TransactionTestCase
 from django.utils.unittest.case import skipIf
 
 from .. import get_tenant_model
-from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
-    TenantModelDescriptor)
+from ..models import (db_schema_table, Tenant, TenantModel,
+    TenantModelDescriptor, TenantSpecificModel)
 from ..utils import model_name_from_opts
 
 from .models import (AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
     RelatedTenantModel, SpecificModel, SpecificModelProxy,
-    SpecificModelSubclass, TenantModelMixin)
+    SpecificModelProxySubclass, SpecificModelSubclass, TenantModelMixin)
 from .utils import skipIfCustomTenant, TenancyTestCase
 
 
@@ -106,10 +106,17 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertIsSubclass(tenant_specific_model_subclass, tenant_specific_model)
 
     def test_proxy_inheritance_subclasscheck(self):
-        tenant_specific_model = self.tenant.specificmodels.model
-        tenant_specific_model_proxy = SpecificModelProxy.for_tenant(self.tenant)
-        self.assertIsSubclass(tenant_specific_model_proxy, SpecificModel)
-        self.assertIsSubclass(tenant_specific_model_proxy, tenant_specific_model)
+        specific_model = self.tenant.specificmodels.model
+        specific_model_proxy = SpecificModelProxy.for_tenant(self.tenant)
+        self.assertIsSubclass(specific_model_proxy, SpecificModel)
+        self.assertIsSubclass(specific_model_proxy, SpecificModelProxy)
+        self.assertIsSubclass(specific_model_proxy, specific_model)
+        specific_model_proxy_subclass = SpecificModelProxySubclass.for_tenant(self.tenant)
+        self.assertIsSubclass(specific_model_proxy_subclass, SpecificModel)
+        self.assertIsSubclass(specific_model_proxy_subclass, SpecificModelProxy)
+        self.assertIsSubclass(specific_model_proxy_subclass, SpecificModelProxySubclass)
+        self.assertIsSubclass(specific_model_proxy_subclass, specific_model)
+        self.assertIsSubclass(specific_model_proxy_subclass, specific_model_proxy)
 
     def assertPickleEqual(self, obj):
         pickled = pickle.dumps(obj)
@@ -322,7 +329,7 @@ class TenantModelTest(TenancyTestCase):
         for tenant in Tenant.objects.all():
             parents = tenant.specific_models_subclasses.model._meta.parents
             for parent in parents:
-                if isinstance(parent, TenantModelBase):
+                if issubclass(parent, TenantSpecificModel):
                     self.assertEqual(parent.tenant, tenant)
             tenant.specific_models_subclasses.create()
             self.assertEqual(tenant.specificmodels.count(), 1)
