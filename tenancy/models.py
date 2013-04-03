@@ -280,6 +280,12 @@ class TenantModelBase(ModelBase):
                  _for_tenant_model=self._for_tenant_model
             )
         )
+        # Add a `super` helper to provide a sane way of overriding methods.
+        setattr(
+            model,
+            "_%s__super" % reference.model._meta.object_name,
+            property(lambda self: super(model, self))
+        )
         opts = model._meta
         # Replace related fields pointing to tenant models by their correct
         # tenant specific class.
