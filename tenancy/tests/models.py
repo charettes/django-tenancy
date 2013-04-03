@@ -160,6 +160,9 @@ else:
         class MutableTenantModel(MutableMutantModel):
             field = models.BooleanField()
 
+            class Meta:
+                ordering = ('-id',)
+
             class TenantMeta:
                 related_name = 'mutable_models'
 

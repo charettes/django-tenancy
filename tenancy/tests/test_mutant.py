@@ -42,3 +42,19 @@ class MutableTenantModelTest(TenancyTestCase):
         self.assertEqual(1,
             model_class.objects.filter(field='test', is_cool=False).count()
         )
+
+    def test_ordering(self):
+        """
+        Ordering is not inherited from an abstract base class thus
+        OrderingFieldDefinition must be created in order to maintain the
+        specified ordering.
+        """
+        from .models import MutableTenantModel
+        model_class = MutableTenantModel.for_tenant(self.tenant)
+        first = model_class.objects.create(field=True)
+        second = model_class.objects.create(field=False)
+        self.assertQuerysetEqual(
+            model_class.objects.values_list('id', flat=True),
+            sorted([second.id, first.id], reverse=True),
+            int
+        )

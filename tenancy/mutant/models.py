@@ -3,7 +3,8 @@ import copy_reg
 
 from django.db import connections, models
 from django.dispatch.dispatcher import receiver
-from mutant.models import BaseDefinition, ModelDefinition
+from mutant.models import (BaseDefinition, ModelDefinition,
+    OrderingFieldDefinition)
 
 from .. import get_tenant_model
 from ..management import create_tenant_schema
@@ -43,6 +44,18 @@ class MutableTenantModelBase(TenantModelBase):
         if created:
             model_def.managed = False
             model_def.save()
+            for order, lookup in enumerate(base._meta.ordering):
+                if lookup.startswith('-'):
+                    lookup = lookup[1:]
+                    descending = True
+                else:
+                    descending = False
+                OrderingFieldDefinition.objects.create(
+                    model_def=model_def,
+                    order=order,
+                    lookup=lookup,
+                    descending=descending
+                )
         return model_def.model_class()
 
 
