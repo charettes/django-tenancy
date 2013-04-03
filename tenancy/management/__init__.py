@@ -18,8 +18,7 @@ from ..utils import (allow_syncdbs, clear_opts_related_cache,
 def get_tenant_models(tenant):
     models = []
     for model in TenantModelBase.references:
-        if model._meta.concrete_model is model:
-            models.append(model.for_tenant(tenant))
+        models.append(model.for_tenant(tenant))
     return models
 
 
@@ -90,9 +89,10 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
         )
     else:  #pragma: no cover
         for model in tenant_models:
-            if not model._meta.managed:
+            opts = model._meta
+            if not opts.managed or opts.proxy:
                 continue
-            table_name = quote_name(model._meta.db_table)
+            table_name = quote_name(opts.db_table)
             for db in allow_syncdbs(model):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)
     ContentType.objects.filter(model__startswith=instance.model_name_prefix.lower()).delete()
