@@ -84,7 +84,7 @@ class AbstractSpecificModelSubclass(TenantModel):
 
 
 class RelatedTenantModel(AbstractSpecificModelSubclass):
-    m2m = models.ManyToManyField(SpecificModel, related_name='m2ms')
+    m2m_ = models.ManyToManyField(SpecificModel, name=str('m2m'), related_name='m2ms')
     m2m_to_undefined = models.ManyToManyField('SignalTenantModel')
     m2m_through = models.ManyToManyField(SpecificModel, related_name='m2ms_through',
                                          through='M2MSpecific')

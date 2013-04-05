@@ -134,7 +134,7 @@ class TenantModelBase(ModelBase):
                 # Extract field related names prior to adding them to the model
                 # in order to validate them later on.
                 related_names = dict(
-                    (name, attr.rel.related_name)
+                    (attr.name or name, attr.rel.related_name)
                     for name, attr in attrs.items()
                     if isinstance(attr, Field) and attr.rel
                 )
