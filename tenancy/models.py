@@ -388,19 +388,16 @@ class TenantModelBase(ModelBase):
         return super(TenantModelBase, self).__subclasscheck__(subclass)
 
 
-def __unpickle_tenant_model_base(model, tenant_pk, abstract):
+def __unpickle_tenant_model_base(model, tenant_pk):
     tenant = get_tenant_model()._default_manager.get(pk=tenant_pk)
-    tenant_model = model.for_tenant(tenant)
-    if abstract:
-        tenant_model = tenant_model.__bases__[0]
-    return tenant_model
+    return model.for_tenant(tenant)
 
 
 def __pickle_tenant_model_base(model):
     if issubclass(model, TenantSpecificModel):
         return (
             __unpickle_tenant_model_base,
-            (model._for_tenant_model, model.tenant.pk, model._meta.abstract)
+            (model._for_tenant_model, model.tenant.pk)
         )
     return model.__name__
 
