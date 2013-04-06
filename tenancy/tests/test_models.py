@@ -9,7 +9,7 @@ from django.test.testcases import TransactionTestCase
 from django.utils.unittest.case import skipIf
 
 from .. import get_tenant_model
-from ..models import (db_schema_table, Tenant, TenantModel,
+from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
     TenantModelDescriptor, TenantSpecificModel)
 from ..utils import model_name_from_opts
 
@@ -144,6 +144,20 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertEqual(model.tenant, model_subclass.tenant)
         self.assertIsSubclass(model_subclass, model)
         self.assertIsNotSubclass(model, model_subclass)
+
+    def test_exceptions_subclassing(self):
+        """
+        Make sure tenant specific models exceptions subclass their exposed
+        model one.
+        """
+        for model in TenantModelBase.references:
+            tenant_model = model.for_tenant(self.tenant)
+            try:
+                tenant_model._default_manager.get()
+            except Exception as e:
+                self.assertIsInstance(e, model.DoesNotExist)
+                for parent in model._meta.parents:
+                    self.assertIsInstance(e, parent.DoesNotExist)
 
 
 class TenantModelDescriptorTest(TenancyTestCase):

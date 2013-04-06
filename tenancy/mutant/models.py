@@ -5,6 +5,7 @@ from django.db import connections, models
 from django.dispatch.dispatcher import receiver
 from mutant.models import (BaseDefinition, ModelDefinition,
     OrderingFieldDefinition)
+from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
 from ..management import create_tenant_schema
@@ -118,3 +119,9 @@ def unmanage_tenant_mutable_models(sender, instance, **kwargs):
     create_tenant_schema(sender=sender, instance=instance, **kwargs)
     for mutable_model in tenant_mutable_models:
         mutable_model._meta.managed = False
+
+
+@receiver(mutable_class_prepared)
+def subclass_exceptions(signal, sender, **kwargs):
+    if isinstance(sender, MutableTenantModelBase):
+        sender.subclass_exceptions()

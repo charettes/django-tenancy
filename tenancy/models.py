@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, DEFAULT_DB_ALIAS, models
-from django.db.models.base import ModelBase
+from django.db.models.base import ModelBase, subclass_exception
 from django.db.models.fields import Field
 from django.db.models.fields.related import add_lazy_relation
 from django.db.models.loading import get_model
@@ -112,6 +112,7 @@ class TenantSpecificModel(object):
 class TenantModelBase(ModelBase):
     references = SortedDict()
     tenant_model_class = None
+    exceptions = ('DoesNotExist', 'MultipleObjectsReturned')
 
     def __new__(cls, name, bases, attrs):
         super_new = super(TenantModelBase, cls).__new__
@@ -331,6 +332,14 @@ class TenantModelBase(ModelBase):
 
         return model
 
+    def subclass_exceptions(self):
+        for exception in self.exceptions:
+            self.add_to_class(exception, subclass_exception(str(exception),
+                (getattr(self, exception),
+                 getattr(self._for_tenant_model, exception)),
+                self.__module__, self
+            ))
+
     def for_tenant(self, tenant):
         """
         Returns the model for the specific tenant.
@@ -343,12 +352,12 @@ class TenantModelBase(ModelBase):
         name = reference.object_name_for_tenant(tenant)
 
         # Return the already cached model instead of creating a new one.
-        tenant_model = get_model(
+        model = get_model(
             opts.app_label, name.lower(),
             only_installed=False
         )
-        if tenant_model:
-            return tenant_model
+        if model:
+            return model
 
         attrs = {
             '__module__': self.__module__,
@@ -365,9 +374,15 @@ class TenantModelBase(ModelBase):
         else:
             bases = (self.abstract_tenant_model_factory(tenant),)
 
-        return super(TenantModelBase, self).__new__(
+        model = super(TenantModelBase, self).__new__(
             cls, str(name), bases, attrs
         )
+
+        # Since we're not in the parents when exceptions are created we must
+        # replace them by a subclass of the created one and our.
+        model.subclass_exceptions()
+
+        return model
 
     def __instancecheck__(self, instance):
         return self.__subclasscheck__(instance.__class__)
