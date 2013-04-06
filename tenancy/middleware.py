@@ -59,7 +59,7 @@ class GlobalTenantMiddleware(object):
             delattr(global_state, 'tenant')
 
     def process_request(self, request):
-        self.pollute_global_state(getattr(request, 'tenant'))
+        self.pollute_global_state(getattr(request, 'tenant', None))
 
     def process_response(self, request, response):
         self.clean_global_state()
