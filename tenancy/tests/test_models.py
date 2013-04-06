@@ -11,7 +11,7 @@ from django.utils.unittest.case import skipIf
 from .. import get_tenant_model
 from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
     TenantModelDescriptor, TenantSpecificModel)
-from ..utils import model_name_from_opts
+from ..utils import model_name
 
 from .models import (AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
     RelatedTenantModel, SpecificModel, SpecificModelProxy,
@@ -188,7 +188,7 @@ class TenantModelDescriptorTest(TenancyTestCase):
         self.assertTrue(
             ContentType.objects.filter(
                 app_label=opts.app_label,
-                model=model_name_from_opts(opts)
+                model=model_name(opts)
             ).exists()
         )
 

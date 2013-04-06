@@ -4,7 +4,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import ModelForm, modelform_factory
 
 from .models import TenantModelBase
-from .utils import model_name_from_opts
+from .utils import model_name
 
 
 class TenantMixin(object):
@@ -49,7 +49,7 @@ class TenantObjectMixin(TenantMixin):
         model = self.get_model()
         names.append("%s/%s%s.html" % (
             model._meta.app_label,
-            model_name_from_opts(model._meta),
+            model_name(model._meta),
             getattr(self, 'template_name_suffix', '')
         ))
 

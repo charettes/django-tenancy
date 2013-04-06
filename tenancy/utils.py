@@ -14,7 +14,7 @@ def allow_syncdbs(model):
             yield db
 
 
-# TODO: Remove when support for django < 1.5 is dropped
+# TODO: Remove when support for 1.4 is dropped
 if django.VERSION >= (1, 5):  #pragma: no cover
     @contextmanager
     def app_cache_lock():
@@ -50,8 +50,8 @@ model_sender_signals = (
 )
 
 
+# TODO: Remove when support for 1.5 is dropped
 def receivers_for_model(model):
-    # TODO: Remove when support for django < 1.6 is dropped
     sender = model if django.VERSION >= (1, 6) else _make_id(model)
     for signal in model_sender_signals:
         for receiver in signal._live_receivers(sender):
@@ -63,13 +63,41 @@ def disconnect_signals(model):
         signal.disconnect(receiver, sender=model)
 
 
-# TODO: Remove when support for django < 1.6 is dropped
-_model_name_attr = 'model_name' if django.VERSION >= (1, 6) else 'module_name'
-def model_name_from_opts(opts):
-    """
-    `Options.module_name` was renamed to `model_name` in Django 1.6.
-    """
-    return getattr(opts, _model_name_attr)
+# TODO: Remove when support for 1.5 is dropped
+if django.VERSION >= (1, 6):
+    def model_name(opts):
+        return opts.model_name
+else:
+    def model_name(opts):
+        return opts.module_name
+
+
+# TODO: Remove when support for 1.4 is dropped
+if django.VERSION >= (1, 5):
+    subclass_exception = models.base.subclass_exception
+else:
+    def unpickle_inner_exception(klass, exception_name):
+        # Get the exception class from the class it is attached to:
+        exception = getattr(klass, exception_name)
+        return exception.__new__(exception)
+
+    def subclass_exception(name, parents, module, attached_to):
+        class_dict = {'__module__': module}
+        if attached_to is not None:
+            def __reduce__(self):
+                # Exceptions are special - they've got state that isn't
+                # in self.__dict__. We assume it is all in self.args.
+                return (unpickle_inner_exception, (attached_to, name), self.args)
+
+            def __setstate__(self, args):
+                self.args = args
+
+            class_dict.update(
+                __reduce__=__reduce__,
+                __setstate__=__setstate__
+            )
+
+        return type(name, parents, class_dict)
 
 
 _opts_related_cache_attrs = ('_related_objects_cache', '_related_objects_proxy_cache',

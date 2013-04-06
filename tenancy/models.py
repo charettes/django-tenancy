@@ -7,15 +7,15 @@ from contextlib import contextmanager
 import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, DEFAULT_DB_ALIAS, models
-from django.db.models.base import ModelBase, subclass_exception
+from django.db.models.base import ModelBase
 from django.db.models.fields import Field
 from django.db.models.fields.related import add_lazy_relation
 from django.db.models.loading import get_model
 from django.utils.datastructures import SortedDict
 
 from . import get_tenant_model
-from .utils import (clear_opts_related_cache, model_name_from_opts,
-    remove_from_app_cache)
+from .utils import (clear_opts_related_cache, model_name,
+    remove_from_app_cache, subclass_exception)
 
 
 class AbstractTenant(models.Model):
@@ -230,7 +230,7 @@ class TenantModelBase(ModelBase):
     def intermediary_model_factory(cls, field, from_model):
         to_model = field.rel.to
         opts = from_model._meta
-        from_model_name = model_name_from_opts(opts)
+        from_model_name = model_name(opts)
         if to_model == from_model:
             from_ = "from_%s" % from_model_name
             to = "to_%s" % from_model_name
@@ -240,7 +240,7 @@ class TenantModelBase(ModelBase):
             if isinstance(to_model, basestring):
                 to = to_model.split('.')[-1].lower()
             else:
-                to = model_name_from_opts(to_model._meta)
+                to = model_name(to_model._meta)
         Meta = meta(
             db_table=field._get_m2m_db_table(opts),
             auto_created=from_model,
