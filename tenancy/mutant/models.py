@@ -22,11 +22,6 @@ class MutableTenantModelBase(TenantModelBase):
             for base, tenant_base in zip(bases, tenant_bases)
         )
 
-    def _prepare(self):
-        # Skip the special `TenantModelBase._prepare` handling since all
-        # `MutableTenantModelBase` instances do not need deferred preparation.
-        super(TenantModelBase, self)._prepare()
-
     def for_tenant(self, tenant):
         if issubclass(self, TenantSpecificModel):
             raise ValueError('Can only be called on non-tenant specific model.')
@@ -34,7 +29,7 @@ class MutableTenantModelBase(TenantModelBase):
         if opts.proxy:
             return super(MutableTenantModelBase, self).for_tenant(tenant)
         reference = self.references[self]
-        base = self.tenant_model_factory(tenant, abstract=True)
+        base = self.abstract_tenant_model_factory(tenant)
         # Create the model definition as managed and unmanaged it right after
         # to make sure tables are all created on tenant model creation.
         model_def, created = ModelDefinition.objects.get_or_create(
@@ -74,7 +69,7 @@ class MutableMutantModel(TenantModel):
 def __unpickle_mutable_tenant_model_base(model, tenant_pk, abstract):
     tenant = get_tenant_model()._default_manager.get(pk=tenant_pk)
     if abstract:
-        return model.tenant_model_factory(tenant, abstract=True)
+        return model.abstract_tenant_model_factory(tenant)
     return model.for_tenant(tenant)
 
 

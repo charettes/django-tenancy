@@ -272,32 +272,22 @@ class TenantModelBase(ModelBase):
             if isinstance(base, cls) and not base._meta.abstract
         )
 
-    def _prepare(self):
-        # Defer preparation of concrete `TenantSpecificModel` to avoid early
-        # primary key assignment.
-        if self._meta.abstract or not issubclass(self, TenantSpecificModel):
-            super(TenantModelBase, self)._prepare()
-
-    def tenant_model_factory(self, tenant, abstract=False):
+    def abstract_tenant_model_factory(self, tenant):
         if issubclass(self, TenantSpecificModel):
             raise ValueError('Can only be called on non-tenant specific model.')
         cls = self.__class__
         reference = cls.references[self]
-        name = reference.object_name_for_tenant(tenant)
-        if abstract:
-            name = "Abstract%s" % name
         model = super(TenantModelBase, self).__new__(cls,
-            str(name),
+            str("Abstract%s" % reference.object_name_for_tenant(tenant)),
             (self,) + self.tenant_model_bases(tenant, self.__bases__),
             dict(
                  __module__=self.__module__,
                  Meta=meta(
                     reference.Meta,
-                    abstract=abstract,
-                    db_table=db_schema_table(tenant, self._meta.db_table)
+                    abstract=True
                 ),
-                 tenant=tenant,
-                 _for_tenant_model=self
+                tenant=tenant,
+                _for_tenant_model=self
             )
         )
         opts = model._meta
@@ -310,6 +300,9 @@ class TenantModelBase(ModelBase):
             local_link = self._meta.parents[parent._for_tenant_model]
             link.name = None
             link.set_attributes_from_name(local_link.name)
+
+        # Copy managers from ours
+        model.copy_managers(self._meta.concrete_managers)
 
         # Add the local fields of this class
         local_fields = self._meta.local_fields + self._meta.local_many_to_many
@@ -336,14 +329,6 @@ class TenantModelBase(ModelBase):
                     rel.through = cls.references[through].for_tenant(tenant)
             field.contribute_to_class(model, field.name)
 
-        # Copy managers from ours
-        model.copy_managers(self._meta.concrete_managers)
-
-        # Concrete tenant specific models preparation has been delayed in order
-        # to prevent `pk` assignment.
-        if not abstract:
-            super(TenantModelBase, model)._prepare()
-
         return model
 
     def for_tenant(self, tenant):
@@ -365,17 +350,24 @@ class TenantModelBase(ModelBase):
         if tenant_model:
             return tenant_model
 
-        if opts.proxy:
-            bases = self.tenant_model_bases(tenant, self.__bases__)
-            return super(TenantModelBase, self).__new__(
-                cls, str(name), bases, {
-                    '__module__': self.__module__,
-                    'Meta': reference.Meta,
-                    '_for_tenant_model': self
-                }
+        attrs = {
+            '__module__': self.__module__,
+            'Meta': meta(
+                reference.Meta,
+                # TODO: Use `db_schema` once django #6148 is fixed.
+                db_table=db_schema_table(tenant, self._meta.db_table),
             )
+        }
+
+        if opts.proxy:
+            attrs.update(tenant=tenant, _for_tenant_model=self)
+            bases = self.tenant_model_bases(tenant, self.__bases__)
         else:
-            return self.tenant_model_factory(tenant)
+            bases = (self.abstract_tenant_model_factory(tenant),)
+
+        return super(TenantModelBase, self).__new__(
+            cls, str(name), bases, attrs
+        )
 
     def __instancecheck__(self, instance):
         return self.__subclasscheck__(instance.__class__)
@@ -388,16 +380,19 @@ class TenantModelBase(ModelBase):
         return super(TenantModelBase, self).__subclasscheck__(subclass)
 
 
-def __unpickle_tenant_model_base(model, tenant_pk):
+def __unpickle_tenant_model_base(model, tenant_pk, abstract):
     tenant = get_tenant_model()._default_manager.get(pk=tenant_pk)
-    return model.for_tenant(tenant)
+    tenant_model = model.for_tenant(tenant)
+    if abstract:
+        tenant_model = tenant_model.__bases__[0]
+    return tenant_model
 
 
 def __pickle_tenant_model_base(model):
     if issubclass(model, TenantSpecificModel):
         return (
             __unpickle_tenant_model_base,
-            (model._for_tenant_model, model.tenant.pk)
+            (model._for_tenant_model, model.tenant.pk, model._meta.abstract)
         )
     return model.__name__
 
