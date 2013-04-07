@@ -8,7 +8,7 @@ from mutant.models import (BaseDefinition, ModelDefinition,
 from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
-from ..management import create_tenant_schema
+from ..management import create_tenant_schema, tenant_model_receiver
 from ..models import (db_schema_table, TenantModel, TenantModelBase,
     TenantSpecificModel)
 
@@ -91,7 +91,7 @@ def get_tenant_mutable_models(tenant):
             yield model.for_tenant(tenant)
 
 
-@receiver(models.signals.pre_delete, sender=get_tenant_model())
+@tenant_model_receiver(models.signals.pre_delete)
 def manage_tenant_mutable_models(sender, instance, using, **kwargs):
     """
     Since the whole tenant schema is dropped on tenant deletion on PostgreSQL
@@ -105,9 +105,9 @@ def manage_tenant_mutable_models(sender, instance, using, **kwargs):
             mutable_model._meta.managed = True
 
 
-models.signals.post_save.disconnect(create_tenant_schema, sender=get_tenant_model())
+tenant_model_receiver.disconnect(models.signals.post_save, create_tenant_schema)
 
-@receiver(models.signals.post_save, sender=get_tenant_model())
+@tenant_model_receiver(models.signals.post_save)
 def unmanage_tenant_mutable_models(sender, instance, **kwargs):
     """
     Wrap the `create_tenant_schema` signal receiver to make sure mutable models

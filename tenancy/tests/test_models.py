@@ -4,11 +4,11 @@ import sys
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
-from django.db import  models as django_models
+from django.db import models as django_models
 from django.test.testcases import TransactionTestCase
 from django.utils.unittest.case import skipIf
 
-from .. import get_tenant_model
+from .. import get_tenant_model, settings
 from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
     TenantModelDescriptor, TenantSpecificModel)
 from ..utils import model_name
@@ -23,7 +23,9 @@ class TenantTest(TransactionTestCase):
     def assertSwapFailure(self, tenant_model, expected_message):
         with self.settings(TENANCY_TENANT_MODEL=tenant_model):
             with self.assertRaisesMessage(ImproperlyConfigured, expected_message):
+                reload(settings)
                 get_tenant_model()
+        reload(settings)
 
     def test_swap_failures(self):
         """

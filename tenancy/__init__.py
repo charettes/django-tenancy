@@ -11,15 +11,21 @@ def get_tenant_model(origin=None):
     from .models import AbstractTenant
     from .settings import TENANT_MODEL
 
-    try:
-        app_label, model_name = TENANT_MODEL().split('.')
-    except ValueError:
-        raise ImproperlyConfigured("TENANCY_TENANT_MODEL must be of the form 'app_label.model_name'")
+    app_label, object_name = TENANT_MODEL.split('.')
+    model_name = object_name.lower()
     seed_cache = origin is None
     only_installed = (origin != app_label)
-    tenant_model = get_model(app_label, model_name, seed_cache=seed_cache, only_installed=only_installed)
+    tenant_model = get_model(
+        app_label, model_name,
+        seed_cache=seed_cache, only_installed=only_installed
+    )
     if tenant_model is None:
-        raise ImproperlyConfigured("TENANCY_TENANT_MODEL refers to model '%s.%s' that has not been installed" % (app_label, model_name))
+        raise ImproperlyConfigured(
+            "TENANCY_TENANT_MODEL refers to model '%s.%s' that has not "
+            "been installed" % (app_label, object_name)
+        )
     elif not issubclass(tenant_model, AbstractTenant):
-        raise ImproperlyConfigured("TENANCY_TENANT_MODEL refers to models '%s.%s' which is not a subclass of 'tenancy.AbstractTenant'" % (app_label, model_name))
+        raise ImproperlyConfigured(
+            "TENANCY_TENANT_MODEL refers to models '%s.%s' which is not a "
+            "subclass of 'tenancy.AbstractTenant'" % (app_label, object_name))
     return tenant_model

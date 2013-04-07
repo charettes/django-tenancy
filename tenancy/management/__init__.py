@@ -6,11 +6,13 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.management.color import no_style
 from django.db import connections, models, router, transaction
 from django.db.models.fields.related import add_lazy_relation
+from django.db.models.signals import class_prepared
 from django.dispatch.dispatcher import receiver
 from django.utils.datastructures import SortedDict
 
-from .. import get_tenant_model
 from ..models import TenantModelBase
+from ..settings import TENANT_MODEL
+from ..signals import LazySignalConnector
 from ..utils import (allow_syncdbs, clear_opts_related_cache,
     disconnect_signals, receivers_for_model, remove_from_app_cache)
 
@@ -22,7 +24,10 @@ def get_tenant_models(tenant):
     return models
 
 
-@receiver(models.signals.post_save, sender=get_tenant_model())
+tenant_model_receiver = LazySignalConnector(*TENANT_MODEL.split('.'))
+
+
+@tenant_model_receiver(models.signals.post_save)
 def create_tenant_schema(sender, instance, created, using, **kwargs):
     """
     CREATE the tables associated with a tenant's models.
@@ -66,7 +71,7 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
             transaction.commit_unless_managed(db)
 
 
-@receiver(models.signals.pre_delete, sender=get_tenant_model())
+@tenant_model_receiver(models.signals.pre_delete)
 def collect_tenant_models(sender, instance, using, **kwargs):
     """
     Collect tenant models prior to tenant deletion.
@@ -74,7 +79,7 @@ def collect_tenant_models(sender, instance, using, **kwargs):
     instance._state._deletion_tenant_models = get_tenant_models(instance)
 
 
-@receiver(models.signals.post_delete, sender=get_tenant_model())
+@tenant_model_receiver(models.signals.post_delete)
 def drop_tenant_schema(sender, instance, using, **kwargs):
     """
     DROP the tables associated with a tenant's models.
