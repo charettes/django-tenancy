@@ -159,6 +159,18 @@ class TenantModelBaseTest(TenancyTestCase):
                 for parent in model._meta.parents:
                     self.assertIsInstance(e, parent.DoesNotExist)
 
+    def test_parent_subclassing(self):
+        """
+        Make sure references to the exposed model are all removed.
+        """
+        tenant_specific_model = self.tenant.specificmodels.model
+        self.assertNotIn(
+            SpecificModel,
+            tenant_specific_model._meta.parents
+        )
+        attr_name = "%s_ptr" % model_name(SpecificModel._meta)
+        self.assertFalse(hasattr(tenant_specific_model, attr_name))
+
 
 class TenantModelDescriptorTest(TenancyTestCase):
     def test_class_accessing(self):

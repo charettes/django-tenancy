@@ -293,14 +293,16 @@ class TenantModelBase(ModelBase):
         )
         opts = model._meta
 
-        # Remove ourself from the parent chain
-        opts.local_fields.remove(opts.parents.pop(self))
+        # Remove ourself from the parents chain and our descriptor
+        ptr = opts.parents.pop(self)
+        opts.local_fields.remove(ptr)
+        delattr(model, ptr.name)
 
-        # Rename parent link fields
-        for parent, link in opts.parents.items():
-            local_link = self._meta.parents[parent._for_tenant_model]
-            link.name = None
-            link.set_attributes_from_name(local_link.name)
+        # Rename parent ptr fields
+        for parent, ptr in opts.parents.items():
+            local_ptr = self._meta.parents[parent._for_tenant_model]
+            ptr.name = None
+            ptr.set_attributes_from_name(local_ptr.name)
 
         # Copy managers from ours
         model.copy_managers(self._meta.concrete_managers)
