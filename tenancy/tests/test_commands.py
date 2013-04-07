@@ -1,11 +1,13 @@
 from __future__ import unicode_literals
+from StringIO import StringIO
 
 import django
+from django.db import connections
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test.testcases import TransactionTestCase
 
-from ..models import Tenant
+from ..models import Tenant, TenantModelBase
 
 from .utils import skipIfCustomTenant
 
@@ -41,5 +43,17 @@ class CreateTenantCommandTest(TransactionTestCase):
             self.create_tenant()
 
     def test_success(self):
-        self.create_tenant('tenant')
+        self.create_tenant('tenant', verbosity=0)
         Tenant.objects.get(name='tenant').delete()
+
+    def test_verbosity(self):
+        stdout = StringIO()
+        self.create_tenant('tenant', stdout=stdout, verbosity=3)
+        tenant = Tenant.objects.get(name='tenant')
+        stdout.seek(0)
+        connection = connections[tenant._state.db]
+        if connection.vendor == 'postgresql':  #pragma: no cover
+            self.assertIn(tenant.db_schema, stdout.readline())
+        for model, line in zip(TenantModelBase.references, stdout.readlines()):
+            self.assertIn(model._meta.db_table, line)
+        tenant.delete()

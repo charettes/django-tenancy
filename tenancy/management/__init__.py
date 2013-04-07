@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import logging
 
 import django
 from django.contrib.contenttypes.models import ContentType
@@ -32,11 +33,15 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
     """
     CREATE the tables associated with a tenant's models.
     """
+    logger = logging.getLogger('tenancy.management.create_tenant_schema')
     if created:
         connection = connections[using]
         if connection.vendor == 'postgresql':  #pragma: no cover
-            schema = connection.ops.quote_name(instance.db_schema)
-            connection.cursor().execute("CREATE SCHEMA %s" % schema)
+            db_schema = instance.db_schema
+            connection.cursor().execute(
+                "CREATE SCHEMA %s" % connection.ops.quote_name(db_schema)
+            )
+            logger.info("Creating schema %s ..." % db_schema)
         # Here we don't use south's API to avoid detecting things such
         # as `unique_together` and `index_together` (which are set on the
         # abstract base) and manually calling `create_index`.
@@ -67,6 +72,11 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
                 cursor = connection.cursor()
                 for statement in sql:
                     cursor.execute(statement)
+            if connection.vendor == 'postgresql':  #pragma: no cover
+                table_name = "%s.%s"  % (db_schema, model._for_tenant_model._meta.db_table)
+            else:  #pragma: no cover
+                table_name = model._meta.db_table
+            logger.info("Creating table %s ..." % table_name)
         for db in connections:
             transaction.commit_unless_managed(db)
 
