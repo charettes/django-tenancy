@@ -38,9 +38,8 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
         connection = connections[using]
         if connection.vendor == 'postgresql':  #pragma: no cover
             db_schema = instance.db_schema
-            connection.cursor().execute(
-                "CREATE SCHEMA %s" % connection.ops.quote_name(db_schema)
-            )
+            quoted_db_schema = connection.ops.quote_name(db_schema)
+            connection.cursor().execute("CREATE SCHEMA %s" % quoted_db_schema)
             logger.info("Creating schema %s ..." % db_schema)
         # Here we don't use south's API to avoid detecting things such
         # as `unique_together` and `index_together` (which are set on the
@@ -58,6 +57,8 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
         created_models = dict((db, set()) for db in connections)
         pending_references = dict((db, {}) for db in connections)
         index_sql = SortedDict()
+        if connection.vendor == 'postgresql':  #pragma: no cover
+            index_prefix = "%s." % quoted_db_schema
         for model in get_tenant_models(instance):
             opts = model._meta
             ContentType.objects.get_for_model(model)
@@ -75,19 +76,21 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
                 cursor = connection.cursor()
                 for statement in sql:
                     cursor.execute(statement)
+            index_sql[model] = connection.creation.sql_indexes_for_model(model, style)
             if connection.vendor == 'postgresql':  #pragma: no cover
                 table_name = "%s.%s"  % (db_schema, model._for_tenant_model._meta.db_table)
+                for i, statement in enumerate(index_sql[model]):
+                    index_sql[model][i] = statement.replace(index_prefix, '', 1)
             else:  #pragma: no cover
                 table_name = opts.db_table
             logger.info("Creating table %s ..." % table_name)
-            index_sql[model] = connection.creation.sql_indexes_for_model(model, style)
 
         for db in connections:
             transaction.commit_unless_managed(db)
 
         logger.info('Installing indexes ...')
         for model, statements in index_sql.items():
-            if statement:
+            if statements:
                 for db in allow_syncdbs(model):
                     connection = connections[db]
                     cursor = connection.cursor()

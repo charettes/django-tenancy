@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import sys
 
+import django
 from django.db import models
 
 from ..models import TenantModel
@@ -101,6 +102,12 @@ class RelatedTenantModel(AbstractSpecificModelSubclass):
 class M2MSpecific(TenantModel):
     related = models.ForeignKey('RelatedTenantModel')
     specific = models.ForeignKey(SpecificModel)
+
+    class Meta:
+        if django.VERSION >= (1, 5):
+            index_together = (
+                ('related', 'specific'),
+            )
 
     class TenantMeta:
         related_name = 'm2m_specifics'
