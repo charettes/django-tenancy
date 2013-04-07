@@ -54,6 +54,8 @@ class CreateTenantCommandTest(TransactionTestCase):
         connection = connections[tenant._state.db]
         if connection.vendor == 'postgresql':  #pragma: no cover
             self.assertIn(tenant.db_schema, stdout.readline())
-        for model, line in zip(TenantModelBase.references, stdout.readlines()):
-            self.assertIn(model._meta.db_table, line)
+        for model in TenantModelBase.references:
+            self.assertIn(model._meta.object_name, stdout.readline())
+            self.assertIn(model._meta.db_table, stdout.readline())
+        self.assertIn('Installing indexes ...', stdout.readline())
         tenant.delete()

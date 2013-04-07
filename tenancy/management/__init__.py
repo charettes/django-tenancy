@@ -57,10 +57,13 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
         )
         created_models = dict((db, set()) for db in connections)
         pending_references = dict((db, {}) for db in connections)
+        index_sql = SortedDict()
         for model in get_tenant_models(instance):
+            opts = model._meta
             ContentType.objects.get_for_model(model)
             for db in allow_syncdbs(model):
                 connection = connections[db]
+                logger.debug("Processing %s.%s model" % (opts.app_label, opts.object_name))
                 sql, references = connection.creation.sql_create_model(model, style, seen_models)
                 seen_models[db].add(model)
                 created_models[db].add(model)
@@ -75,10 +78,27 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
             if connection.vendor == 'postgresql':  #pragma: no cover
                 table_name = "%s.%s"  % (db_schema, model._for_tenant_model._meta.db_table)
             else:  #pragma: no cover
-                table_name = model._meta.db_table
+                table_name = opts.db_table
             logger.info("Creating table %s ..." % table_name)
+            index_sql[model] = connection.creation.sql_indexes_for_model(model, style)
+
         for db in connections:
             transaction.commit_unless_managed(db)
+
+        logger.info('Installing indexes ...')
+        for model, statements in index_sql.items():
+            if statement:
+                for db in allow_syncdbs(model):
+                    connection = connections[db]
+                    cursor = connection.cursor()
+                    try:
+                        for statement in statements:
+                            cursor.execute(statement)
+                    except Exception as e:
+                        logger.exception(e)
+                        transaction.rollback_unless_managed(using=db)
+                    else:
+                        transaction.commit_unless_managed(using=db)
 
 
 @tenant_model_receiver(models.signals.pre_delete)
