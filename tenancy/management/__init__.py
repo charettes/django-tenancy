@@ -97,8 +97,13 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
                     try:
                         for statement in statements:
                             cursor.execute(statement)
-                    except Exception as e:
-                        logger.exception(e)
+                    except Exception:
+                        opts = model._meta
+                        logger.exception(
+                            "Failed to install index for %s.%s model." % (
+                                opts.app_label, opts.object_name
+                            )
+                        )
                         transaction.rollback_unless_managed(using=db)
                     else:
                         transaction.commit_unless_managed(using=db)
