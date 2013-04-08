@@ -6,35 +6,50 @@ from django.dispatch.dispatcher import receiver
 from django.utils.datastructures import SortedDict
 
 
-class LazySignalConnector(object):
+class LazyClassPrepared(object):
     """
-    An object to attach signals to a model only when it's prepared.
+    An object to execute a particular callback once on model post-prepration.
     """
 
-    def __init__(self, app_name, object_name):
-        self.app_name = app_name
+    def __init__(self, app_label, object_name, callback):
+        self.app_label = app_label
         self.object_name = object_name
-        self.prepared = False
-        self.receivers = SortedDict()
-        self.model = get_model(
-            app_name, object_name.lower(),
+        model = get_model(
+            app_label, object_name.lower(),
             seed_cache=False, only_installed=True
         )
-        if self.model is None:
+        if model:
+            callback(model)
+        else:
             class_prepared.connect(self.__class_prepared_receiver)
 
     def __class_prepared_receiver(self, sender, **kwargs):
         opts = sender._meta
-        if (opts.app_label == opts.app_label and
+        if (opts.app_label == self.app_label and
             opts.object_name == self.object_name):
             class_prepared.disconnect(self.__class_prepared_receiver)
-            self.model = sender
-            self.connect_receivers()
+            self.callback(sender)
+
+
+class LazySignalConnector(LazyClassPrepared):
+    """
+    An object to attach signals to a model only when it's prepared.
+    """
+
+    def __init__(self, app_label, object_name):
+        self.receivers = SortedDict()
+        super(LazySignalConnector, self).__init__(
+            app_label, object_name, self.__connect_receivers
+        )
+
+    def __connect_receivers(self, sender):
+        self.model = sender
+        self.connect_receivers()
 
     def connect_receivers(self):
         if self.model is None:
             msg = "Can't connect receivers until `%s.%s` is prepared."
-            raise RuntimeError(msg % (self.app_name, self.object_name))
+            raise RuntimeError(msg % (self.app_label, self.object_name))
         while self.receivers:
             signal, receiver = self.receivers.keyOrder[0]
             kwargs = self.receivers.pop((signal, receiver))

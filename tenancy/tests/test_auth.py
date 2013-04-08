@@ -6,31 +6,27 @@ from django.test.utils import override_settings
 from django.utils.unittest.case import skipIf, skipUnless
 
 from ..auth.backends import CustomTenantUserBackend
+from ..settings import HAS_CUSTOM_USER_SUPPORT
 
 from .utils import TenancyTestCase
-
-
-try:
-    from django.contrib.auth import get_user_model
-except ImportError:
-    has_custom_user_support = False
-else:
-    has_custom_user_support = True
 
 
 def custom_user_setup(func):
     @wraps(func)
     def wrapped(self, *args, **kwargs):
-        with self.tenant.as_global():
-            func(self, *args, **kwargs)
+        with self.settings(AUTH_USER_MODEL='tenancy.TenantUser'):
+            from ..settings import TENANT_AUTH_USER_MODEL
+            self.assertTrue(TENANT_AUTH_USER_MODEL)
+            with self.tenant.as_global():
+                func(self, *args, **kwargs)
     return skipUnless(
-        has_custom_user_support,
+        HAS_CUSTOM_USER_SUPPORT,
         'No custom user support.'
-    )(override_settings(AUTH_USER_MODEL='tenancy.TenantUser')(wrapped))
+    )(wrapped)
 
 
 class CustomTenantUserBackendTest(TenancyTestCase):
-    @skipIf(has_custom_user_support, 'Has custom user support.')
+    @skipIf(HAS_CUSTOM_USER_SUPPORT, 'Has custom user support.')
     def test_no_custom_user_support(self):
         self.assertRaisesMessage(ImproperlyConfigured,
             "The `tenancy.auth.backends.CustomTenantUserBackend` "
@@ -39,7 +35,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
             CustomTenantUserBackend
         )
 
-    @skipUnless(has_custom_user_support, 'No custom user support.')
+    @skipUnless(HAS_CUSTOM_USER_SUPPORT, 'No custom user support.')
     @override_settings(AUTH_USER_MODEL='auth.User')
     def test_custom_user_not_tenant(self):
         self.assertRaisesMessage(ImproperlyConfigured,
@@ -49,7 +45,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
             CustomTenantUserBackend
         )
 
-    @skipUnless(has_custom_user_support, 'No custom user support.')
+    @skipUnless(HAS_CUSTOM_USER_SUPPORT, 'No custom user support.')
     @override_settings(AUTH_USER_MODEL='tenancy.TenantUser')
     def test_missing_connection_tenant(self):
         self.assertRaisesMessage(ImproperlyConfigured,

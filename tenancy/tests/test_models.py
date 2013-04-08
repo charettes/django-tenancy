@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
+import logging
 import pickle
+from StringIO import StringIO
 import sys
 
 from django.contrib.contenttypes.models import ContentType
@@ -8,7 +10,7 @@ from django.db import models as django_models
 from django.test.testcases import TransactionTestCase
 from django.utils.unittest.case import skipIf
 
-from .. import get_tenant_model, settings
+from .. import get_tenant_model
 from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
     TenantModelDescriptor, TenantSpecificModel)
 from ..utils import model_name
@@ -16,25 +18,32 @@ from ..utils import model_name
 from .models import (AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
     RelatedTenantModel, SpecificModel, SpecificModelProxy,
     SpecificModelProxySubclass, SpecificModelSubclass, TenantModelMixin)
-from .utils import skipIfCustomTenant, TenancyTestCase
+from .utils import logger, skipIfCustomTenant, TenancyTestCase
 
 
 class TenantTest(TransactionTestCase):
     def assertSwapFailure(self, tenant_model, expected_message):
-        with self.settings(TENANCY_TENANT_MODEL=tenant_model):
-            with self.assertRaisesMessage(ImproperlyConfigured, expected_message):
-                reload(settings)
+        with self.assertRaisesMessage(ImproperlyConfigured, expected_message):
+            with self.settings(TENANCY_TENANT_MODEL=tenant_model):
                 get_tenant_model()
-        reload(settings)
+
+    def test_invalid_tenant_user_model_format(self):
+        stream = StringIO()
+        handler = logging.StreamHandler(stream)
+        logger.addHandler(handler)
+        with self.settings(TENANCY_TENANT_MODEL='invalid'):
+            pass
+        logger.removeHandler(handler)
+        stream.seek(0)
+        self.assertIn(
+            "TENANCY_TENANT_MODEL must be of the form 'app_label.model_name'",
+            stream.read()
+        )
 
     def test_swap_failures(self):
         """
         Make sure tenant swap failures raise the correct exception
         """
-        self.assertSwapFailure(
-            'invalid',
-            "TENANCY_TENANT_MODEL must be of the form 'app_label.model_name'"
-        )
         self.assertSwapFailure(
             'not.Installed',
             "TENANCY_TENANT_MODEL refers to model 'not.Installed' that has not been installed"
