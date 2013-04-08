@@ -7,4 +7,5 @@ from .test_hosts import *
 from .test_models import *
 from .test_middleware import *
 from .test_mutant import *
+from .test_signals import *
 from .test_views import *

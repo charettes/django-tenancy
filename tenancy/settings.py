@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models.signals import post_syncdb
 
-from .signals import LazyClassPrepared
+from .signals import lazy_class_prepared
 
 
 DEFAULT_TENANT_MODEL = 'tenancy.Tenant'
@@ -49,4 +49,4 @@ else:
                 dispatch_uid='django.contrib.auth.management.create_superuser',
             )
     app_label, model_name = settings.AUTH_USER_MODEL.split('.')
-    LazyClassPrepared(app_label, model_name, is_tenant_user_model)
+    lazy_class_prepared(app_label, model_name, is_tenant_user_model)
