@@ -9,7 +9,7 @@ from django.test.testcases import TransactionTestCase
 
 from ..models import Tenant, TenantModelBase
 
-from .utils import skipIfCustomTenant
+from .utils import mock_inputs, setup_custom_tenant_user, skipIfCustomTenant
 
 # TODO: Remove when support for django 1.4 is dropped
 class raise_cmd_error_stderr(object):
@@ -19,11 +19,9 @@ class raise_cmd_error_stderr(object):
 
 @skipIfCustomTenant
 class CreateTenantCommandTest(TransactionTestCase):
-    stderr = raise_cmd_error_stderr()
-
     def create_tenant(self, *args, **kwargs):
         if django.VERSION[:2] == (1, 4):
-            kwargs['stderr'] = self.stderr
+            kwargs['stderr'] = raise_cmd_error_stderr()
         call_command('createtenant', *args, **kwargs)
 
     def test_too_many_fields(self):
@@ -59,3 +57,16 @@ class CreateTenantCommandTest(TransactionTestCase):
             self.assertIn(model._meta.db_table, stdout.readline())
         self.assertIn('Installing indexes ...', stdout.readline())
         tenant.delete()
+
+    @setup_custom_tenant_user
+    @mock_inputs((
+        ('You just created a new tenant.', 'yes'),
+        ('Email', 'bleh@teant.test.ca'),
+        ('Password', '1234')
+    ))
+    def test_superuser_creation_prompt(self):
+        stdout = StringIO()
+        self.create_tenant('tenant', stdout=stdout, interactive=True)
+        stdout.seek(0)
+        self.assertIn('Superuser created successfully.', stdout.read())
+        Tenant.objects.get(name='tenant').delete()

@@ -2,8 +2,9 @@ from __future__ import unicode_literals
 import logging
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 
 from ... import get_tenant_model
 
@@ -75,3 +76,17 @@ class Command(BaseCommand):
         # Remove the handler associated with the schema creation logger.
         logger.removeHandler(handler)
         logger.setLevel(logging.NOTSET)
+
+        from ...settings import TENANT_AUTH_USER_MODEL
+        if options.get('interactive', True) and TENANT_AUTH_USER_MODEL:
+            confirm = raw_input(
+                "You just created a new tenant. which means you don't have "
+                "any superusers defined. \n Would you like to create one "
+                "now? (yes/no): "
+            )
+            while True:
+                if confirm not in ('yes', 'no'):
+                    confirm = raw_input('Please enter either "yes" or "no": ')
+                elif confirm == 'yes':
+                    call_command('createsuperuser', tenant=tenant, **options)
+                    break

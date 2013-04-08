@@ -5,6 +5,7 @@ import django
 from django.db import models
 
 from ..models import TenantModel
+from ..settings import HAS_CUSTOM_USER_SUPPORT
 from ..utils import model_sender_signals
 
 
@@ -139,15 +140,31 @@ for signal in model_sender_signals:
     signal.connect(add_to_dispatched, sender=SignalTenantModel)
 
 
-try:
+
+if HAS_CUSTOM_USER_SUPPORT:
     from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
-except ImportError:
-    pass
-else:
+
+    class TenantUserManager(BaseUserManager):
+        def create_user(self, email, password=None, **extra_fields):
+            """
+            Creates and saves a User with the given username, email and password.
+            """
+            if not email:
+                raise ValueError('The given email must be set')
+            email = self.normalize_email(email)
+            user = self.model(email=email, **extra_fields)
+            user.set_password(password)
+            user.save(using=self._db)
+            return user
+
+        def create_superuser(self, email, password):
+            return self.create_user(email, password, is_superuser=True)
+
     class TenantUser(TenantModel, AbstractBaseUser):
         email = models.EmailField(unique=True)
+        is_superuser = models.BooleanField(default=False)
 
-        objects = BaseUserManager()
+        objects = TenantUserManager()
 
         USERNAME_FIELD = 'email'
 
