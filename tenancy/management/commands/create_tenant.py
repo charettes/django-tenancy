@@ -8,15 +8,27 @@ from django.core.management.base import BaseCommand, CommandError
 from ... import get_tenant_model
 
 
-class Command(BaseCommand):
-    logger = logging.getLogger('tenancy.management.create_tenant_schema')
-    verbosity_logging_levels = {
+class CommandLoggingHandler(logging.StreamHandler):
+    VERBOSITY_LEVELS = {
         0: logging.NOTSET,
         1: logging.INFO,
         2: logging.INFO,
         3: logging.DEBUG,
     }
 
+    def __init__(self, stdout, stderr, verbosity=1):
+        self.error_stream = logging.StreamHandler(stderr)
+        super(CommandLoggingHandler, self).__init__(stdout)
+        self.setLevel(self.VERBOSITY_LEVELS[verbosity])
+
+    def emit(self, record):
+        if record.levelno >= logging.ERROR:
+            self.error_stream.emit(record)
+        else:
+            return super(CommandLoggingHandler, self).emit(record)
+
+
+class Command(BaseCommand):
     def handle(self, *args, **options):
         tenant_model = get_tenant_model()
         # Attempt to build the instance based on specified data
@@ -47,15 +59,17 @@ class Command(BaseCommand):
             )
 
         # Redirect the output of the schema creation logger to our stdout.
-        verbosity = int(options['verbosity'])
-        handler = logging.StreamHandler(self.stdout)
-        self.logger.setLevel(self.verbosity_logging_levels[verbosity])
-        self.logger.addHandler(handler)
+        handler = CommandLoggingHandler(
+            self.stdout, self.stderr, int(options['verbosity'])
+        )
+        logger = logging.getLogger('tenancy')
+        logger.setLevel(handler.level)
+        logger.addHandler(handler)
 
         # Create the tenant instance and create tables
         with transaction.commit_on_success():
             tenant.save(force_insert=True)
 
         # Remove the handler associated with the schema creation logger.
-        self.logger.removeHandler(handler)
-        self.logger.setLevel(logging.NOTSET)
+        logger.removeHandler(handler)
+        logger.setLevel(logging.NOTSET)
