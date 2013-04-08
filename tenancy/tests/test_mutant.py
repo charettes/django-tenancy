@@ -32,8 +32,13 @@ class MutableTenantModelTest(TenancyTestCase):
     def test_subclassing(self):
         from .models import MutableTenantModel, MutableTenantModelSubclass
         model_class = MutableTenantModelSubclass.for_tenant(self.tenant)
-        specific_model = self.tenant.specificmodels.create()
-        model_class.objects.create(field='test', non_mutable_fk=specific_model)
+        self.assertEqual(
+            model_class.non_mutable_fk.field.rel.to,
+            self.tenant.specificmodels.model
+        )
+        model_class.objects.create(
+            field='test', non_mutable_fk=self.tenant.specificmodels.create()
+        )
         # Add a field to the parent class
         NullBooleanFieldDefinition.objects.create_with_default(False,
             model_def=MutableTenantModel.for_tenant(self.tenant).definition(),

@@ -276,9 +276,8 @@ class TenantModelBase(ModelBase):
     def abstract_tenant_model_factory(self, tenant):
         if issubclass(self, TenantSpecificModel):
             raise ValueError('Can only be called on non-tenant specific model.')
-        cls = self.__class__
-        reference = cls.references[self]
-        model = super(TenantModelBase, self).__new__(cls,
+        reference = self.references[self]
+        model = super(TenantModelBase, self).__new__(self.__class__,
             str("Abstract%s" % reference.object_name_for_tenant(tenant)),
             (self,) + self.tenant_model_bases(tenant, self.__bases__),
             dict(
@@ -316,10 +315,10 @@ class TenantModelBase(ModelBase):
                 # Make sure related fields pointing to tenant models are
                 # pointing to their tenant specific counterpart.
                 to = rel.to
-                if isinstance(to, cls):
+                if isinstance(to, TenantModelBase):
                     if getattr(rel, 'parent_link', False):
                         continue
-                    rel.to = cls.references[to].for_tenant(tenant)
+                    rel.to = self.references[to].for_tenant(tenant)
                 else:
                     clear_opts_related_cache(to)
                 related_name = reference.related_names[field.name]
@@ -329,7 +328,7 @@ class TenantModelBase(ModelBase):
                     rel.related_name = 'unspecified_for_tenant_model+'
                 if isinstance(field, models.ManyToManyField):
                     through = field.rel.through
-                    rel.through = cls.references[through].for_tenant(tenant)
+                    rel.through = self.references[through].for_tenant(tenant)
             field.contribute_to_class(model, field.name)
 
         return model
@@ -348,8 +347,7 @@ class TenantModelBase(ModelBase):
         """
         if issubclass(self, TenantSpecificModel):
             raise ValueError('Can only be called on non-tenant specific model.')
-        cls = self.__class__
-        reference = cls.references[self]
+        reference = self.references[self]
         opts = self._meta
         name = reference.object_name_for_tenant(tenant)
 
@@ -377,7 +375,7 @@ class TenantModelBase(ModelBase):
             bases = (self.abstract_tenant_model_factory(tenant),)
 
         model = super(TenantModelBase, self).__new__(
-            cls, str(name), bases, attrs
+            TenantModelBase, str(name), bases, attrs
         )
 
         # Since we're not in the parents when exceptions are created we must
