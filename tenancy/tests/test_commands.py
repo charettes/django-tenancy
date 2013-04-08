@@ -24,7 +24,7 @@ class CreateTenantCommandTest(TransactionTestCase):
     def create_tenant(self, *args, **kwargs):
         if django.VERSION[:2] == (1, 4):
             kwargs['stderr'] = self.stderr
-        call_command('create_tenant', *args, **kwargs)
+        call_command('createtenant', *args, **kwargs)
 
     def test_too_many_fields(self):
         args = ('name', 'useless')
