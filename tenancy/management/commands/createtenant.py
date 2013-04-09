@@ -11,9 +11,9 @@ from ... import get_tenant_model
 
 class CommandLoggingHandler(logging.StreamHandler):
     VERBOSITY_LEVELS = {
-        0: logging.NOTSET,
-        1: logging.INFO,
-        2: logging.INFO,
+        0: logging.ERROR,
+        1: logging.INFO,  # Would like to use WARNING here but 1 is the default
+        2: logging.INFO,  # verbosity level and should map to INFO.
         3: logging.DEBUG,
     }
 
