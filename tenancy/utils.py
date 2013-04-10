@@ -4,6 +4,7 @@ from contextlib import contextmanager
 
 import django
 from django.db import connections, models, router
+from django.db.models.base import ModelBase
 from django.db.models.loading import cache as app_cache
 from django.dispatch.dispatcher import _make_id
 
@@ -37,7 +38,15 @@ def remove_from_app_cache(model_class):
             model = app_models.pop(model_name, False)
             if model:
                 app_cache._get_models_cache.clear()
-                return model
+                disconnect_signals(model)
+                for field, field_model in model._meta.get_fields_with_model():
+                    rel = field.rel
+                    if field_model is None and rel:
+                        to = rel.to
+                        if isinstance(to, ModelBase):
+                            clear_opts_related_cache(to)
+                            if not rel.is_hidden():
+                                delattr(to, field.related.get_accessor_name())
 
 
 model_sender_signals = (

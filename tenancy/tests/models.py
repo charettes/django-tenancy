@@ -176,12 +176,12 @@ if HAS_CUSTOM_USER_SUPPORT:
 
 
 try:
-    from ..mutant.models import MutableMutantModel
+    from ..mutant.models import MutableTenantModel
 except ImportError:
     pass
 else:
     if sys.version_info >= (2, 7):
-        class MutableTenantModel(MutableMutantModel):
+        class MutableModel(MutableTenantModel):
             field = models.BooleanField()
 
             class Meta:
@@ -190,5 +190,5 @@ else:
             class TenantMeta:
                 related_name = 'mutable_models'
 
-        class MutableTenantModelSubclass(MutableTenantModel):
+        class MutableModelSubclass(MutableModel):
             non_mutable_fk = models.ForeignKey(SpecificModel)

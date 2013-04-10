@@ -18,13 +18,6 @@ from ..utils import (allow_syncdbs, clear_opts_related_cache,
     disconnect_signals, receivers_for_model, remove_from_app_cache)
 
 
-def get_tenant_models(tenant):
-    models = []
-    for model in TenantModelBase.references:
-        models.append(model.for_tenant(tenant))
-    return models
-
-
 tenant_model_receiver = LazySignalConnector(*TENANT_MODEL.split('.'))
 
 
@@ -59,7 +52,7 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
         index_sql = SortedDict()
         if connection.vendor == 'postgresql':  #pragma: no cover
             index_prefix = "%s." % quoted_db_schema
-        for model in get_tenant_models(instance):
+        for model in instance.models:
             opts = model._meta
             ContentType.objects.get_for_model(model)
             for db in allow_syncdbs(model):
@@ -109,14 +102,6 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
                         transaction.commit_unless_managed(using=db)
 
 
-@tenant_model_receiver(models.signals.pre_delete)
-def collect_tenant_models(sender, instance, using, **kwargs):
-    """
-    Collect tenant models prior to tenant deletion.
-    """
-    instance._state._deletion_tenant_models = get_tenant_models(instance)
-
-
 @tenant_model_receiver(models.signals.post_delete)
 def drop_tenant_schema(sender, instance, using, **kwargs):
     """
@@ -124,14 +109,12 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
     """
     connection = connections[using]
     quote_name = connection.ops.quote_name
-    tenant_models = instance._state._deletion_tenant_models
-    del instance._state._deletion_tenant_models
     if connection.vendor == 'postgresql':  #pragma: no cover
         connection.cursor().execute(
             "DROP SCHEMA %s CASCADE" % quote_name(instance.db_schema)
         )
     else:  #pragma: no cover
-        for model in tenant_models:
+        for model in instance.models:
             opts = model._meta
             if not opts.managed or opts.proxy:
                 continue
@@ -140,18 +123,7 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)
     ContentType.objects.filter(model__startswith=instance.model_name_prefix.lower()).delete()
     ContentType.objects.clear_cache()
-    for model in tenant_models:
-        remove_from_app_cache(model)
-        disconnect_signals(model)
-        related_fields = [
-            field for field in model._meta.local_fields if field.rel
-        ] + model._meta.local_many_to_many
-        for field in related_fields:
-            to = field.rel.to
-            if not isinstance(to, TenantModelBase):
-                clear_opts_related_cache(to)
-                if not field.rel.is_hidden():
-                    delattr(to, field.related.get_accessor_name())
+    del instance.models
 
 
 @receiver(models.signals.class_prepared)

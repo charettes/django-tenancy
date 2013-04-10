@@ -1,10 +1,12 @@
 from __future__ import unicode_literals
 import copy_reg
+import logging
 
 from django.db import connections, models
 from django.dispatch.dispatcher import receiver
 from mutant.models import (BaseDefinition, ModelDefinition,
     OrderingFieldDefinition)
+from mutant.db.models import MutableModel
 from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
@@ -60,49 +62,43 @@ class MutableTenantModelBase(TenantModelBase):
         return model_def.model_class()
 
 
-class MutableMutantModel(TenantModel):
+class MutableTenantModel(TenantModel):
     __metaclass__ = MutableTenantModelBase
 
     class Meta:
         abstract = True
 
 
-def __unpickle_mutable_tenant_model_base(model, tenant_pk, abstract):
-    tenant = get_tenant_model()._default_manager.get(pk=tenant_pk)
-    if abstract:
-        return model.abstract_tenant_model_factory(tenant)
-    return model.for_tenant(tenant)
+def __unpickle_mutable_tenant_model_base(model, natural_key, abstract):
+    try:
+        manager = get_tenant_model()._default_manager
+        tenant = manager.get_by_natural_key(*natural_key)
+        if abstract:
+            return model.abstract_tenant_model_factory(tenant)
+        return model.for_tenant(tenant)
+    except Exception:
+        logger = logging.getLogger('tenancy.pickling')
+        logger.exception('Failed to unpickle mutable tenant model')
 
 
 def __pickle_mutable_tenant_model_base(model):
     if issubclass(model, TenantSpecificModel):
         return (
             __unpickle_mutable_tenant_model_base,
-            (model._for_tenant_model, model.tenant.pk, model._meta.abstract)
+            (model._for_tenant_model, model.tenant.natural_key(), model._meta.abstract)
         )
     return model.__name__
 
 copy_reg.pickle(MutableTenantModelBase, __pickle_mutable_tenant_model_base)
 
 
-def get_tenant_mutable_models(tenant):
-    for model in TenantModelBase.references:
-        if isinstance(model, MutableTenantModelBase):
-            yield model.for_tenant(tenant)
-
-
-@tenant_model_receiver(models.signals.pre_delete)
-def manage_tenant_mutable_models(sender, instance, using, **kwargs):
+def manage_tenant_mutable_models(tenant, managed=True):
     """
-    Since the whole tenant schema is dropped on tenant deletion on PostgreSQL
-    we make sure to not attempt dropping the table on model definition
-    deletion. Marking the mutable model class as managed nails it since
-    mutant doesn't issue DDL statement for managed models.
+    Mark tenant specific mutable models as managed.
     """
-    connection = connections[using]
-    if connection.vendor == 'postgresql':
-        for mutable_model in get_tenant_mutable_models(instance):
-            mutable_model._meta.managed = True
+    for model in tenant.models:
+        if issubclass(model, MutableModel):
+            model._meta.managed = managed
 
 
 tenant_model_receiver.disconnect(models.signals.post_save, create_tenant_schema)
@@ -111,14 +107,24 @@ tenant_model_receiver.disconnect(models.signals.post_save, create_tenant_schema)
 def unmanage_tenant_mutable_models(sender, instance, **kwargs):
     """
     Wrap the `create_tenant_schema` signal receiver to make sure mutable models
-    are marked as managed for schema creation.
+    are marked as managed for schema creation. We can't use `pre_save` since
+    the tenant doesn't exist yet.
     """
-    tenant_mutable_models = tuple(get_tenant_mutable_models(instance))
-    for mutable_model in tenant_mutable_models:
-        mutable_model._meta.managed = True
+    manage_tenant_mutable_models(instance)
     create_tenant_schema(sender=sender, instance=instance, **kwargs)
-    for mutable_model in tenant_mutable_models:
-        mutable_model._meta.managed = False
+    manage_tenant_mutable_models(instance, False)
+
+
+@tenant_model_receiver(models.signals.pre_delete)
+def cache_tenant_models(sender, instance, using, **kwargs):
+    """
+    Since the whole tenant schema is dropped on tenant deletion on PostgreSQL
+    we make sure to not attempt dropping the table on model definition
+    deletion. Marking the mutable model class as managed nails it since
+    mutant doesn't issue DDL statement for managed models.
+    """
+    if connections[using].vendor == 'postgresql':
+        manage_tenant_mutable_models(instance)
 
 
 @receiver(mutable_class_prepared)

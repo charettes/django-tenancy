@@ -3,6 +3,7 @@ from abc import ABCMeta
 import copy
 import copy_reg
 from contextlib import contextmanager
+import logging
 
 import django
 from django.core.exceptions import ImproperlyConfigured
@@ -14,13 +15,47 @@ from django.db.models.loading import get_model
 from django.utils.datastructures import SortedDict
 
 from . import get_tenant_model
+from .managers import AbstractTenantManager, TenantManager
 from .utils import (clear_opts_related_cache, model_name,
     remove_from_app_cache, subclass_exception)
 
 
+class TenantModelsCache(object):
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        assert instance.pk
+        # Retrieve the cached instance
+        instance = owner._default_manager._add_to_cache(instance)
+        try:
+            models = instance.__dict__['models']
+        except KeyError:
+            instance.__dict__['models'] = models = tuple(
+                reference.for_tenant(instance)
+                for reference in TenantModelBase.references
+            )
+        return models
+
+    def __delete__(self, instance):
+        for model in instance.models:
+            remove_from_app_cache(model)
+        # Retrieve the cached instance
+        instance = instance._default_manager._remove_from_cache(instance)
+        del instance.__dict__['models']
+
+
 class AbstractTenant(models.Model):
+    objects = AbstractTenantManager()
+
     class Meta:
         abstract = True
+
+    def __init__(self, *args, **kwargs):
+        super(AbstractTenant, self).__init__(*args, **kwargs)
+        if self.pk:
+            self._default_manager._add_to_cache(self)
+
+    models = TenantModelsCache()
 
     @contextmanager
     def as_global(self):
@@ -49,6 +84,8 @@ class AbstractTenant(models.Model):
 
 class Tenant(AbstractTenant):
     name = models.CharField(unique=True, max_length=20)
+
+    objects = TenantManager()
 
     class Meta:
         if django.VERSION >= (1, 5):  #pragma: no cover
@@ -395,19 +432,24 @@ class TenantModelBase(ModelBase):
         return super(TenantModelBase, self).__subclasscheck__(subclass)
 
 
-def __unpickle_tenant_model_base(model, tenant_pk, abstract):
-    tenant = get_tenant_model()._default_manager.get(pk=tenant_pk)
-    tenant_model = model.for_tenant(tenant)
-    if abstract:
-        tenant_model = tenant_model.__bases__[0]
-    return tenant_model
+def __unpickle_tenant_model_base(model, natural_key, abstract):
+    try:
+        manager = get_tenant_model()._default_manager
+        tenant = manager.get_by_natural_key(*natural_key)
+        tenant_model = model.for_tenant(tenant)
+        if abstract:
+            tenant_model = tenant_model.__bases__[0]
+        return tenant_model
+    except Exception:
+        logger = logging.getLogger('tenancy.pickling')
+        logger.exception('Failed to unpickle tenant model')
 
 
 def __pickle_tenant_model_base(model):
     if issubclass(model, TenantSpecificModel):
         return (
             __unpickle_tenant_model_base,
-            (model._for_tenant_model, model.tenant.pk, model._meta.abstract)
+            (model._for_tenant_model, model.tenant.natural_key(), model._meta.abstract)
         )
     return model.__name__
 

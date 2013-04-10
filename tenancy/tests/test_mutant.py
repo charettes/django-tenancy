@@ -18,8 +18,8 @@ else:
 @skipIf(sys.version_info < (2, 7), "Model class can't be pickled on python < 2.7")
 class MutableTenantModelTest(TenancyTestCase):
     def test_field_creation(self):
-        from .models import MutableTenantModel
-        model_class = MutableTenantModel.for_tenant(self.tenant)
+        from .models import MutableModel
+        model_class = MutableModel.for_tenant(self.tenant)
         model_def = model_class.definition()
         NullBooleanFieldDefinition.objects.create(
             model_def=model_def,
@@ -30,8 +30,8 @@ class MutableTenantModelTest(TenancyTestCase):
         self.assertEqual(1, tenant_mutable_models.filter(is_cool=False).count())
 
     def test_subclassing(self):
-        from .models import MutableTenantModel, MutableTenantModelSubclass
-        model_class = MutableTenantModelSubclass.for_tenant(self.tenant)
+        from .models import MutableModel, MutableModelSubclass
+        model_class = MutableModelSubclass.for_tenant(self.tenant)
         self.assertEqual(
             model_class.non_mutable_fk.field.rel.to,
             self.tenant.specificmodels.model
@@ -41,7 +41,7 @@ class MutableTenantModelTest(TenancyTestCase):
         )
         # Add a field to the parent class
         NullBooleanFieldDefinition.objects.create_with_default(False,
-            model_def=MutableTenantModel.for_tenant(self.tenant).definition(),
+            model_def=MutableModel.for_tenant(self.tenant).definition(),
             name='is_cool',
         )
         self.assertEqual(1,
@@ -54,8 +54,8 @@ class MutableTenantModelTest(TenancyTestCase):
         OrderingFieldDefinition must be created in order to maintain the
         specified ordering.
         """
-        from .models import MutableTenantModel
-        model_class = MutableTenantModel.for_tenant(self.tenant)
+        from .models import MutableModel
+        model_class = MutableModel.for_tenant(self.tenant)
         first = model_class.objects.create(field=True)
         second = model_class.objects.create(field=False)
         self.assertQuerysetEqual(
