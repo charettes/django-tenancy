@@ -6,6 +6,7 @@ from ..forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
 from ..models import Tenant
 
+from .forms import BaseInlineFormSetSubclass, ModelFormSubclass
 from .models import NonTenantModel, RelatedTenantModel, SpecificModel
 from .utils import TenancyTestCase
 
@@ -71,3 +72,21 @@ class TenantInlineFormsetFactoryTest(TenancyTestCase):
         self.assertEqual(formset.model, tenant_related_model)
         fk = tenant_related_model._meta.get_field('fk')
         self.assertEqual(fk, formset.fk)
+
+    def test_custom_form(self):
+        formset = tenant_inlineformset_factory(
+            self.tenant,
+            SpecificModel,
+            RelatedTenantModel,
+            ModelFormSubclass,
+        )
+        self.assertTrue(issubclass(formset.form, ModelFormSubclass))
+
+    def test_custom_formset(self):
+        formset = tenant_inlineformset_factory(
+            self.tenant,
+            SpecificModel,
+            RelatedTenantModel,
+            formset=BaseInlineFormSetSubclass,
+        )
+        self.assertTrue(issubclass(formset, BaseInlineFormSetSubclass))
