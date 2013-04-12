@@ -30,9 +30,15 @@ class TenantManagerTest(TenancyTestCase):
     def test_clear_cache(self):
         # They were cached on `setUp`.
         Tenant.objects.clear_cache()
-        self.assertIsNone(
+        with self.assertRaises(KeyError):
             Tenant.objects._get_from_cache(*self.tenant.natural_key())
-        )
-        self.assertIsNone(
+        with self.assertRaises(KeyError):
             Tenant.objects._get_from_cache(*self.other_tenant.natural_key())
-        )
+
+
+class TenantModelsCacheTest(TenancyTestCase):
+    def test_initialized_models(self):
+        """
+        Make sure models are loaded upon model initialization.
+        """
+        self.assertIn('models', self.tenant.__dict__)

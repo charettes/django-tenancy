@@ -117,6 +117,7 @@ def unmanage_tenant_mutable_models(sender, instance, **kwargs):
     are marked as managed for schema creation. We can't use `pre_save` since
     the tenant doesn't exist yet.
     """
+    instance._default_manager._add_to_cache(instance)
     manage_tenant_mutable_models(instance)
     create_tenant_schema(sender=sender, instance=instance, **kwargs)
     manage_tenant_mutable_models(instance, False)

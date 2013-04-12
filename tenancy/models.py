@@ -25,8 +25,6 @@ class TenantModelsCache(object):
         if instance is None:
             return self
         assert instance.pk
-        # Retrieve the cached instance
-        instance = owner._default_manager._add_to_cache(instance)
         try:
             models = instance.__dict__['models']
         except KeyError:
@@ -38,10 +36,10 @@ class TenantModelsCache(object):
 
     def __delete__(self, instance):
         for model in instance.models:
-            remove_from_app_cache(model)
-        # Retrieve the cached instance
-        instance = instance._default_manager._remove_from_cache(instance)
-        del instance.__dict__['models']
+            try:
+                remove_from_app_cache(model)
+            except AttributeError:
+                pass
 
 
 class AbstractTenant(models.Model):
@@ -106,7 +104,7 @@ def meta(Meta=None, **opts):
 
 
 def db_schema_table(tenant, db_table):
-    connection = connections[tenant._state.db]
+    connection = connections[tenant._state.db or DEFAULT_DB_ALIAS]
     if connection.vendor == 'postgresql':  #pragma: no cover
         # See https://code.djangoproject.com/ticket/6148#comment:47
         return '%s\".\"%s' % (tenant.db_schema, db_table)

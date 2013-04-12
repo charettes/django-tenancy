@@ -28,6 +28,7 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
     """
     logger = logging.getLogger('tenancy.management.create_tenant_schema')
     if created:
+        instance._default_manager._add_to_cache(instance)
         connection = connections[using]
         if connection.vendor == 'postgresql':  #pragma: no cover
             db_schema = instance.db_schema
@@ -123,7 +124,7 @@ def drop_tenant_schema(sender, instance, using, **kwargs):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)
     ContentType.objects.filter(model__startswith=instance.model_name_prefix.lower()).delete()
     ContentType.objects.clear_cache()
-    del instance.models
+    instance._default_manager._remove_from_cache(instance)
 
 
 @receiver(models.signals.class_prepared)
