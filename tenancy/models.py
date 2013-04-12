@@ -139,7 +139,7 @@ class TenantSpecificModel(object):
     def __subclasshook__(cls, subclass):
         if (isinstance(subclass, TenantModelBase) and
             isinstance(getattr(subclass, 'tenant', None),
-                       get_tenant_model(subclass._meta.app_label))):
+                       get_tenant_model(False))):
             return True
         return NotImplemented
 
@@ -216,7 +216,7 @@ class TenantModelBase(ModelBase):
             else:
                 # Attach a descriptor to the tenant model to access the
                 # underlying model based on the tenant instance.
-                tenant_model = get_tenant_model(model._meta.app_label)
+                tenant_model = get_tenant_model(False)
                 descriptor = TenantModelDescriptor(model)
                 setattr(tenant_model, related_name, descriptor)
             model._for_tenant_model = model

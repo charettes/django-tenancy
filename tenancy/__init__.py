@@ -6,18 +6,15 @@ from django.core.exceptions import ImproperlyConfigured
 __version__ = (0, 0, 2, 'dev')
 
 
-def get_tenant_model(origin=None):
+def get_tenant_model(seed_cache=True):
     from django.db.models import get_model
     from .models import AbstractTenant
     from .settings import TENANT_MODEL
 
     app_label, object_name = TENANT_MODEL.split('.')
     model_name = object_name.lower()
-    seed_cache = origin is None
-    only_installed = (origin != app_label)
     tenant_model = get_model(
-        app_label, model_name,
-        seed_cache=seed_cache, only_installed=only_installed
+        app_label, model_name, seed_cache=seed_cache, only_installed=False
     )
     if tenant_model is None:
         raise ImproperlyConfigured(
