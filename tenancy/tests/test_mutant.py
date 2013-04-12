@@ -63,3 +63,18 @@ class MutableTenantModelTest(TenancyTestCase):
             sorted([second.id, first.id], reverse=True),
             int
         )
+
+    def test_mutable_to_non_mutable_fk(self):
+        """
+        Make sure non mutable models reference mutable ones through a proxy.
+        """
+        from .models import MutableModel, NonMutableModel
+        mutable_model_class = MutableModel.for_tenant(self.tenant)
+        # Alter the model definition
+        NullBooleanFieldDefinition.objects.create_with_default(False,
+            model_def=mutable_model_class.definition(),
+            name='is_cool',
+        )
+        mutable = mutable_model_class.objects.create(field=True)
+        non_mutable_model_class = NonMutableModel.for_tenant(self.tenant)
+        non_mutable_model_class.objects.create(mutable_fk=mutable)

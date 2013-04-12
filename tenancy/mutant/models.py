@@ -11,11 +11,18 @@ from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
 from ..management import create_tenant_schema, tenant_model_receiver
-from ..models import (db_schema_table, TenantModel, TenantModelBase,
+from ..models import (db_schema_table,Reference, TenantModel, TenantModelBase,
     TenantSpecificModel)
 
 
+class MutableReference(Reference):
+    def for_tenant(self, tenant):
+        return self.model.for_tenant(tenant)
+
+
 class MutableTenantModelBase(TenantModelBase):
+    reference = MutableReference
+
     @classmethod
     def tenant_model_bases(cls, tenant, bases):
         tenant_bases = super(MutableTenantModelBase, cls).tenant_model_bases(tenant, bases)

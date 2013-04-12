@@ -192,3 +192,6 @@ else:
 
         class MutableModelSubclass(MutableModel):
             non_mutable_fk = models.ForeignKey(SpecificModel)
+
+        class NonMutableModel(TenantModel):
+            mutable_fk = models.ForeignKey(MutableModel)

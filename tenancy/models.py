@@ -147,6 +147,7 @@ class TenantSpecificModel(object):
 
 
 class TenantModelBase(ModelBase):
+    reference = Reference
     references = SortedDict()
     tenant_model_class = None
     exceptions = ('DoesNotExist', 'MultipleObjectsReturned')
@@ -167,7 +168,7 @@ class TenantModelBase(ModelBase):
                     cls, name, bases,
                     dict(attrs, meta=meta(Meta, managed=False))
                 )
-                cls.references[model] = Reference(model, Meta)
+                cls.references[model] = cls.reference(model, Meta)
             else:
                 # Extract field related names prior to adding them to the model
                 # in order to validate them later on.
@@ -187,7 +188,7 @@ class TenantModelBase(ModelBase):
                     cls, name, bases,
                     dict(attrs, Meta=meta(Meta, managed=False))
                 )
-                cls.references[model] = Reference(model, Meta, related_names)
+                cls.references[model] = cls.reference(model, Meta, related_names)
                 opts = model._meta
                 for field in opts.local_fields:
                     if field.rel:
