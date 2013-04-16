@@ -21,5 +21,5 @@ urlpatterns = patterns('',
     url(r'^exception$',
         raise_exception,
         name='exception'
-    ),
+    )
 )

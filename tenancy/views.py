@@ -1,11 +1,13 @@
 from __future__ import unicode_literals
 
 from django.core.exceptions import ImproperlyConfigured
-from django.forms.models import ModelForm, modelform_factory
+from django.forms.models import (BaseInlineFormSet, BaseModelFormSet,
+    ModelForm, modelform_factory)
 
+from .forms import (tenant_inlineformset_factory, tenant_modelform_factory,
+    tenant_modelformset_factory)
 from .models import TenantModelBase
 from .utils import model_name
-
 
 class TenantMixin(object):
     """
@@ -62,28 +64,57 @@ class TenantModelFormMixin(TenantObjectMixin):
     def get_form_class(self):
         """
         Provide a model form class based on tenant specific model.
-
-        If a `form_class` attribute is specified it makes sure it's associated
-        model is coherent with the one specified on this class.
         """
         form_class = self.form_class
-        model = self.get_queryset().model
         if form_class:
-            form_class_model = form_class._meta.model
-            if form_class_model:
-                if isinstance(form_class_model, TenantModelBase):
-                    if not issubclass(model, form_class_model):
-                        msg = "%s's model: %s, is not a subclass of it's `form_class` model: %s."
-                        raise ImproperlyConfigured(
-                            msg % (
-                                self.__class__.__name__,
-                                model.__name__,
-                                form_class_model.__name__
-                            )
-                        )
+            if issubclass(form_class, ModelForm):
+                form_class_model = form_class._meta.model
+                factory = tenant_modelform_factory
+            elif issubclass(form_class, BaseModelFormSet):
+                form_class_model = form_class.model
+                if issubclass(form_class, BaseInlineFormSet):
+                    factory = tenant_inlineformset_factory
                 else:
-                    msg = "%s.form_class' model is not an instance of TenantModelBase."
-                    raise ImproperlyConfigured(msg % self.__class__.__name__)
+                    factory = tenant_modelformset_factory
+            else:
+                raise ImproperlyConfigured(
+                    "%s.form_class must be a subclass of `ModelForm` or "
+                    "`BaseModelFormSet`." % self.__class__.__name__
+                )
+            if not isinstance(form_class_model, TenantModelBase):
+                raise ImproperlyConfigured(
+                    "%s.form_class' model is not an instance of "
+                    "TenantModelBase." % self.__class__.__name__
+                )
+            return factory(self.get_tenant(), form_class)
         else:
-            form_class = ModelForm
-        return modelform_factory(model, form_class)
+            return modelform_factory(self.get_tenant_model())
+
+
+class TenantWizardMixin(TenantMixin):
+    def get_form(self, step=None, data=None, files=None):
+        if step is None:
+            step = self.steps.current
+        kwargs = self.get_form_kwargs(step)
+        form_class = self.form_list[step]
+        if (issubclass(form_class, ModelForm) and
+            isinstance(form_class._meta.model, TenantModelBase)):
+            kwargs.setdefault('instance', self.get_form_instance(step))
+            form_class = tenant_modelform_factory(self.get_tenant(), form_class)
+        elif (issubclass(form_class, BaseModelFormSet) and
+              isinstance(form_class.model, TenantModelBase)):
+            kwargs.setdefault('queryset', self.get_form_instance(step))
+            tenant = self.get_tenant()
+            if isinstance(form_class, BaseInlineFormSet):
+                form_class = tenant_inlineformset_factory(tenant, form_class)
+            else:
+                form_class = tenant_modelformset_factory(tenant, form_class)
+        else:
+            return super(TenantWizardMixin, self).get_form(step, data, files)
+        kwargs.update({
+            'data': data,
+            'files': files,
+            'prefix': self.get_form_prefix(step, form_class),
+            'initial': self.get_form_initial(step),
+        })
+        return form_class(**kwargs)

@@ -1,92 +1,71 @@
 from __future__ import unicode_literals
 
 from django.core.exceptions import ImproperlyConfigured
+from django.forms.models import modelform_factory, modelformset_factory
 
 from ..forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
 from ..models import Tenant
 
-from .forms import BaseInlineFormSetSubclass, ModelFormSubclass
+from .forms import (NonTenantInlineFormSet, RelatedInlineFormSet,
+    RelatedTenantModelForm, SpecificModelForm, SpecificModelFormSet)
 from .models import NonTenantModel, RelatedTenantModel, SpecificModel
 from .utils import TenancyTestCase
 
 
 class TenantModelFormFactoryTest(TenancyTestCase):
     def test_non_tenant_model(self):
+        form = modelform_factory(Tenant)
         with self.assertRaisesMessage(
                 ImproperlyConfigured,
                 'Tenant must be an instance of TenantModelBase'):
-            tenant_modelform_factory(self.tenant, Tenant)
+            tenant_modelform_factory(self.tenant, form)
 
     def test_valid_modelform(self):
-        form = tenant_modelform_factory(self.tenant, SpecificModel)
-        self.assertEqual(form._meta.model, self.tenant.specificmodels.model)
+        form = tenant_modelform_factory(self.tenant, SpecificModelForm)
+        self.assertEqual(
+            form._meta.model, SpecificModel.for_tenant(self.tenant)
+        )
+        self.assertTrue(issubclass(form, SpecificModelForm))
         self.assertIn('date', form.base_fields)
-        self.assertIn('non_tenant', form.base_fields)
 
 
 class TenantModelFormsetFactoryTest(TenancyTestCase):
     def test_non_tenant_model(self):
+        formset = modelformset_factory(Tenant)
         with self.assertRaisesMessage(
                 ImproperlyConfigured,
                 'Tenant must be an instance of TenantModelBase'):
-            tenant_modelformset_factory(self.tenant, Tenant)
+            tenant_modelformset_factory(self.tenant, formset)
 
-    def test_valid_modelform(self):
-        formset = tenant_modelformset_factory(self.tenant, SpecificModel)
-        self.assertEqual(formset.model, self.tenant.specificmodels.model)
+    def test_valid_modelformset(self):
+        formset = tenant_modelformset_factory(self.tenant, SpecificModelFormSet)
+        tenant_specific_model = SpecificModel.for_tenant(self.tenant)
+        self.assertEqual(formset.model, tenant_specific_model)
+        self.assertTrue(issubclass(formset, SpecificModelFormSet))
         form = formset.form
-        self.assertIn('date', form.base_fields)
-        self.assertIn('non_tenant', form.base_fields)
+        self.assertTrue(issubclass(form, SpecificModelForm))
+        self.assertEqual(tenant_specific_model, form._meta.model)
 
 
 class TenantInlineFormsetFactoryTest(TenancyTestCase):
-    def test_non_tenant_parent_model(self):
-        """
-        Non-tenant `parent_model` should be allowed.
-        """
-        formset = tenant_inlineformset_factory(
-            self.tenant,
-            NonTenantModel,
-            SpecificModel,
-            fk_name='non_tenant'
-        )
-        tenant_specific_model = self.tenant.specificmodels.model
+    def test_valid_nontenant_parent_inlineformset(self):
+        formset = tenant_inlineformset_factory(self.tenant, NonTenantInlineFormSet)
+        tenant_specific_model = SpecificModel.for_tenant(self.tenant)
         self.assertEqual(formset.model, tenant_specific_model)
-        non_tenant_fk = tenant_specific_model._meta.get_field('non_tenant')
-        self.assertEqual(non_tenant_fk, formset.fk)
-
-    def test_non_tenant_model(self):
-        with self.assertRaisesMessage(
-                ImproperlyConfigured,
-                'Tenant must be an instance of TenantModelBase'):
-            tenant_inlineformset_factory(self.tenant, Tenant, Tenant)
+        self.assertEqual(formset.fk.rel.to, NonTenantModel)
+        self.assertTrue(issubclass(formset, NonTenantInlineFormSet))
+        form = formset.form
+        self.assertTrue(issubclass(form, SpecificModelForm))
+        self.assertEqual(tenant_specific_model, form._meta.model)
 
     def test_valid_inlineformset(self):
-        formset = tenant_inlineformset_factory(
-            self.tenant,
-            SpecificModel,
-            RelatedTenantModel
-        )
-        tenant_related_model = self.tenant.related_tenant_models.model
+        formset = tenant_inlineformset_factory(self.tenant, RelatedInlineFormSet)
+        tenant_specific_model = SpecificModel.for_tenant(self.tenant)
+        tenant_related_model = RelatedTenantModel.for_tenant(self.tenant)
         self.assertEqual(formset.model, tenant_related_model)
-        fk = tenant_related_model._meta.get_field('fk')
-        self.assertEqual(fk, formset.fk)
-
-    def test_custom_form(self):
-        formset = tenant_inlineformset_factory(
-            self.tenant,
-            SpecificModel,
-            RelatedTenantModel,
-            ModelFormSubclass,
-        )
-        self.assertTrue(issubclass(formset.form, ModelFormSubclass))
-
-    def test_custom_formset(self):
-        formset = tenant_inlineformset_factory(
-            self.tenant,
-            SpecificModel,
-            RelatedTenantModel,
-            formset=BaseInlineFormSetSubclass,
-        )
-        self.assertTrue(issubclass(formset, BaseInlineFormSetSubclass))
+        self.assertEqual(formset.fk.rel.to, tenant_specific_model)
+        self.assertTrue(issubclass(formset, RelatedInlineFormSet))
+        form = formset.form
+        self.assertTrue(issubclass(form, RelatedTenantModelForm))
+        self.assertEqual(tenant_related_model, form._meta.model)

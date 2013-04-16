@@ -2,10 +2,13 @@ from __future__ import unicode_literals
 
 from django.core.exceptions import ImproperlyConfigured
 
-from .forms import SpecificModelForm
-from .views import (InvalidModelFormClass, InvalidModelMixin,
-    MissingModelMixin, NonTenantModelFormClass, SpecificModelMixin,
-    SpecificModelFormMixin, UnspecifiedFormClass)
+from .forms import (RelatedInlineFormSet, RelatedTenantModelForm,
+    SpecificModelForm, SpecificModelFormSet)
+from .models import RelatedTenantModel, SpecificModel
+from .views import (InvalidModelMixin, MissingModelMixin,
+    NonTenantModelFormClass, RelatedInlineFormSetMixin, SpecificModelFormMixin,
+    SpecificModelFormSetMixin, SpecificModelMixin, TenantWizardView,
+    UnspecifiedFormClass)
 from .utils import TenancyTestCase
 
 
@@ -61,18 +64,61 @@ class TenantModelFormMixinTest(TenancyTestCase):
             "instance of TenantModelBase.",
             NonTenantModelFormClass().get_form_class
         )
-        self.assertRaisesMessage(
-            ImproperlyConfigured,
-            "InvalidModelFormClass's model: %s, is not a subclass "
-            "of it's `form_class` model: RelatedSpecificModel." %
-            self.tenant.specificmodels.model.__name__,
-            InvalidModelFormClass().get_form_class
-        )
 
-    def test_get_form_class(self):
+    def test_get_modelform_class(self):
         form_class = SpecificModelFormMixin().get_form_class()
         self.assertTrue(issubclass(form_class, SpecificModelForm))
         self.assertEqual(
             form_class._meta.model,
             self.tenant.specificmodels.model
         )
+
+    def test_get_modelformset_class(self):
+        formset_class = SpecificModelFormSetMixin().get_form_class()
+        self.assertTrue(issubclass(formset_class, SpecificModelFormSet))
+        model = SpecificModel.for_tenant(self.tenant)
+        self.assertEqual(formset_class.model, model)
+        form_class = formset_class.form
+        self.assertTrue(issubclass(form_class, SpecificModelForm))
+        self.assertEqual(form_class._meta.model, model)
+
+    def test_get_inlineformset_class(self):
+        formset_class = RelatedInlineFormSetMixin().get_form_class()
+        self.assertTrue(issubclass(formset_class, RelatedInlineFormSet))
+        model = RelatedTenantModel.for_tenant(self.tenant)
+        self.assertEqual(formset_class.model, model)
+        self.assertEqual(formset_class.fk, model._meta.get_field('fk'))
+        form_class = formset_class.form
+        self.assertTrue(issubclass(form_class, RelatedTenantModelForm))
+        self.assertEqual(form_class._meta.model, model)
+
+
+class TenantWizardMixinTest(TenancyTestCase):
+    def create_wizard(self):
+        return TenantWizardView(**TenantWizardView.get_initkwargs())
+
+    def test_model_form(self):
+        wizard = self.create_wizard()
+        form = wizard.get_form('tenant_model_form')
+        self.assertIsInstance(form, SpecificModelForm)
+        self.assertEqual(
+            form._meta.model, SpecificModel.for_tenant(self.tenant)
+        )
+
+    def test_model_formset(self):
+        wizard = self.create_wizard()
+        formset = wizard.get_form('tenant_model_formset')
+        self.assertIsInstance(formset, SpecificModelFormSet)
+        self.assertEqual(
+            formset.model, SpecificModel.for_tenant(self.tenant)
+        )
+        self.assertTrue(issubclass(formset.form, SpecificModelForm))
+
+    def test_inline_formset(self):
+        wizard = self.create_wizard()
+        formset = wizard.get_form('tenant_inline_formset')
+        self.assertIsInstance(formset, RelatedInlineFormSet)
+        model = RelatedTenantModel.for_tenant(self.tenant)
+        self.assertEqual(formset.model, model)
+        self.assertEqual(formset.fk, model._meta.get_field('fk'))
+        self.assertTrue(issubclass(formset.form, RelatedTenantModelForm))
