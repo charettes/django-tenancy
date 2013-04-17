@@ -81,14 +81,16 @@ class TenantModelFormMixin(TenantObjectMixin):
                     "%s.form_class must be a subclass of `ModelForm` or "
                     "`BaseModelFormSet`." % self.__class__.__name__
                 )
-            if not isinstance(form_class_model, TenantModelBase):
-                raise ImproperlyConfigured(
-                    "%s.form_class' model is not an instance of "
-                    "TenantModelBase." % self.__class__.__name__
-                )
-            return factory(self.get_tenant(), form_class)
+            if form_class_model:
+                if not isinstance(form_class_model, TenantModelBase):
+                    raise ImproperlyConfigured(
+                        "%s.form_class' model is not an instance of "
+                        "TenantModelBase." % self.__class__.__name__
+                    )
+                return factory(self.get_tenant(), form_class)
         else:
-            return modelform_factory(self.get_tenant_model())
+            form_class = ModelForm
+        return modelform_factory(self.get_tenant_model(), form_class)
 
 
 class TenantWizardMixin(TenantMixin):

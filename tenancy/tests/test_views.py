@@ -5,8 +5,9 @@ from django.core.exceptions import ImproperlyConfigured
 from .forms import (RelatedInlineFormSet, RelatedTenantModelForm,
     SpecificModelForm, SpecificModelFormSet)
 from .models import RelatedTenantModel, SpecificModel
-from .views import (InvalidModelMixin, MissingModelMixin,
-    NonTenantModelFormClass, RelatedInlineFormSetMixin, SpecificModelFormMixin,
+from .views import (InvalidModelMixin, MissingModelFormMixin,
+    MissingModelMixin, NonModelFormMixin, NonTenantModelFormClass,
+    RelatedInlineFormSetMixin, SpecificModelFormMixin,
     SpecificModelFormSetMixin, SpecificModelMixin, TenantWizardView,
     UnspecifiedFormClass)
 from .utils import TenancyTestCase
@@ -48,16 +49,32 @@ class TenantModelFormMixinTest(TenancyTestCase):
         like `ModelFormMixin.get_form_class`.
         """
         self.assertEqual(
-            self.tenant.specificmodels.model,
+            SpecificModel.for_tenant(self.tenant),
             UnspecifiedFormClass().get_form_class()._meta.model
+        )
+
+    def test_missing_model_form(self):
+        """
+        Specified `ModelForm` subclass attached to no models should be
+        working correctly.
+        """
+        self.assertEqual(
+            SpecificModel.for_tenant(self.tenant),
+            MissingModelFormMixin().get_form_class()._meta.model
         )
 
     def test_invalid_form_class_model(self):
         """
-        If the specified `form_class`' model is not and instance of
-        TenantModelBase or is not in the mro of the view's model an
-        `ImpropelyConfigured` error should be raised.
+        If the specified `form_class` is not a subclass of `ModelForm` or
+        `BaseModelFormSet` or it's declared model is not and instance of
+        `TenantModelBase` an `ImproperlyConfigured` exception should be raised.
         """
+        self.assertRaisesMessage(
+            ImproperlyConfigured,
+            "NonModelFormMixin.form_class must be a subclass of `ModelForm` "
+            "or `BaseModelFormSet`.",
+            NonModelFormMixin().get_form_class
+        )
         self.assertRaisesMessage(
             ImproperlyConfigured,
             "NonTenantModelFormClass.form_class' model is not an "

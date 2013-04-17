@@ -11,6 +11,10 @@ class SpecificModelForm(forms.ModelForm):
         model = SpecificModel
 
 
+class MissingModelForm(forms.ModelForm):
+    pass
+
+
 class RelatedTenantModelForm(forms.ModelForm):
     class Meta:
         model = RelatedTenantModel

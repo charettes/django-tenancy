@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from django import forms
 from django.contrib.formtools.wizard.views import NamedUrlWizardView
 from django.db import models
 from django.forms.models import modelform_factory
@@ -7,7 +8,7 @@ from django.forms.models import modelform_factory
 from ..models import Tenant
 from ..views import TenantObjectMixin, TenantModelFormMixin, TenantWizardMixin
 
-from .forms import (RelatedInlineFormSet, SpecificModelForm,
+from .forms import (MissingModelForm, RelatedInlineFormSet, SpecificModelForm,
     SpecificModelFormSet)
 from .models import RelatedTenantModel, SpecificModel
 
@@ -37,6 +38,16 @@ class SpecificModelMixin(TenancyTestMixin, TenantObjectMixin):
 # Classes used by TenantModelFormMixinTest
 class UnspecifiedFormClass(TenancyTestMixin, TenantModelFormMixin):
     model = SpecificModel
+
+
+class NonModelFormMixin(TenancyTestMixin, TenantModelFormMixin):
+    model = SpecificModel
+    form_class = forms.Form
+
+
+class MissingModelFormMixin(TenancyTestMixin, TenantModelFormMixin):
+    model = SpecificModel
+    form_class = MissingModelForm
 
 
 class NonTenantModelFormClass(TenancyTestMixin, TenantModelFormMixin):
