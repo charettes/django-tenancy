@@ -26,7 +26,6 @@ class AbstractTenantManager(models.Manager):
 
     def _remove_from_cache(self, tenant):
         key = tenant.natural_key()
-        tenant = self._get_from_cache(*key)
         delattr(tenant, 'models')
         return self.__cache.pop(key)
 

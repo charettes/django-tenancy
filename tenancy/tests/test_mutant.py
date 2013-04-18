@@ -78,3 +78,13 @@ class MutableTenantModelTest(TenancyTestCase):
         mutable = mutable_model_class.objects.create(field=True)
         non_mutable_model_class = NonMutableModel.for_tenant(self.tenant)
         non_mutable_model_class.objects.create(mutable_fk=mutable)
+
+    def test_cached_model_class(self):
+        """
+        Make sure mutable model class is also retrieved from app cache when
+        possible.
+        """
+        from .models import MutableModel
+        model_class = MutableModel.for_tenant(self.tenant)
+        with self.assertNumQueries(0):
+            self.assertEqual(model_class, MutableModel.for_tenant(self.tenant))

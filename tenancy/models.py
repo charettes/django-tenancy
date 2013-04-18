@@ -21,25 +21,30 @@ from .utils import (clear_opts_related_cache, model_name,
 
 
 class TenantModelsCache(object):
+    def contribute_to_class(self, cls, name):
+        self.name = name
+        setattr(cls, name, self)
+
     def __get__(self, instance, owner):
         if instance is None:
             return self
         assert instance.pk
         try:
-            models = instance.__dict__['models']
+            models = instance.__dict__[self.name]
         except KeyError:
-            instance.__dict__['models'] = models = tuple(
+            models = tuple(
                 reference.for_tenant(instance)
                 for reference in TenantModelBase.references
             )
+            self.__set__(instance, models)
         return models
 
+    def __set__(self, instance, value):
+        instance.__dict__[self.name] = value
+
     def __delete__(self, instance):
-        for model in instance.models:
-            try:
-                remove_from_app_cache(model)
-            except AttributeError:
-                pass
+        for model in self.__get__(instance, owner=None):
+            remove_from_app_cache(model)
 
 
 class AbstractTenant(models.Model):
@@ -235,7 +240,7 @@ class TenantModelBase(ModelBase):
             if (related_name is not None and
                 not (field.rel.is_hidden() or '%(class)s' in related_name)):
                     del cls.references[model]
-                    remove_from_app_cache(model)
+                    remove_from_app_cache(model, quiet=True)
                     raise ImproperlyConfigured(
                         "Since `%s.%s` is originating from an instance "
                         "of `TenantModelBase` and not pointing to one "
@@ -255,7 +260,7 @@ class TenantModelBase(ModelBase):
             add_lazy_relation(model, field, through, cls.validate_through)
         elif not isinstance(through, cls):
             del cls.references[model]
-            remove_from_app_cache(model)
+            remove_from_app_cache(model, quiet=True)
             raise ImproperlyConfigured(
                 "Since `%s.%s` is originating from an instance of "
                 "`TenantModelBase` its `through` option must also be pointing "

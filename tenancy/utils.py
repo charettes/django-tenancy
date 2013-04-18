@@ -29,24 +29,31 @@ else:  #pragma: no cover
         return app_cache.write_lock
 
 
-def remove_from_app_cache(model_class):
+def remove_from_app_cache(model_class, quiet=False):
     opts = model_class._meta
-    app_label, model_name = opts.app_label, opts.object_name.lower()
     with app_cache_lock():
-        app_models = app_cache.app_models.get(app_label, False)
-        if app_models:
-            model = app_models.pop(model_name, False)
-            if model:
-                app_cache._get_models_cache.clear()
-                disconnect_signals(model)
-                for field, field_model in model._meta.get_fields_with_model():
-                    rel = field.rel
-                    if field_model is None and rel:
-                        to = rel.to
-                        if isinstance(to, ModelBase):
-                            clear_opts_related_cache(to)
-                            if not rel.is_hidden():
-                                delattr(to, field.related.get_accessor_name())
+        app_models = app_cache.app_models.get(opts.app_label, None)
+        if app_models is None:
+            if quiet:
+                return
+            else:
+                raise ValueError("No cached models for app %s" % opts.app_label)
+        model = app_models.pop(model_name(opts), None)
+        if model is None:
+            if quiet:
+                return
+            else:
+                raise ValueError("%r is not cached" % model_class)
+        app_cache._get_models_cache.clear()
+        disconnect_signals(model)
+        for field, field_model in model._meta.get_fields_with_model():
+            rel = field.rel
+            if field_model is None and rel:
+                to = rel.to
+                if isinstance(to, ModelBase):
+                    clear_opts_related_cache(to)
+                    if not rel.is_hidden():
+                        delattr(to, field.related.get_accessor_name())
 
 
 model_sender_signals = (

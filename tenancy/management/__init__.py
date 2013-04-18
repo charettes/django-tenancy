@@ -145,7 +145,7 @@ def validate_not_to_tenant_model(field, to, model):
     if isinstance(to, basestring):
         add_lazy_relation(model, field, to, validate_not_to_tenant_model)
     elif isinstance(to, TenantModelBase):
-        remove_from_app_cache(model)
+        remove_from_app_cache(model, quiet=True)
         raise ImproperlyConfigured(
             "`%s.%s`'s `to` option` can't point to an instance of "
             "`TenantModelBase` since it's not one itself." % (
