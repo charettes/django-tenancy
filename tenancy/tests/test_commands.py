@@ -11,6 +11,7 @@ from ..models import Tenant, TenantModelBase
 
 from .utils import mock_inputs, setup_custom_tenant_user, skipIfCustomTenant
 
+
 # TODO: Remove when support for django 1.4 is dropped
 class raise_cmd_error_stderr(object):
     def write(self, msg):
@@ -50,7 +51,7 @@ class CreateTenantCommandTest(TransactionTestCase):
         tenant = Tenant.objects.get(name='tenant')
         stdout.seek(0)
         connection = connections[tenant._state.db]
-        if connection.vendor == 'postgresql':  #pragma: no cover
+        if connection.vendor == 'postgresql':
             self.assertIn(tenant.db_schema, stdout.readline())
         for model in TenantModelBase.references:
             self.assertIn(model._meta.object_name, stdout.readline())
@@ -60,7 +61,7 @@ class CreateTenantCommandTest(TransactionTestCase):
 
     @setup_custom_tenant_user
     @mock_inputs((
-        ('You just created a new tenant.', 'yes'),
+        ('\nYou just created a new tenant,', 'yes'),
         ('Email', 'bleh@teant.test.ca'),
         ('Password', '1234')
     ))

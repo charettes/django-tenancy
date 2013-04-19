@@ -80,8 +80,8 @@ class Command(BaseCommand):
         from ...settings import TENANT_AUTH_USER_MODEL
         if options.get('interactive', True) and TENANT_AUTH_USER_MODEL:
             confirm = raw_input(
-                "You just created a new tenant. which means you don't have "
-                "any superusers defined. \n Would you like to create one "
+                "\nYou just created a new tenant, which means you don't have "
+                "any superusers defined.\nWould you like to create one "
                 "now? (yes/no): "
             )
             while True:
