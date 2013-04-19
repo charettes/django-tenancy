@@ -10,7 +10,8 @@ from ... import get_tenant_model
 def get_tenant_by_natural_key(option, opt, value, parser):
     natural_key = value.split(',')
     tenant_model = get_tenant_model()
-    return tenant_model._default_manager.get_by_natural_key(**natural_key)
+    tenant = tenant_model._default_manager.get_by_natural_key(*natural_key)
+    parser.values.tenant = tenant
 
 
 class Command(Command):
@@ -21,7 +22,7 @@ class Command(Command):
         if self.tenant_auth_user_model:
             self.option_list += (
                 make_option(
-                    '--tenant', action='callback', dest='tenant',
+                    '--tenant', action='callback', dest='tenant', type='str',
                     callback=get_tenant_by_natural_key,
                     help='Specifies the tenant to use by comma separated natural key.'
                 ),
