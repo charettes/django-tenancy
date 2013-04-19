@@ -82,18 +82,18 @@ def disconnect_signals(model):
 
 
 # TODO: Remove when support for 1.5 is dropped
-if django.VERSION >= (1, 6):
+if django.VERSION >= (1, 6):  # pragma: no cover
     def model_name(opts):
         return opts.model_name
-else:
+else:  # pragma: no cover
     def model_name(opts):
         return opts.module_name
 
 
 # TODO: Remove when support for 1.4 is dropped
-if django.VERSION >= (1, 5):
+if django.VERSION >= (1, 5):  # pragma: no cover
     subclass_exception = models.base.subclass_exception
-else:
+else:  # pragma: no cover
     def unpickle_inner_exception(klass, exception_name):
         # Get the exception class from the class it is attached to:
         exception = getattr(klass, exception_name)
