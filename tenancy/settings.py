@@ -39,6 +39,8 @@ else:
             # Disconnect the `create_superuser` post-syncdb signal receiver
             # since the swapped for user model is tenant specific
             post_syncdb.disconnect(
+                create_superuser,
+                sender=auth_app,
                 dispatch_uid='django.contrib.auth.management.create_superuser'
             )
         else:
