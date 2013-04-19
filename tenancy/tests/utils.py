@@ -16,6 +16,7 @@ from ..management.commands import createtenant
 
 logger = logging.getLogger('tenancy.tests')
 
+
 def skipIfCustomTenant(test):
     """
     Skip a test if a custom tenant model is in use.

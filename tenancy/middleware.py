@@ -12,7 +12,7 @@ class TenantHostMiddleware(object):
     def __init__(self):
         try:
             import django_hosts
-        except ImportError:  #pragma: no cover
+        except ImportError:  # pragma: no cover
             raise ImproperlyConfigured(
                 'You must install django-hosts in order to '
                 'use `TenantHostMiddleware`.'

@@ -11,7 +11,7 @@ from mutant.models.model import _ModelClassProxy
 
 from .. import get_tenant_model
 from ..management import create_tenant_schema, tenant_model_receiver
-from ..models import (db_schema_table,Reference, TenantModel, TenantModelBase,
+from ..models import (db_schema_table, Reference, TenantModel, TenantModelBase,
     TenantSpecificModel)
 
 
@@ -121,6 +121,7 @@ def manage_tenant_mutable_models(tenant, managed=True):
 
 
 tenant_model_receiver.disconnect(models.signals.post_save, create_tenant_schema)
+
 
 @tenant_model_receiver(models.signals.post_save)
 def create_mutant_tenant_schema(sender, instance, **kwargs):

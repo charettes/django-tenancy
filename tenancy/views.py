@@ -9,6 +9,7 @@ from .forms import (tenant_inlineformset_factory, tenant_modelform_factory,
 from .models import TenantModelBase
 from .utils import model_name
 
+
 class TenantMixin(object):
     """
     View mixin that retrieve the current tenant from the request. This could

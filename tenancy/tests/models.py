@@ -139,12 +139,12 @@ class SignalTenantModel(TenantModel):
     def log(cls, signal):
         cls.logs().append(signal)
 
+
 def add_to_dispatched(signal, sender, **kwargs):
     sender.log(signal)
 
 for signal in model_sender_signals:
     signal.connect(add_to_dispatched, sender=SignalTenantModel)
-
 
 
 if HAS_CUSTOM_USER_SUPPORT:

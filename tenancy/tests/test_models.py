@@ -412,6 +412,7 @@ class NonTenantModelTest(TransactionTestCase):
             "instance of `TenantModelBase` since it's not one itself."):
             class NonTenantFkToTenant(django_models.Model):
                 fk = django_models.ForeignKey('UndeclaredSpecificModel')
+
             class UndeclaredSpecificModel(TenantModel):
                 pass
 

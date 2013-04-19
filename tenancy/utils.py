@@ -16,7 +16,7 @@ def allow_syncdbs(model):
 
 
 # TODO: Remove when support for 1.4 is dropped
-if django.VERSION >= (1, 5):  #pragma: no cover
+if django.VERSION >= (1, 5):  # pragma: no cover
     @contextmanager
     def app_cache_lock():
         try:
@@ -24,7 +24,7 @@ if django.VERSION >= (1, 5):  #pragma: no cover
             yield
         finally:
             imp.release_lock()
-else:  #pragma: no cover
+else:  # pragma: no cover
     def app_cache_lock():
         return app_cache.write_lock
 
@@ -37,7 +37,9 @@ def remove_from_app_cache(model_class, quiet=False):
             if quiet:
                 return
             else:
-                raise ValueError("No cached models for app %s" % opts.app_label)
+                raise ValueError(
+                    "No cached models for app %s" % opts.app_label
+                )
         model = app_models.pop(model_name(opts), None)
         if model is None:
             if quiet:
@@ -116,10 +118,16 @@ else:
         return type(name, parents, class_dict)
 
 
-_opts_related_cache_attrs = ('_related_objects_cache', '_related_objects_proxy_cache',
-                             '_related_many_to_many_cache', '_name_map')
+_opts_related_cache_attrs = (
+    '_related_objects_cache',
+    '_related_objects_proxy_cache',
+    '_related_many_to_many_cache',
+    '_name_map'
+)
+
+
 def clear_opts_related_cache(model_class):
-    """ 
+    """
     Clear the specified model opts related cache
     """
     opts = model_class._meta

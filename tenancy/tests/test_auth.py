@@ -59,5 +59,5 @@ class CustomTenantUserBackendTest(TenancyTestCase):
         with self.tenant.as_global():
             backend = CustomTenantUserBackend()
         user = self.tenant.users.create(email='latitude-e4200@dell.com')
-        self.assertIsNone(backend.get_user(user.pk+1))
+        self.assertIsNone(backend.get_user(user.pk + 1))
         self.assertEqual(user, backend.get_user(user.pk))

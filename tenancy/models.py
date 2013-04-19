@@ -92,7 +92,7 @@ class Tenant(AbstractTenant):
     objects = TenantManager()
 
     class Meta:
-        if django.VERSION >= (1, 5):  #pragma: no cover
+        if django.VERSION >= (1, 5):  # pragma: no cover
             swappable = 'TENANCY_TENANT_MODEL'
 
     def natural_key(self):
@@ -111,10 +111,10 @@ def meta(Meta=None, **opts):
 
 def db_schema_table(tenant, db_table):
     connection = connections[tenant._state.db or DEFAULT_DB_ALIAS]
-    if connection.vendor == 'postgresql':  #pragma: no cover
+    if connection.vendor == 'postgresql':  # pragma: no cover
         # See https://code.djangoproject.com/ticket/6148#comment:47
         return '%s\".\"%s' % (tenant.db_schema, db_table)
-    else:  #pragma: no cover
+    else:  # pragma: no cover
         return "%s_%s" % (tenant.db_schema, db_table)
 
 

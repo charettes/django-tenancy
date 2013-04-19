@@ -11,7 +11,7 @@ from .signals import lazy_class_prepared
 
 DEFAULT_TENANT_MODEL = 'tenancy.Tenant'
 
-TENANT_MODEL =  getattr(
+TENANT_MODEL = getattr(
     settings, 'TENANCY_TENANT_MODEL', DEFAULT_TENANT_MODEL
 )
 
@@ -30,6 +30,7 @@ except ImportError:
     HAS_CUSTOM_USER_SUPPORT = False
 else:
     HAS_CUSTOM_USER_SUPPORT = True
+
     def is_tenant_user_model(sender):
         from .models import TenantModelBase
         if isinstance(sender, TenantModelBase):

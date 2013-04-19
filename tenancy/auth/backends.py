@@ -11,7 +11,7 @@ class CustomTenantUserBackend(object):
         try:
             # Conditional import to allow subclassing on django < 1.5
             from django.contrib.auth import get_user_model
-        except ImportError:  #pragma: no cover
+        except ImportError:  # pragma: no cover
             raise ImproperlyConfigured(
                 "The `tenancy.auth.backends.CustomTenantUserBackend` "
                 "authentification backend requires custom user support a "
