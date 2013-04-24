@@ -4,12 +4,10 @@ import logging
 
 from django.db import connections, models
 from django.db.models.loading import get_model
-from django.dispatch.dispatcher import receiver
 from mutant.models import (BaseDefinition, ModelDefinition,
     OrderingFieldDefinition)
 from mutant.db.models import MutableModel
 from mutant.models.model import _ModelClassProxy
-from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
 from ..management import create_tenant_schema, tenant_model_receiver
@@ -154,9 +152,3 @@ def cache_mutable_tenant_models(sender, instance, using, **kwargs):
             model._meta.managed = managed
         models.append(model)
     instance.models = tuple(models)
-
-
-@receiver(mutable_class_prepared)
-def subclass_exceptions(signal, sender, **kwargs):
-    if isinstance(sender, MutableTenantModelBase):
-        sender.subclass_exceptions()

@@ -388,13 +388,20 @@ class TenantModelBase(ModelBase):
 
         return model
 
-    def subclass_exceptions(self):
-        for exception in self.exceptions:
-            self.add_to_class(exception, subclass_exception(str(exception),
-                (getattr(self, exception),
-                 getattr(self._for_tenant_model, exception)),
-                self.__module__, self
-            ))
+
+    def _prepare(self):
+        super(TenantModelBase, self)._prepare()
+
+        if issubclass(self, TenantSpecificModel):
+            # Since our declaration class is not one of our parents we must
+            # make sure our exceptions extend his.
+            for_tenant_model = self._for_tenant_model
+            for exception in self.exceptions:
+                self.add_to_class(exception, subclass_exception(str(exception),
+                    (getattr(self, exception),
+                     getattr(for_tenant_model, exception)),
+                    self.__module__, self
+                ))
 
     def for_tenant(self, tenant):
         """
@@ -432,10 +439,6 @@ class TenantModelBase(ModelBase):
         model = super(TenantModelBase, self).__new__(
             TenantModelBase, str(name), bases, attrs
         )
-
-        # Since we're not in the parents when exceptions are created we must
-        # replace them by a subclass of the created one and our.
-        model.subclass_exceptions()
 
         if opts.proxy:
             model.copy_managers(opts.concrete_managers)
