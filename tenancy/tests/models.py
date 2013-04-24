@@ -8,6 +8,8 @@ from ..models import TenantModel
 from ..settings import HAS_CUSTOM_USER_SUPPORT
 from ..utils import model_sender_signals
 
+from .managers import ManagerOtherSubclass, ManagerSubclass
+
 
 class NonTenantModel(models.Model):
     class Meta:
@@ -39,8 +41,8 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
         null=True
     )
 
-    objects = models.Manager()
-    custom_objects = models.Manager()
+    objects = ManagerSubclass()
+    custom_objects = ManagerOtherSubclass()
 
     class Meta:
         app_label = 'tenancy'
@@ -54,8 +56,8 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
 
 
 class SpecificModelProxy(SpecificModel):
-    objects = models.Manager()
-    proxied_objects = models.Manager()
+    objects = ManagerOtherSubclass()
+    proxied_objects = ManagerSubclass()
 
     class Meta:
         proxy = True
@@ -70,6 +72,8 @@ class SpecificModelProxySubclass(SpecificModelProxy):
 
 
 class SpecificModelSubclass(SpecificModel):
+    objects = ManagerOtherSubclass()
+
     class TenantMeta:
         related_name = 'specific_models_subclasses'
 

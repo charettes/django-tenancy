@@ -358,9 +358,6 @@ class TenantModelBase(ModelBase):
             ptr.name = None
             ptr.set_attributes_from_name(local_ptr.name)
 
-        # Copy managers from ours
-        model.copy_managers(self._meta.concrete_managers)
-
         # Add the local fields of this class
         local_fields = self._meta.local_fields + self._meta.local_many_to_many
         for local_field in local_fields:
@@ -388,14 +385,22 @@ class TenantModelBase(ModelBase):
 
         return model
 
-
     def _prepare(self):
         super(TenantModelBase, self)._prepare()
 
         if issubclass(self, TenantSpecificModel):
+            for_tenant_model = self._for_tenant_model
+
+            # Attach the tenant model concrete managers since they should
+            # override the ones from abstract bases.
+            managers = for_tenant_model._meta.concrete_managers
+            for _, mgr_name, manager in managers:
+                new_manager = manager._copy_to_model(self)
+                new_manager.creation_counter = manager.creation_counter
+                self.add_to_class(mgr_name, new_manager)
+
             # Since our declaration class is not one of our parents we must
             # make sure our exceptions extend his.
-            for_tenant_model = self._for_tenant_model
             for exception in self.exceptions:
                 self.add_to_class(exception, subclass_exception(str(exception),
                     (getattr(self, exception),
@@ -439,9 +444,6 @@ class TenantModelBase(ModelBase):
         model = super(TenantModelBase, self).__new__(
             TenantModelBase, str(name), bases, attrs
         )
-
-        if opts.proxy:
-            model.copy_managers(opts.concrete_managers)
 
         return model
 

@@ -15,6 +15,7 @@ from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
     TenantModelDescriptor, TenantSpecificModel)
 from ..utils import model_name
 
+from .managers import ManagerOtherSubclass, ManagerSubclass
 from .models import (AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
     RelatedTenantModel, SpecificModel, SpecificModelProxy,
     SpecificModelProxySubclass, SpecificModelSubclass, TenantModelMixin)
@@ -189,6 +190,37 @@ class TenantModelBaseTest(TenancyTestCase):
         )
         attr_name = "%s_ptr" % model_name(SpecificModel._meta)
         self.assertFalse(hasattr(tenant_specific_model, attr_name))
+
+    def test_manager_assignment(self):
+        """
+        Managers should be inherited correctly.
+        """
+        # Concrete
+        specific_model = SpecificModel.for_tenant(self.tenant)
+        self.assertIsInstance(specific_model._default_manager, ManagerSubclass)
+        self.assertIsInstance(specific_model.objects, ManagerSubclass)
+        self.assertIsInstance(
+            specific_model.custom_objects, ManagerOtherSubclass
+        )
+        # Proxy
+        specific_model_proxy = SpecificModelProxy.for_tenant(self.tenant)
+        self.assertIsInstance(
+            specific_model_proxy._default_manager, ManagerOtherSubclass
+        )
+        self.assertIsInstance(
+            specific_model_proxy.objects, ManagerOtherSubclass
+        )
+        self.assertIsInstance(
+            specific_model_proxy.proxied_objects, ManagerSubclass
+        )
+        # Concrete subclass
+        specific_model_subclass = SpecificModelSubclass.for_tenant(self.tenant)
+        self.assertIsInstance(
+            specific_model_subclass._default_manager, ManagerOtherSubclass
+        )
+        self.assertIsInstance(
+            specific_model_subclass.objects, ManagerOtherSubclass
+        )
 
 
 class TenantModelDescriptorTest(TenancyTestCase):
