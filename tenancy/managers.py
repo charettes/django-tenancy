@@ -43,3 +43,18 @@ class AbstractTenantManager(models.Manager):
 class TenantManager(AbstractTenantManager):
     def _get_by_natural_key(self, name):
         return self.get(name=name)
+
+
+class TenantModelManagerDescriptor(object):
+    """
+    This class provides a better error message when you try to access a
+    manager on an tenant model.
+    """
+    def __init__(self, model):
+        self.model = model
+
+    def __get__(self, instance, owner):
+        raise AttributeError(
+            "Manager isn't available; %s is tenant specific" % (
+            self.model._meta.object_name,
+        ))

@@ -15,7 +15,8 @@ from django.db.models.loading import get_model
 from django.utils.datastructures import SortedDict
 
 from . import get_tenant_model
-from .managers import AbstractTenantManager, TenantManager
+from .managers import (AbstractTenantManager, TenantManager,
+    TenantModelManagerDescriptor)
 from .utils import (clear_opts_related_cache, model_name,
     remove_from_app_cache, subclass_exception)
 
@@ -166,6 +167,14 @@ class TenantModelBase(ModelBase):
             if not cls.tenant_model_class:
                 cls.tenant_model_class = model
         else:
+            # Store managers to replace them with a descriptor specifying they
+            # can't be accessed this way.
+            managers = set(
+                name for name, attr in attrs.items()
+                if isinstance(attr, models.Manager)
+            )
+            # There's always a default manager name `object`
+            managers.add('objects')
             if getattr(Meta, 'proxy', False):
                 model = super_new(
                     cls, name, bases,
@@ -193,6 +202,7 @@ class TenantModelBase(ModelBase):
                 )
                 cls.references[model] = cls.reference(model, Meta, related_names)
                 opts = model._meta
+                # Validate related name of related fields
                 for field in opts.local_fields:
                     if field.rel:
                         cls.validate_related_name(field, field.rel.to, model)
@@ -213,6 +223,10 @@ class TenantModelBase(ModelBase):
                         rel.through = cls.intermediary_model_factory(m2m, model)
                     else:
                         cls.validate_through(m2m, m2m.rel.to, model)
+            # Replace `ManagerDescriptor`s with `TenantModelManagerDescriptor`
+            # instances
+            for manager in managers:
+                setattr(model, manager, TenantModelManagerDescriptor(model))
             # Extract the specified related name if it exists.
             try:
                 related_name = attrs.pop('TenantMeta').related_name
@@ -423,6 +437,9 @@ class TenantModelBase(ModelBase):
         # replace them by a subclass of the created one and our.
         model.subclass_exceptions()
 
+        if opts.proxy:
+            model.copy_managers(opts.concrete_managers)
+
         return model
 
     def __instancecheck__(self, instance):
@@ -432,7 +449,10 @@ class TenantModelBase(ModelBase):
         if (self._meta.proxy and subclass._meta.proxy and
             not issubclass(self, TenantSpecificModel) and
             issubclass(subclass, TenantSpecificModel)):
-            return issubclass(subclass, self.for_tenant(subclass.tenant))
+            return (
+                subclass._for_tenant_model is self or
+                issubclass(subclass, self.for_tenant(subclass.tenant))
+            )
         return super(TenantModelBase, self).__subclasscheck__(subclass)
 
 

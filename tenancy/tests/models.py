@@ -39,6 +39,9 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
         null=True
     )
 
+    objects = models.Manager()
+    custom_objects = models.Manager()
+
     class Meta:
         app_label = 'tenancy'
         db_table = 'custom_db_table'
@@ -51,6 +54,9 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
 
 
 class SpecificModelProxy(SpecificModel):
+    objects = models.Manager()
+    proxied_objects = models.Manager()
+
     class Meta:
         proxy = True
 

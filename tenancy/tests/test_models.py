@@ -66,6 +66,14 @@ class TenantTest(TransactionTestCase):
         self.assertFalse(ContentType.objects.filter(pk=content_type.pk).exists())
 
 
+class TenantModelsCacheTest(TenancyTestCase):
+    def test_initialized_models(self):
+        """
+        Make sure models are loaded upon model initialization.
+        """
+        self.assertIn('models', self.tenant.__dict__)
+
+
 class TenantModelBaseTest(TenancyTestCase):
     def test_simple_instancecheck(self):
         instance = self.tenant.specificmodels.create()
