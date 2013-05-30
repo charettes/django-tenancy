@@ -1,12 +1,11 @@
 from __future__ import unicode_literals
 
-from django.core.exceptions import ImproperlyConfigured
-
 
 __version__ = (0, 0, 2, 'dev')
 
 
 def get_tenant_model(seed_cache=True):
+    from django.core.exceptions import ImproperlyConfigured
     from django.db.models import get_model
     from .models import AbstractTenant
     from .settings import TENANT_MODEL
