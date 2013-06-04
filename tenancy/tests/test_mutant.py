@@ -36,16 +36,20 @@ class MutableTenantModelTest(TenancyTestCase):
             model_class.non_mutable_fk.field.rel.to,
             self.tenant.specificmodels.model
         )
+        specific_model = self.tenant.specificmodels.create()
         model_class.objects.create(
-            field='test', non_mutable_fk=self.tenant.specificmodels.create()
+            field=True, non_mutable_fk=specific_model
         )
         # Add a field to the parent class
-        NullBooleanFieldDefinition.objects.create_with_default(False,
+        NullBooleanFieldDefinition.objects.create(
             model_def=MutableModel.for_tenant(self.tenant).definition(),
             name='is_cool',
         )
-        self.assertEqual(1,
-            model_class.objects.filter(field='test', is_cool=False).count()
+        self.assertEqual(
+            1,
+            model_class.objects.filter(
+                field=True, is_cool=None, non_mutable_fk=specific_model
+            ).count()
         )
 
     def test_ordering(self):
