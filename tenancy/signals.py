@@ -10,7 +10,7 @@ def lazy_class_prepared(app_label, object_name, callback):
     """
     model = get_model(
         app_label, object_name.lower(),
-        seed_cache=False, only_installed=True
+        seed_cache=False, only_installed=False
     )
     if model:
         callback(model)
