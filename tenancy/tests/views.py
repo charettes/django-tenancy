@@ -38,6 +38,7 @@ class SpecificModelMixin(TenancyTestMixin, TenantObjectMixin):
 # Classes used by TenantModelFormMixinTest
 class UnspecifiedFormClass(TenancyTestMixin, TenantModelFormMixin):
     model = SpecificModel
+    fields = ['id']
 
 
 class NonModelFormMixin(TenancyTestMixin, TenantModelFormMixin):
@@ -47,12 +48,13 @@ class NonModelFormMixin(TenancyTestMixin, TenantModelFormMixin):
 
 class MissingModelFormMixin(TenancyTestMixin, TenantModelFormMixin):
     model = SpecificModel
+    fields = ['id']
     form_class = MissingModelForm
 
 
 class NonTenantModelFormClass(TenancyTestMixin, TenantModelFormMixin):
     model = SpecificModel
-    form_class = modelform_factory(Tenant)
+    form_class = modelform_factory(Tenant, fields=['name'])
 
 
 class SpecificModelFormMixin(TenancyTestMixin, TenantModelFormMixin):

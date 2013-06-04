@@ -1,5 +1,8 @@
 from __future__ import unicode_literals
 
+import warnings
+
+import django
 from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import (BaseInlineFormSet, BaseModelFormSet,
     ModelForm, modelform_factory)
@@ -70,6 +73,7 @@ class TenantModelFormMixin(TenantObjectMixin):
         if form_class:
             if issubclass(form_class, ModelForm):
                 form_class_model = form_class._meta.model
+                form_class_fields = form_class._meta.fields
                 factory = tenant_modelform_factory
             elif issubclass(form_class, BaseModelFormSet):
                 form_class_model = form_class.model
@@ -91,7 +95,15 @@ class TenantModelFormMixin(TenantObjectMixin):
                 return factory(self.get_tenant(), form_class)
         else:
             form_class = ModelForm
-        return modelform_factory(self.get_tenant_model(), form_class)
+            form_class_fields = None
+        fields = getattr(self, 'fields', form_class_fields)
+        if django.VERSION >= (1, 6) and fields is None:
+            warnings.warn(
+                "Using TenantModelFormMixin (base class of %s) without "
+                "the 'fields' attribute is deprecated." % self.__class__.__name__,
+                PendingDeprecationWarning
+            )
+        return modelform_factory(self.get_tenant_model(), form_class, fields=fields)
 
 
 class TenantWizardMixin(TenantMixin):

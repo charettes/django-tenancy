@@ -15,7 +15,7 @@ from .utils import TenancyTestCase
 
 class TenantModelFormFactoryTest(TenancyTestCase):
     def test_non_tenant_model(self):
-        form = modelform_factory(Tenant)
+        form = modelform_factory(Tenant, fields=['name'])
         with self.assertRaisesMessage(
                 ImproperlyConfigured,
                 'Tenant must be an instance of TenantModelBase'):
@@ -32,7 +32,7 @@ class TenantModelFormFactoryTest(TenancyTestCase):
 
 class TenantModelFormsetFactoryTest(TenancyTestCase):
     def test_non_tenant_model(self):
-        formset = modelformset_factory(Tenant)
+        formset = modelformset_factory(Tenant, fields=['name'])
         with self.assertRaisesMessage(
                 ImproperlyConfigured,
                 'Tenant must be an instance of TenantModelBase'):
