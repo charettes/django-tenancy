@@ -15,18 +15,13 @@ def allow_syncdbs(model):
             yield db
 
 
-# TODO: Remove when support for 1.4 is dropped
-if django.VERSION >= (1, 5):  # pragma: no cover
-    @contextmanager
-    def app_cache_lock():
-        try:
-            imp.acquire_lock()
-            yield
-        finally:
-            imp.release_lock()
-else:  # pragma: no cover
-    def app_cache_lock():
-        return app_cache.write_lock
+@contextmanager
+def app_cache_lock():
+    try:
+        imp.acquire_lock()
+        yield
+    finally:
+        imp.release_lock()
 
 
 def remove_from_app_cache(model_class, quiet=False):
@@ -88,34 +83,6 @@ if django.VERSION >= (1, 6):  # pragma: no cover
 else:  # pragma: no cover
     def model_name(opts):
         return opts.module_name
-
-
-# TODO: Remove when support for 1.4 is dropped
-if django.VERSION >= (1, 5):  # pragma: no cover
-    subclass_exception = models.base.subclass_exception
-else:  # pragma: no cover
-    def unpickle_inner_exception(klass, exception_name):
-        # Get the exception class from the class it is attached to:
-        exception = getattr(klass, exception_name)
-        return exception.__new__(exception)
-
-    def subclass_exception(name, parents, module, attached_to):
-        class_dict = {'__module__': module}
-        if attached_to is not None:
-            def __reduce__(self):
-                # Exceptions are special - they've got state that isn't
-                # in self.__dict__. We assume it is all in self.args.
-                return (unpickle_inner_exception, (attached_to, name), self.args)
-
-            def __setstate__(self, args):
-                self.args = args
-
-            class_dict.update(
-                __reduce__=__reduce__,
-                __setstate__=__setstate__
-            )
-
-        return type(name, parents, class_dict)
 
 
 _opts_related_cache_attrs = (

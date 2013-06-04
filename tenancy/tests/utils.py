@@ -7,7 +7,7 @@ from django.dispatch.dispatcher import receiver
 from django.test.signals import setting_changed
 from django.test.testcases import TransactionTestCase
 from django.utils.datastructures import SortedDict
-from django.utils.unittest.case import skipIf, skipUnless
+from django.utils.unittest.case import skipIf
 
 from .. import settings
 from ..models import Tenant
@@ -24,17 +24,6 @@ def skipIfCustomTenant(test):
     return skipIf(
         settings.TENANT_MODEL != settings.DEFAULT_TENANT_MODEL,
         'Custom tenant model in use'
-    )(test)
-
-
-# TODO: Remove when support for Django 1.4 is dropped.
-def skipUnlessCustomUserSupport(test):
-    """
-    Skip a test if the current Django version has no custom user support.
-    """
-    return skipUnless(
-        settings.HAS_CUSTOM_USER_SUPPORT,
-        'No custom user support'
     )(test)
 
 
@@ -59,7 +48,7 @@ def setup_custom_tenant_user(test):
             from ..settings import TENANT_AUTH_USER_MODEL
             self.assertTrue(TENANT_AUTH_USER_MODEL)
             test(self, *args, **kwargs)
-    return skipUnlessCustomUserSupport(wrapped)
+    return wrapped
 
 
 @receiver(setting_changed)

@@ -13,13 +13,13 @@ setup(
     author='Simon Charette',
     author_email='charette.s+pypi@gmail.com',
     install_requires=(
-        'django>=1.4',
+        'django>=1.5',
     ),
     packages=find_packages(exclude=['test_settings']),
     include_package_data=True,
     license='MIT License',
     classifiers=[
-        'Development Status :: 1 - Planning',
+        'Development Status :: 2 - Pre-Alpha',
         'Environment :: Web Environment',
         'Framework :: Django',
         'Intended Audience :: Developers',
@@ -30,6 +30,6 @@ setup(
     ],
     extras_require={
         'hosts': ['django-hosts'],
-        'mutant': ['django-mutant>=0.0.3.1'],
+        'mutant': ['django-mutant>=0.1.0'],
     }
 )

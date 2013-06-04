@@ -2,26 +2,13 @@ from __future__ import unicode_literals
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
-from django.utils.unittest.case import skipIf
 
 from ..auth.backends import CustomTenantUserBackend
-from ..settings import HAS_CUSTOM_USER_SUPPORT
 
-from .utils import (setup_custom_tenant_user, TenancyTestCase,
-    skipUnlessCustomUserSupport)
+from .utils import setup_custom_tenant_user, TenancyTestCase
 
 
 class CustomTenantUserBackendTest(TenancyTestCase):
-    @skipIf(HAS_CUSTOM_USER_SUPPORT, 'Has custom user support.')
-    def test_no_custom_user_support(self):
-        self.assertRaisesMessage(ImproperlyConfigured,
-            "The `tenancy.auth.backends.CustomTenantUserBackend` "
-            "authentification backend requires custom user support a "
-            "feature introduced in django 1.5",
-            CustomTenantUserBackend
-        )
-
-    @skipUnlessCustomUserSupport
     @override_settings(AUTH_USER_MODEL='auth.User')
     def test_custom_user_not_tenant(self):
         self.assertRaisesMessage(ImproperlyConfigured,
@@ -31,7 +18,6 @@ class CustomTenantUserBackendTest(TenancyTestCase):
             CustomTenantUserBackend
         )
 
-    @skipUnlessCustomUserSupport
     @override_settings(AUTH_USER_MODEL='tenancy.TenantUser')
     def test_missing_connection_tenant(self):
         self.assertRaisesMessage(ImproperlyConfigured,

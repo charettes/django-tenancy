@@ -9,8 +9,6 @@ python:
   - 2.7
 
 env:
-  - DJANGO="django>=1.4,<1.5" SETTINGS=sqlite3
-  - DJANGO="django>=1.4,<1.5" SETTINGS=postgresql_psycopg2
   - DJANGO="django>=1.5,<1.6" SETTINGS=sqlite3
   - DJANGO="django>=1.5,<1.6" SETTINGS=postgresql_psycopg2
   - DJANGO="https://github.com/django/django/archive/1.6a1.tar.gz" SETTINGS=sqlite3
@@ -20,8 +18,6 @@ env:
 
 matrix:
   allow_failures:
-    - env: DJANGO="https://github.com/django/django/archive/1.6a1.tar.gz" SETTINGS=sqlite3
-    - env: DJANGO="https://github.com/django/django/archive/1.6a1.tar.gz" SETTINGS=postgresql_psycopg2
     - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=sqlite3
     - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=postgresql_psycopg2
 

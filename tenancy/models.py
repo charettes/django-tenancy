@@ -8,7 +8,7 @@ import logging
 import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, DEFAULT_DB_ALIAS, models
-from django.db.models.base import ModelBase
+from django.db.models.base import ModelBase, subclass_exception
 from django.db.models.fields import Field
 from django.db.models.fields.related import add_lazy_relation
 from django.db.models.loading import get_model
@@ -17,8 +17,7 @@ from django.utils.datastructures import SortedDict
 from . import get_tenant_model
 from .managers import (AbstractTenantManager, TenantManager,
     TenantModelManagerDescriptor)
-from .utils import (clear_opts_related_cache, model_name,
-    remove_from_app_cache, subclass_exception)
+from .utils import clear_opts_related_cache, model_name, remove_from_app_cache
 
 
 class TenantModelsCache(object):
