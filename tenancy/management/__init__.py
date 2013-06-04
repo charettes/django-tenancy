@@ -79,14 +79,12 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
                 table_name = opts.db_table
             logger.info("Creating table %s ..." % table_name)
 
-        for db in connections:
-            transaction.commit_unless_managed(db)
-
         logger.info('Installing indexes ...')
         for model, statements in index_sql.items():
             if statements:
                 for db in allow_syncdbs(model):
                     connection = connections[db]
+                    sid = transaction.savepoint(db)
                     cursor = connection.cursor()
                     try:
                         for statement in statements:
@@ -98,9 +96,9 @@ def create_tenant_schema(sender, instance, created, using, **kwargs):
                                 opts.app_label, opts.object_name
                             )
                         )
-                        transaction.rollback_unless_managed(using=db)
+                        transaction.savepoint_rollback(sid, db)
                     else:
-                        transaction.commit_unless_managed(using=db)
+                        transaction.savepoint_commit(sid, db)
 
 
 @tenant_model_receiver(models.signals.post_delete)

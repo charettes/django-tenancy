@@ -4,7 +4,6 @@ import logging
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
 
 from ... import get_tenant_model
 
@@ -70,8 +69,7 @@ class Command(BaseCommand):
         logger.addHandler(handler)
 
         # Create the tenant instance and create tables
-        with transaction.commit_on_success():
-            tenant.save(force_insert=True)
+        tenant.save(force_insert=True)
 
         # Remove the handler associated with the schema creation logger.
         logger.removeHandler(handler)
