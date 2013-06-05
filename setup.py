@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import unicode_literals
+
 from setuptools import setup, find_packages
 
 from tenancy import __version__
@@ -19,7 +20,7 @@ setup(
     include_package_data=True,
     license='MIT License',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
         'Framework :: Django',
         'Intended Audience :: Developers',
