@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 from django.core.exceptions import ImproperlyConfigured
-from django.template.base import TemplateDoesNotExist
 from django.test.utils import override_settings
 from django.utils.unittest.case import skipIf, skipUnless
 
@@ -69,13 +68,8 @@ class TenantHostMiddlewareTest(TenancyTestCase):
     def test_tenant_not_found(self):
         tenant = Tenant(name='inexistent')
         client = self.tenant_client(tenant)
-        # TODO: Remove when support for Django < 1.5 is dropped
-        try:
-            response = client.get('/')
-        except TemplateDoesNotExist as e:
-            self.assertEqual(str(e), '404.html')
-        else:
-            self.assertEqual(response.status_code, 404)
+        response = client.get('/')
+        self.assertEqual(response.status_code, 404)
 
     @django_hosts_installed_setup
     def test_tenant_found(self):
