@@ -34,7 +34,8 @@ class TenancyTestCase(TransactionTestCase):
         self.other_tenant = Tenant.objects.create(name='other_tenant')
 
     def tearDown(self):
-        Tenant.objects.all().delete()
+        for tenant in Tenant.objects.all():
+            tenant.delete()
 
 
 def setup_custom_tenant_user(test):

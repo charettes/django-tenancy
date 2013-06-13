@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+
 from abc import ABCMeta
 import copy
 import copy_reg
@@ -12,12 +13,15 @@ from django.db.models.base import ModelBase, subclass_exception
 from django.db.models.fields import Field
 from django.db.models.fields.related import add_lazy_relation
 from django.db.models.loading import get_model
+from django.dispatch.dispatcher import receiver
 from django.utils.datastructures import SortedDict
 
 from . import get_tenant_model
+from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (AbstractTenantManager, TenantManager,
     TenantModelManagerDescriptor)
-from .utils import clear_opts_related_cache, model_name, remove_from_app_cache
+from .utils import (clear_opts_related_cache, model_name, receivers_for_model,
+    remove_from_app_cache)
 
 
 class TenantModelsCache(object):
@@ -28,10 +32,13 @@ class TenantModelsCache(object):
     def __get__(self, instance, owner):
         if instance is None:
             return self
-        assert instance.pk
+        instance = instance._default_manager.get_by_natural_key(
+            *instance.natural_key()
+        )
         try:
             models = instance.__dict__[self.name]
         except KeyError:
+            assert instance.pk, 'Cannot create models for an unexistent tenant.'
             models = tuple(
                 reference.for_tenant(instance)
                 for reference in TenantModelBase.references
@@ -58,6 +65,19 @@ class AbstractTenant(models.Model):
         if self.pk:
             self._default_manager._add_to_cache(self)
 
+    def save(self, *args, **kwargs):
+        save = super(AbstractTenant, self).save(*args, **kwargs)
+        create_tenant_schema(self)
+        return save
+
+    def delete(self, *args, **kwargs):
+        delete = super(AbstractTenant, self).delete(*args, **kwargs)
+        drop_tenant_schema(self)
+        return delete
+
+    def natural_key(self):
+        raise NotImplementedError
+
     models = TenantModelsCache()
 
     @contextmanager
@@ -80,9 +100,6 @@ class AbstractTenant(models.Model):
     @property
     def db_schema(self):
         return "tenant_%s" % '_'.join(self.natural_key())
-
-    def natural_key(self):
-        raise NotImplementedError
 
 
 class Tenant(AbstractTenant):
@@ -501,3 +518,48 @@ class TenantModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+@receiver(models.signals.class_prepared)
+def attach_signals(signal, sender, **kwargs):
+    """
+    Re-attach signals to tenant models
+    """
+    if isinstance(sender, TenantModelBase) and sender._meta.managed:
+        for signal, receiver in receivers_for_model(sender._for_tenant_model):
+            signal.connect(receiver, sender=sender)
+
+
+def validate_not_to_tenant_model(field, to, model):
+    """
+    Make sure the `to` relationship is not pointing to an instance of
+    `TenantModelBase`.
+    """
+    if isinstance(to, basestring):
+        add_lazy_relation(model, field, to, validate_not_to_tenant_model)
+    elif isinstance(to, TenantModelBase):
+        remove_from_app_cache(model, quiet=True)
+        raise ImproperlyConfigured(
+            "`%s.%s`'s `to` option` can't point to an instance of "
+            "`TenantModelBase` since it's not one itself." % (
+                model.__name__, field.name
+            )
+        )
+
+
+@receiver(models.signals.class_prepared)
+def validate_relationships(signal, sender, **kwargs):
+    """
+    Non-tenant models can't have relationships pointing to tenant models.
+    """
+    if not isinstance(sender, TenantModelBase):
+        opts = sender._meta
+        # Don't validate auto-intermediary models since they are created
+        # before their origin model (from) and cloak the actual, user-defined
+        # improper configuration.
+        if not opts.auto_created:
+            for field in opts.local_fields:
+                if field.rel:
+                    validate_not_to_tenant_model(field, field.rel.to, sender)
+            for m2m in opts.local_many_to_many:
+                validate_not_to_tenant_model(m2m, m2m.rel.to, sender)

@@ -1,18 +1,21 @@
 from __future__ import unicode_literals
+
 import copy_reg
 import logging
 
-from django.db import connections, models
+from django.db import connections
 from django.db.models.loading import get_model
 from mutant.models import (BaseDefinition, ModelDefinition,
     OrderingFieldDefinition)
+from django.dispatch.dispatcher import receiver
 from mutant.db.models import MutableModel
 from mutant.models.model import _ModelClassProxy
 
 from .. import get_tenant_model
-from ..management import create_tenant_schema, tenant_model_receiver
 from ..models import (db_schema_table, Reference, TenantModel, TenantModelBase,
     TenantSpecificModel)
+from ..signals import (post_tenant_models_creation, pre_tenant_models_creation,
+    pre_tenant_schema_deletion)
 
 
 class MutableReference(Reference):
@@ -111,45 +114,42 @@ def __pickle_mutable_tenant_model_base(model):
 copy_reg.pickle(MutableTenantModelBase, __pickle_mutable_tenant_model_base)
 
 
-def manage_tenant_mutable_models(tenant, managed=True):
+@receiver(pre_tenant_models_creation)
+def manage_tenant_mutable_models(tenant, **kwargs):
     """
-    Mark tenant specific mutable models as managed.
+    Mark tenant mutable models as managed to prevent `create_tenant_schema`
+    to create their associated table.
     """
     for model in tenant.models:
         if issubclass(model, MutableModel):
-            model._meta.managed = managed
+            model._meta.managed = True
 
 
-tenant_model_receiver.disconnect(models.signals.post_save, create_tenant_schema)
-
-
-@tenant_model_receiver(models.signals.post_save)
-def create_mutant_tenant_schema(sender, instance, **kwargs):
+@receiver(post_tenant_models_creation)
+def unmanage_tenant_mutable_models(tenant, **kwargs):
     """
-    Wrap the `create_tenant_schema` signal receiver to make sure mutable models
-    are marked as managed for schema creation. We can't use `pre_save` since
-    the tenant doesn't exist yet.
+    Cleanup after our `manage_tenant_mutable_models` alteration.
     """
-    instance._default_manager._add_to_cache(instance)
-    manage_tenant_mutable_models(instance)
-    create_tenant_schema(sender=sender, instance=instance, **kwargs)
-    manage_tenant_mutable_models(instance, False)
+    for model in tenant.models:
+        if issubclass(model, MutableModel):
+            model._meta.managed = False
 
 
-@tenant_model_receiver(models.signals.pre_delete)
-def cache_mutable_tenant_models(sender, instance, using, **kwargs):
+@receiver(pre_tenant_schema_deletion)
+def cached_mutable_tenant_models(tenant, using, **kwargs):
     """
     Cache the mutable tenant model by bypassing their proxy.
     """
     # Since the whole tenant schema is dropped on tenant deletion on PostgreSQL
     # we make sure to not attempt dropping the table on model definition
-    # deletion. Marking the mutable model class as managed nails it since
-    # mutant doesn't issue DDL statement for managed models.
+    # deletion. Marking the mutable model class `managed` nails it since
+    # mutant doesn't issue DDL statement for such models.
     managed = connections[using].vendor == 'postgresql'
     models = []
-    for model in instance.models:
+    for model in tenant.models:
         if issubclass(model, MutableModel):
+            # Access the underlying model class.
             model = model.model_class
             model._meta.managed = managed
         models.append(model)
-    instance.models = tuple(models)
+    tenant.models = tuple(models)
