@@ -22,7 +22,8 @@ matrix:
     - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=postgresql_psycopg2
 
 before_script:
-  - if echo $SETTINGS | grep 'postgresql' -q; then psql -c 'create database tenancy;' -U postgres; fi
+  - export PGUSER='postgres'
+  - if echo $SETTINGS | grep 'postgresql' -q; then psql -c 'CREATE DATABASE tenancy;' -U postgres; fi
 
 install:
   - pip install $DJANGO coverage django-coverage django-hosts django-mutant -q --use-mirrors
