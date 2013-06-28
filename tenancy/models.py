@@ -10,6 +10,7 @@ import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, DEFAULT_DB_ALIAS, models
 from django.db.models.base import ModelBase, subclass_exception
+from django.db.models.deletion import DO_NOTHING
 from django.db.models.fields import Field
 from django.db.models.fields.related import add_lazy_relation
 from django.db.models.loading import get_model
@@ -189,7 +190,7 @@ class TenantModelBase(ModelBase):
                 name for name, attr in attrs.items()
                 if isinstance(attr, models.Manager)
             )
-            # There's always a default manager name `object`
+            # There's always a default manager named `object`.
             managers.add('objects')
             if getattr(Meta, 'proxy', False):
                 model = super_new(
@@ -218,10 +219,15 @@ class TenantModelBase(ModelBase):
                 )
                 cls.references[model] = cls.reference(model, Meta, related_names)
                 opts = model._meta
-                # Validate related name of related fields
+                # Validate related name of related fields.
                 for field in opts.local_fields:
                     if field.rel:
                         cls.validate_related_name(field, field.rel.to, model)
+                        # Replace and store the current `on_delete` value to
+                        # make sure non-tenant models are not collected on
+                        # deletion.
+                        field.rel._on_delete = field.rel.on_delete
+                        field.rel.on_delete = DO_NOTHING
                 for m2m in opts.local_many_to_many:
                     rel = m2m.rel
                     to = rel.to
@@ -240,7 +246,7 @@ class TenantModelBase(ModelBase):
                     else:
                         cls.validate_through(m2m, m2m.rel.to, model)
             # Replace `ManagerDescriptor`s with `TenantModelManagerDescriptor`
-            # instances
+            # instances.
             for manager in managers:
                 setattr(model, manager, TenantModelManagerDescriptor(model))
             # Extract the specified related name if it exists.
@@ -397,6 +403,10 @@ class TenantModelBase(ModelBase):
                 if isinstance(field, models.ManyToManyField):
                     through = field.rel.through
                     rel.through = self.references[through].for_tenant(tenant)
+                else:
+                    # Re-assign the correct `on_delete` that was swapped for
+                    # `DO_NOTHING` to prevent non-tenant model collection.
+                    rel.on_delete = rel._on_delete
             field.contribute_to_class(model, field.name)
 
         return model

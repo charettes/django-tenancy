@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+
 import logging
 import pickle
 from StringIO import StringIO
@@ -338,9 +339,32 @@ class TenantModelTest(TenancyTestCase):
             self.assertEqual(related.m2m_through.get(), specific)
             self.assertEqual(specific.m2ms_through.get(), related)
 
+    def test_fk_to_non_tenant(self):
+        """
+        Make sure fk to non tenant models work correctly.
+        """
+        for tenant in Tenant.objects.all():
+            # Test object creation
+            non_tenant = NonTenantModel.objects.create()
+            specific = tenant.specificmodels.create(non_tenant=non_tenant)
+            # Test reverse related manager
+            reverse_descriptor_name = "tenant_%s_specificmodels" % tenant.name
+            self.assertEqual(
+                getattr(non_tenant, reverse_descriptor_name).get(), specific
+            )
+            # Test reverse filtering
+            self.assertEqual(
+                NonTenantModel.objects.get(
+                    **{reverse_descriptor_name: specific}
+                ), non_tenant
+            )
+            # Test cascade deletion.
+            non_tenant.delete()
+            self.assertFalse(tenant.specificmodels.exists())
+
     def test_m2m_to_non_tenant(self):
         """
-        Make sure m2m between TenantModels work correctly.
+        Make sure m2m to non tenant models work correctly.
         """
         for tenant in Tenant.objects.all():
             # Test object creation
@@ -348,10 +372,18 @@ class TenantModelTest(TenancyTestCase):
             non_tenant = related.m2m_non_tenant.create()
             # Test reverse related manager
             reverse_descriptor_name = "tenant_%s_relatedtenantmodels" % tenant.name
-            self.assertEqual(getattr(non_tenant, reverse_descriptor_name).get(), related)
+            self.assertEqual(
+                getattr(non_tenant, reverse_descriptor_name).get(), related
+            )
             # Test reverse filtering
-            self.assertEqual(NonTenantModel.objects.filter(
-                **{reverse_descriptor_name:related}).get(), non_tenant)
+            self.assertEqual(
+                NonTenantModel.objects.get(
+                    **{reverse_descriptor_name: related}
+                ), non_tenant
+            )
+            # Test cascade deletion
+            non_tenant.delete()
+            self.assertFalse(related.m2m_non_tenant.exists())
 
     def test_not_managed_auto_intermediary_model(self):
         """
@@ -383,8 +415,10 @@ class TenantModelTest(TenancyTestCase):
             "`TenantModelBase` its `through` option must also be pointing "
             "to one."):
             class InvalidThrough(TenantModel):
-                m2m = django_models.ManyToManyField(NonTenantModel,
-                                                    through='InvalidIntermediary')
+                m2m = django_models.ManyToManyField(
+                    NonTenantModel, through='InvalidIntermediary'
+                )
+
             class InvalidIntermediary(django_models.Model):
                 pass
 
