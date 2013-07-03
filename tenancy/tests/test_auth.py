@@ -37,7 +37,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
         user.set_password('numero 33')
         user.save()
         self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca'))
-        self.assertIsNone(backend.authenticate('p.roy@habs.ca', password='invalid'))
+        self.assertIsNone(backend.authenticate('p.roy@habs.ca'))
         self.assertTrue(backend.authenticate('p.roy@habs.ca', 'numero 33'))
 
     @setup_custom_tenant_user
