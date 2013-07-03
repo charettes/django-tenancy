@@ -1,13 +1,17 @@
 from __future__ import unicode_literals
+
 from functools import wraps
 import logging
+try:
+    from unittest.case import skipIf
+except ImportError:  # TODO: Remove when support for Python 2.6 is dropped
+    from django.utils.unittest.case import skipIf
 
 from django.contrib.auth.management.commands import createsuperuser
 from django.dispatch.dispatcher import receiver
 from django.test.signals import setting_changed
 from django.test.testcases import TransactionTestCase
 from django.utils.datastructures import SortedDict
-from django.utils.unittest.case import skipIf
 
 from .. import settings
 from ..models import Tenant
