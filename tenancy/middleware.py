@@ -6,6 +6,7 @@ from django.db import connections, DEFAULT_DB_ALIAS
 from django.http import Http404
 
 from . import get_tenant_model
+from .settings import HOST_NAME
 
 
 class TenantHostMiddleware(object):
@@ -31,7 +32,7 @@ class TenantHostMiddleware(object):
         self.attr_name = self.tenant_model.ATTR_NAME
 
     def process_request(self, request):
-        if request.host.name == 'tenant':
+        if request.host.name == HOST_NAME:
             match = request.host.compiled_regex.match(request.get_host())
             lookups = match.groupdict()
             tenant_model = self.tenant_model

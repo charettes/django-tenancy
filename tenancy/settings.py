@@ -47,3 +47,8 @@ def is_tenant_user_model(sender):
         )
 app_label, model_name = settings.AUTH_USER_MODEL.split('.')
 lazy_class_prepared(app_label, model_name, is_tenant_user_model)
+
+
+HOST_NAME = getattr(
+    settings, 'TENANCY_HOST_NAME', 'tenant'
+)
