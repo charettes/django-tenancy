@@ -2,8 +2,9 @@ from __future__ import unicode_literals
 
 from django import forms
 from django.contrib.formtools.wizard.views import NamedUrlWizardView
-from django.db import models
+from django.db import connection, models
 from django.forms.models import modelform_factory
+from django.http import HttpResponse
 
 from ..models import Tenant
 from ..views import TenantObjectMixin, TenantModelFormMixin, TenantWizardMixin
@@ -15,6 +16,11 @@ from .models import RelatedTenantModel, SpecificModel
 
 def raise_exception(request):
     raise Exception(request.tenant.name)
+
+
+def tenant_name(request):
+    tenant = getattr(connection, Tenant.ATTR_NAME)
+    return HttpResponse(tenant.name if tenant else '')
 
 
 class TenancyTestMixin(object):

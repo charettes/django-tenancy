@@ -56,6 +56,8 @@ class TenantModelsCache(object):
 
 
 class AbstractTenant(models.Model):
+    ATTR_NAME = 'tenant'
+
     objects = AbstractTenantManager()
 
     class Meta:
@@ -89,10 +91,10 @@ class AbstractTenant(models.Model):
         """
         connection = connections[DEFAULT_DB_ALIAS]
         try:
-            connection.tenant = self
+            setattr(connection, self.ATTR_NAME, self)
             yield
         finally:
-            del connection.tenant
+            delattr(connection, self.ATTR_NAME)
 
     @property
     def model_name_prefix(self):
@@ -160,10 +162,11 @@ class TenantSpecificModel(object):
 
     @classmethod
     def __subclasshook__(cls, subclass):
-        if (isinstance(subclass, TenantModelBase) and
-            isinstance(getattr(subclass, 'tenant', None),
-                       get_tenant_model(False))):
-            return True
+        if isinstance(subclass, TenantModelBase):
+            tenant_model = get_tenant_model(False)
+            tenant = getattr(subclass, tenant_model.ATTR_NAME, None)
+            if isinstance(tenant, tenant_model):
+                return True
         return NotImplemented
 
 
@@ -356,16 +359,15 @@ class TenantModelBase(ModelBase):
         reference = self.references[self]
         model = super(TenantModelBase, self).__new__(self.__class__,
             str("Abstract%s" % reference.object_name_for_tenant(tenant)),
-            (self,) + self.tenant_model_bases(tenant, self.__bases__),
-            dict(
-                 __module__=self.__module__,
-                 Meta=meta(
+            (self,) + self.tenant_model_bases(tenant, self.__bases__), {
+                '__module__': self.__module__,
+                'Meta': meta(
                     reference.Meta,
                     abstract=True
                 ),
-                tenant=tenant,
-                _for_tenant_model=self
-            )
+                tenant.ATTR_NAME: tenant,
+                '_for_tenant_model': self
+            }
         )
         opts = model._meta
 
@@ -502,9 +504,10 @@ def __unpickle_tenant_model_base(model, natural_key, abstract):
 
 def __pickle_tenant_model_base(model):
     if issubclass(model, TenantSpecificModel):
+        tenant = getattr(model, get_tenant_model().ATTR_NAME)
         return (
             __unpickle_tenant_model_base,
-            (model._for_tenant_model, model.tenant.natural_key(), model._meta.abstract)
+            (model._for_tenant_model, tenant.natural_key(), model._meta.abstract)
         )
     return model.__name__
 

@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 
+from .. import get_tenant_model
 from ..models import TenantModelBase
 
 
@@ -16,8 +17,9 @@ class CustomTenantUserBackend(object):
                 "authentification backend can only be used with a custom "
                 "tenant user model."
             )
+        tenant_model = get_tenant_model()
         try:
-            tenant = getattr(connection, 'tenant')
+            tenant = getattr(connection, tenant_model.ATTR_NAME)
         except AttributeError:
             raise ImproperlyConfigured(
                 "The `tenancy.auth.backends.CustomTenantUserBackend` "

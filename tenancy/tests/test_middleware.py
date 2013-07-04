@@ -23,12 +23,16 @@ class GlobalTenantMiddlewareTest(TenancyTestCase):
         response = self.client.get('/global')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, self.tenant.name)
-        self.assertRaises(AttributeError, getattr, connection, 'tenant')
+        self.assertRaises(
+            AttributeError, getattr, connection, self.tenant.ATTR_NAME
+        )
 
     def test_process_exception(self):
         with self.assertRaisesMessage(Exception, self.tenant.name):
             self.client.get('/exception')
-        self.assertRaises(AttributeError, getattr, connection, 'tenant')
+        self.assertRaises(
+            AttributeError, getattr, connection, self.tenant.ATTR_NAME
+        )
 
     def test_non_tenant_request(self):
         """
@@ -38,4 +42,6 @@ class GlobalTenantMiddlewareTest(TenancyTestCase):
         response = client.get('/global')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, '')
-        self.assertRaises(AttributeError, getattr, connection, 'tenant')
+        self.assertRaises(
+            AttributeError, getattr, connection, self.tenant.ATTR_NAME
+        )

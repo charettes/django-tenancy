@@ -165,7 +165,10 @@ class TenantModelBaseTest(TenancyTestCase):
             (model,),
             {'__module__': model.__module__}
         )
-        self.assertEqual(model.tenant, model_subclass.tenant)
+        self.assertEqual(
+            getattr(model, self.tenant.ATTR_NAME),
+            getattr(model_subclass, self.tenant.ATTR_NAME)
+        )
         self.assertIsSubclass(model_subclass, model)
         self.assertIsNotSubclass(model, model_subclass)
 
@@ -444,7 +447,8 @@ class TenantModelTest(TenancyTestCase):
             parents = tenant.specific_models_subclasses.model._meta.parents
             for parent in parents:
                 if issubclass(parent, TenantSpecificModel):
-                    self.assertEqual(parent.tenant, tenant)
+                    parent_tenant = getattr(parent, Tenant.ATTR_NAME)
+                    self.assertEqual(parent_tenant, tenant)
             tenant.specific_models_subclasses.create()
             self.assertEqual(tenant.specificmodels.count(), 1)
 

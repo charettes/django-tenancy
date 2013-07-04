@@ -9,7 +9,7 @@ class TenantClientHandler(ClientHandler):
         super(TenantClientHandler, self).__init__(*args, **kwargs)
 
     def get_response(self, request):
-        request.tenant = self.tenant
+        setattr(request, self.tenant.ATTR_NAME, self.tenant)
         return super(TenantClientHandler, self).get_response(request)
 
 

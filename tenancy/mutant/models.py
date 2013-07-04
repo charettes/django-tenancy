@@ -105,9 +105,10 @@ def __unpickle_mutable_tenant_model_base(model, natural_key, abstract):
 
 def __pickle_mutable_tenant_model_base(model):
     if issubclass(model, TenantSpecificModel):
+        tenant = getattr(model, get_tenant_model().ATTR_NAME)
         return (
             __unpickle_mutable_tenant_model_base,
-            (model._for_tenant_model, model.tenant.natural_key(), model._meta.abstract)
+            (model._for_tenant_model, tenant.natural_key(), model._meta.abstract)
         )
     return model.__name__
 

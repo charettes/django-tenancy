@@ -1,10 +1,9 @@
 from __future__ import unicode_literals
 
 from django.conf.urls import patterns, url
-from django.db import connection
 from django.http import HttpResponse
 
-from .views import raise_exception
+from .views import raise_exception, tenant_name
 
 
 urlpatterns = patterns('',
@@ -13,9 +12,7 @@ urlpatterns = patterns('',
         name='default'
     ),
     url(r'^global$',
-        lambda request: HttpResponse(
-            connection.tenant.name if connection.tenant else ''
-        ),
+        tenant_name,
         name='tenant'
     ),
     url(r'^exception$',

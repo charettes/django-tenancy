@@ -27,17 +27,21 @@ class TenantHostMiddleware(object):
                     "is placed before '%s' in your `MIDDLEWARE_CLASSES` "
                     "setting." % path
                 )
+        self.tenant_model = get_tenant_model()
+        self.attr_name = self.tenant_model.ATTR_NAME
 
     def process_request(self, request):
         if request.host.name == 'tenant':
-            tenant_model = get_tenant_model()
             match = request.host.compiled_regex.match(request.get_host())
             lookups = match.groupdict()
+            tenant_model = self.tenant_model
             try:
                 tenant = tenant_model._default_manager.get(**lookups)
             except tenant_model.DoesNotExist:
-                raise Http404("No tenant found for specified lookups: %r" % lookups)
-            request.tenant = tenant
+                raise Http404(
+                    "No tenant found for specified lookups: %r" % lookups
+                )
+            setattr(request, self.attr_name, tenant)
 
 
 class GlobalTenantMiddleware(object):
@@ -47,19 +51,24 @@ class GlobalTenantMiddleware(object):
     allow things such as a tenant custom user with the required auth backend.
     """
 
+    def __init__(self):
+        self.attr_name = get_tenant_model().ATTR_NAME
+
     def get_global_state(self):
         return connections[DEFAULT_DB_ALIAS]
 
     def pollute_global_state(self, tenant):
-        setattr(self.get_global_state(), 'tenant', tenant)
+        setattr(self.get_global_state(), self.attr_name, tenant)
 
     def clean_global_state(self):
         global_state = self.get_global_state()
-        if hasattr(global_state, 'tenant'):
-            delattr(global_state, 'tenant')
+        if hasattr(global_state, self.attr_name):
+            delattr(global_state, self.attr_name)
 
     def process_request(self, request):
-        self.pollute_global_state(getattr(request, 'tenant', None))
+        self.pollute_global_state(
+            getattr(request, self.attr_name, None)
+        )
 
     def process_response(self, request, response):
         self.clean_global_state()

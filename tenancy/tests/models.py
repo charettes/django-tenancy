@@ -1,11 +1,12 @@
 from __future__ import unicode_literals
+
 import sys
 
 import django
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db import models
 
-from ..models import TenantModel
+from ..models import Tenant, TenantModel
 from ..utils import model_sender_signals
 
 from .managers import ManagerOtherSubclass, ManagerSubclass
@@ -137,7 +138,7 @@ class SignalTenantModel(TenantModel):
 
     @classmethod
     def logs(cls):
-        return cls._logs.setdefault(cls.tenant, [])
+        return cls._logs.setdefault(getattr(cls, Tenant.ATTR_NAME), [])
 
     @classmethod
     def log(cls, signal):
