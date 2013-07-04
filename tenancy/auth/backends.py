@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 
@@ -8,15 +9,6 @@ from ..models import TenantModelBase
 
 class CustomTenantUserBackend(object):
     def __init__(self):
-        try:
-            # Conditional import to allow subclassing on django < 1.5
-            from django.contrib.auth import get_user_model
-        except ImportError:  # pragma: no cover
-            raise ImproperlyConfigured(
-                "The `tenancy.auth.backends.CustomTenantUserBackend` "
-                "authentification backend requires custom user support a "
-                "feature introduced in django 1.5"
-            )
         user_model = get_user_model()
         if not isinstance(user_model, TenantModelBase):
             raise ImproperlyConfigured(
