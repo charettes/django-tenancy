@@ -1,0 +1,4 @@
+[run]
+source = tenancy
+branch = True
+omit = tenancy/*tests*
