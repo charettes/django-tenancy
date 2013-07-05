@@ -6,13 +6,16 @@ Handle multi-tenancy in Django with no additional global state using schemas.
 
 http://pypi.python.org/pypi/django-tenancy
 
+.. image:: https://travis-ci.org/charettes/django-tenancy.png?branch=master
+
 Installation
 ============
 Assuming you have django installed, the first step is to install
 *django-tenancy*:
+
 ::
 
- pip install django-tenany
+   pip install django-tenany
 
 Now you can import the ``tenancy`` module in your Django project.
 
@@ -20,11 +23,12 @@ Using django-tenancy
 ====================
 
 Define a Tenant Model
------------------------
+---------------------
 
 The tenant model must be a subclass of ``tenancy.models.AbstractTenant``.
 
 For instance, your ``myapp/models.py`` might look like:
+
 ::
 
    from tenancy.models import AbstractTenant
@@ -40,24 +44,27 @@ be used to prefix the model and its database table. This prefix must be unique
 to the tenant.
 
 Declare the Tenant Model
---------------------------
+------------------------
 Now that you have your tenant model, let's declare in your project in
 *settings.py*:
+
 ::
 
- TENANCY_TENANT_MODEL=myapp.MyTenantModel
+   TENANCY_TENANT_MODEL=myapp.MyTenantModel
 
 Run a database synchronization to create the corresponding table:
+
 ::
 
- python manage.py syncdb
+   python manage.py syncdb
 
 Define the tenant-specific models
------------------------------------
+---------------------------------
 The tenant-specific models must subclass ``tenancy.models.TenantModel``.
 
 For instance, each tenant will have projects and reports. Here is how
 ``myapp/models.py`` might look like:
+
 ::
 
    from tenancy.models import AbstractTenant, TenantModel
@@ -77,29 +84,30 @@ For instance, each tenant will have projects and reports. Here is how
       content = models.CharField(max_length=300, blank=True, null=True)
 
 Playing with the defined models
---------------------------------
+-------------------------------
 You can manipulate the tenant and tenant-specific models as any other Django
 models.
 
 Create a tenant instance
-^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
 ::
 
- tenant = MyTenantModel.objects.create("myfirsttenant")
+   tenant = MyTenantModel.objects.create("myfirsttenant")
 
 Get a tenant-specific model: for_tenant()
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 <TenantModel>.for_tenant(<AbtractTenantConcreteSubclass instance>)
 
 ``TenantModel`` comes with a method that allows you to get the specific
 ``AbstractTenantModel`` for a given Tenant instance. For instance:
+
 ::
 
- tenant_project = Project.for_tenant(tenant)
+   tenant_project = Project.for_tenant(tenant)
 
 Create a tenant-specific model instance
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ::
 
- tenant_project.objects.create("myfirsttenant_project")
+   tenant_project.objects.create("myfirsttenant_project")
 
