@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import (BaseInlineFormSet, BaseModelFormSet,
     ModelForm, modelform_factory)
 
+from . import get_tenant_model
 from .forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
 from .models import TenantModelBase
@@ -20,7 +21,7 @@ class TenantMixin(object):
     """
 
     def get_tenant(self):
-        return self.request.tenant
+        return getattr(self.request, get_tenant_model().ATTR_NAME)
 
 
 class TenantObjectMixin(TenantMixin):
