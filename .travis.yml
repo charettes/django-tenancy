@@ -44,4 +44,6 @@ install:
 script:
   - python -Wonce `which coverage` run `which django-admin.py` test tenancy --pythonpath=`pwd` --settings=test_settings.$SETTINGS -v2
 
-after_success: coveralls
+after_success:
+  - coverage report -m
+  - coveralls
