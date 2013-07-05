@@ -4,9 +4,11 @@ django-tenancy
 
 Handle multi-tenancy in Django with no additional global state using schemas.
 
-http://pypi.python.org/pypi/django-tenancy
-
 .. image:: https://travis-ci.org/charettes/django-tenancy.png?branch=master
+    :target: http://travis-ci.org/charettes/django-tenancy
+
+.. image:: https://coveralls.io/repos/charettes/django-tenancy/badge.png?branch=master
+   :target: https://coveralls.io/r/charettes/django-tenancy
 
 Installation
 ============
