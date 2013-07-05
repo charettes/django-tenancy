@@ -3,9 +3,11 @@ from __future__ import unicode_literals
 from functools import wraps
 from imp import reload
 import logging
-try:
+import sys
+# TODO: Remove when support for Python 2.6 is dropped
+if sys.version_info >= (2, 7):
     from unittest import skipIf
-except ImportError:  # TODO: Remove when support for Python 2.6 is dropped
+else:
     from django.utils.unittest import skipIf
 
 from django.contrib.auth.management.commands import createsuperuser

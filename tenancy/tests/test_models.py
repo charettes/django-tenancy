@@ -3,9 +3,10 @@ from __future__ import unicode_literals
 import logging
 import pickle
 import sys
-try:
+# TODO: Remove when support for Python 2.6 is dropped
+if sys.version_info >= (2, 7):
     from unittest import skipIf
-except ImportError:  # TODO: Remove when support for Python 2.6 is dropped
+else:
     from django.utils.unittest import skipIf
 
 from django.contrib.contenttypes.models import ContentType
