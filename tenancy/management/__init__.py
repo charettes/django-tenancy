@@ -24,7 +24,7 @@ def create_tenant_schema(tenant, using=None):
     tenant._default_manager._add_to_cache(tenant)
     using = using or router.db_for_write(tenant.__class__, instance=tenant)
     connection = connections[using]
-    if connection.vendor == 'postgresql':  # pragma: no cover
+    if connection.vendor == 'postgresql':
         db_schema = tenant.db_schema
         quoted_db_schema = connection.ops.quote_name(db_schema)
         connection.cursor().execute("CREATE SCHEMA %s" % quoted_db_schema)
@@ -45,7 +45,7 @@ def create_tenant_schema(tenant, using=None):
     created_models = dict((db, set()) for db in connections)
     pending_references = dict((db, {}) for db in connections)
     index_sql = SortedDict()
-    if connection.vendor == 'postgresql':  # pragma: no cover
+    if connection.vendor == 'postgresql':
         index_prefix = "%s." % quoted_db_schema
 
     # Send pre creation signal
@@ -86,13 +86,13 @@ def create_tenant_schema(tenant, using=None):
         index_sql[model] = connection.creation.sql_indexes_for_model(
             model, style
         )
-        if connection.vendor == 'postgresql':  # pragma: no cover
+        if connection.vendor == 'postgresql':
             table_name = "%s.%s" % (
                 db_schema, model._for_tenant_model._meta.db_table
             )
             for i, statement in enumerate(index_sql[model]):
                 index_sql[model][i] = statement.replace(index_prefix, '', 1)
-        else:  # pragma: no cover
+        else:
             table_name = opts.db_table
         logger.info("Creating table %s ..." % table_name)
 
@@ -136,11 +136,11 @@ def drop_tenant_schema(tenant, using=None):
         sender=tenant.__class__, tenant=tenant, using=using
     )
 
-    if connection.vendor == 'postgresql':  # pragma: no cover
+    if connection.vendor == 'postgresql':
         connection.cursor().execute(
             "DROP SCHEMA %s CASCADE" % quote_name(tenant.db_schema)
         )
-    else:  # pragma: no cover
+    else:
         for model in tenant.models:
             opts = model._meta
             if not opts.managed or opts.proxy:

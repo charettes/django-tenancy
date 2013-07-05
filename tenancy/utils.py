@@ -77,10 +77,10 @@ def disconnect_signals(model):
 
 
 # TODO: Remove when support for 1.5 is dropped
-if django.VERSION >= (1, 6):  # pragma: no cover
+if django.VERSION >= (1, 6):
     def model_name(opts):
         return opts.model_name
-else:  # pragma: no cover
+else:
     def model_name(opts):
         return opts.module_name
 
