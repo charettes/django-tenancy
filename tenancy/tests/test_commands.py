@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 from StringIO import StringIO
 
-import django
 from django.db import connections
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -13,19 +12,8 @@ from ..models import Tenant, TenantModelBase
 from .utils import mock_inputs, setup_custom_tenant_user, skipIfCustomTenant
 
 
-# TODO: Remove when support for django 1.4 is dropped
-class raise_cmd_error_stderr(object):
-    def write(self, msg):
-        raise CommandError(msg)
-
-
 @skipIfCustomTenant
 class CreateTenantCommandTest(TransactionTestCase):
-    def create_tenant(self, *args, **kwargs):
-        if django.VERSION[:2] == (1, 4):
-            kwargs['stderr'] = raise_cmd_error_stderr()
-        call_command('createtenant', *args, **kwargs)
-
     def test_too_many_fields(self):
         args = ('name', 'useless')
         expected_message = (
@@ -33,22 +21,22 @@ class CreateTenantCommandTest(TransactionTestCase):
             "Got %s when defined fields are ('name',)." % repr(args)
         )
         with self.assertRaisesMessage(CommandError, expected_message):
-            self.create_tenant(*args)
+            call_command('createtenant', *args)
 
     def test_full_clean_failure(self):
         expected_message = (
             'Invalid value for field "name": This field cannot be blank.'
         )
         with self.assertRaisesMessage(CommandError, expected_message):
-            self.create_tenant()
+            call_command('createtenant')
 
     def test_success(self):
-        self.create_tenant('tenant', verbosity=0)
+        call_command('createtenant', 'tenant', verbosity=0)
         Tenant.objects.get(name='tenant').delete()
 
     def test_verbosity(self):
         stdout = StringIO()
-        self.create_tenant('tenant', stdout=stdout, verbosity=3)
+        call_command('createtenant', 'tenant', stdout=stdout, verbosity=3)
         tenant = Tenant.objects.get(name='tenant')
         stdout.seek(0)
         connection = connections[tenant._state.db]
@@ -68,7 +56,7 @@ class CreateTenantCommandTest(TransactionTestCase):
     ))
     def test_superuser_creation_prompt(self):
         stdout = StringIO()
-        self.create_tenant('tenant', stdout=stdout, interactive=True)
+        call_command('createtenant', 'tenant', stdout=stdout, interactive=True)
         stdout.seek(0)
         self.assertIn('Superuser created successfully.', stdout.read())
         Tenant.objects.get(name='tenant').delete()
