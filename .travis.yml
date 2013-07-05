@@ -33,14 +33,15 @@ before_script:
   - if echo $SETTINGS | grep 'postgresql' -q; then psql -c 'CREATE DATABASE tenancy;' -U postgres; fi
 
 install:
-  - pip install $DJANGO django-hosts -q --use-mirrors
+  - pip install $DJANGO coveralls django-hosts -q --use-mirrors
   - if echo $SETTINGS | grep 'psycopg2' -q; then pip install psycopg2 -q --use-mirrors; fi
   - if python --version 2>&1 > /dev/null | grep -E '^Python 2' -q; then
-      export TEST='test_coverage';
-      pip install coverage django-coverage django-mutant;
+      pip install django-mutant;
     else
-      TEST='test';
+      echo "django-mutant doesn't support Python 3 yet.";
     fi
 
 script:
-  - python -Wall `which django-admin.py` $TEST tenancy --pythonpath=`pwd` --settings=test_settings.$SETTINGS -v2
+  - python -Wonce `which coverage` run `which django-admin.py` test tenancy --pythonpath=`pwd` --settings=test_settings.$SETTINGS -v2
+
+after_success: coveralls
