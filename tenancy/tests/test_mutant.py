@@ -2,9 +2,9 @@ from __future__ import unicode_literals
 
 import sys
 try:
-    from unittest.case import skipIf, skipUnless
+    from unittest import skipIf, skipUnless
 except ImportError:  # TODO: Remove when support for Python 2.6 is dropped
-    from django.utils.unittest.case import skipIf, skipUnless
+    from django.utils.unittest import skipIf, skipUnless
 
 from .utils import TenancyTestCase
 

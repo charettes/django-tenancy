@@ -4,9 +4,9 @@ from functools import wraps
 from imp import reload
 import logging
 try:
-    from unittest.case import skipIf
+    from unittest import skipIf
 except ImportError:  # TODO: Remove when support for Python 2.6 is dropped
-    from django.utils.unittest.case import skipIf
+    from django.utils.unittest import skipIf
 
 from django.contrib.auth.management.commands import createsuperuser
 from django.dispatch.dispatcher import receiver
