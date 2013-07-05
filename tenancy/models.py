@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 from abc import ABCMeta
 import copy
-import copy_reg
 from contextlib import contextmanager
 import logging
 
@@ -16,6 +15,8 @@ from django.db.models.fields.related import add_lazy_relation
 from django.db.models.loading import get_model
 from django.dispatch.dispatcher import receiver
 from django.utils.datastructures import SortedDict
+from django.utils.six import with_metaclass, string_types
+from django.utils.six.moves import copyreg
 
 from . import get_tenant_model
 from .management import create_tenant_schema, drop_tenant_schema
@@ -157,16 +158,13 @@ class Reference(object):
         return "%s.%s" % (app_label, object_name)
 
 
-class TenantSpecificModel(object):
-    __metaclass__ = ABCMeta
-
+class TenantSpecificModel(with_metaclass(ABCMeta)):
     @classmethod
     def __subclasshook__(cls, subclass):
         if isinstance(subclass, TenantModelBase):
             tenant_model = get_tenant_model(False)
             tenant = getattr(subclass, tenant_model.ATTR_NAME, None)
-            if isinstance(tenant, tenant_model):
-                return True
+            return isinstance(tenant, tenant_model)
         return NotImplemented
 
 
@@ -178,6 +176,12 @@ class TenantModelBase(ModelBase):
 
     def __new__(cls, name, bases, attrs):
         super_new = super(TenantModelBase, cls).__new__
+
+        # attrs will never be empty for classes declared in the standard way
+        # (ie. with the `class` keyword). This is quite robust.
+        if name == 'NewBase' and attrs == {}:
+            return super_new(cls, name, bases, attrs)
+
         Meta = attrs.setdefault('Meta', meta())
         if (getattr(Meta, 'abstract', False) or
             any(issubclass(base, TenantSpecificModel) for base in bases)):
@@ -193,7 +197,7 @@ class TenantModelBase(ModelBase):
                 name for name, attr in attrs.items()
                 if isinstance(attr, models.Manager)
             )
-            # There's always a default manager named `object`.
+            # There's always a default manager named `objects`.
             managers.add('objects')
             if getattr(Meta, 'proxy', False):
                 model = super_new(
@@ -236,14 +240,14 @@ class TenantModelBase(ModelBase):
                     to = rel.to
                     cls.validate_related_name(m2m, to, model)
                     through = rel.through
-                    if (not isinstance(through, basestring) and
+                    if (not isinstance(through, string_types) and
                         through._meta.auto_created):
                         # Replace the automatically created intermediary model
                         # by a TenantModelBase instance.
                         remove_from_app_cache(through)
                         # Make sure to clear the referenced model cache if
                         # we have contributed to it already.
-                        if not isinstance(to, basestring):
+                        if not isinstance(to, string_types):
                             clear_opts_related_cache(rel.to)
                         rel.through = cls.intermediary_model_factory(m2m, model)
                     else:
@@ -272,7 +276,7 @@ class TenantModelBase(ModelBase):
         Make sure that related fields pointing to non-tenant models specify
         a related name containing a %(class)s format placeholder.
         """
-        if isinstance(rel_to, basestring):
+        if isinstance(rel_to, string_types):
             add_lazy_relation(model, field, rel_to, cls.validate_related_name)
         elif not isinstance(rel_to, cls):
             related_name = cls.references[model].related_names[field.name]
@@ -295,7 +299,7 @@ class TenantModelBase(ModelBase):
         instance of `TenantModelBase`.
         """
         through = field.rel.through
-        if isinstance(through, basestring):
+        if isinstance(through, string_types):
             add_lazy_relation(model, field, through, cls.validate_through)
         elif not isinstance(through, cls):
             del cls.references[model]
@@ -317,7 +321,7 @@ class TenantModelBase(ModelBase):
             to_model = from_model
         else:
             from_ = from_model_name
-            if isinstance(to_model, basestring):
+            if isinstance(to_model, string_types):
                 to = to_model.split('.')[-1].lower()
             else:
                 to = model_name(to_model._meta)
@@ -511,7 +515,7 @@ def __pickle_tenant_model_base(model):
         )
     return model.__name__
 
-copy_reg.pickle(TenantModelBase, __pickle_tenant_model_base)
+copyreg.pickle(TenantModelBase, __pickle_tenant_model_base)
 
 
 class TenantModelDescriptor(object):
@@ -526,9 +530,7 @@ class TenantModelDescriptor(object):
         return self.model.for_tenant(tenant)._default_manager
 
 
-class TenantModel(models.Model):
-    __metaclass__ = TenantModelBase
-
+class TenantModel(with_metaclass(TenantModelBase, models.Model)):
     class Meta:
         abstract = True
 
@@ -548,7 +550,7 @@ def validate_not_to_tenant_model(field, to, model):
     Make sure the `to` relationship is not pointing to an instance of
     `TenantModelBase`.
     """
-    if isinstance(to, basestring):
+    if isinstance(to, string_types):
         add_lazy_relation(model, field, to, validate_not_to_tenant_model)
     elif isinstance(to, TenantModelBase):
         remove_from_app_cache(model, quiet=True)

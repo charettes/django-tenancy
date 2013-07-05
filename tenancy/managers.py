@@ -9,7 +9,7 @@ class AbstractTenantManager(models.Manager):
         super(AbstractTenantManager, self).__init__()
 
     def clear_cache(self):
-        for tenant in self.__cache.values():
+        for tenant in list(self.__cache.values()):
             self._remove_from_cache(tenant)
 
     def _get_from_cache(self, *natural_key):

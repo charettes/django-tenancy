@@ -7,6 +7,7 @@ except ImportError:  # TODO: Remove when support for Python 2.6 is dropped
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
+from django.utils.encoding import force_bytes
 
 from ..middleware import TenantHostMiddleware
 from ..models import Tenant
@@ -80,4 +81,4 @@ class TenantHostMiddlewareTest(TenancyTestCase):
         client = self.tenant_client(self.tenant)
         response = client.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, self.tenant.name)
+        self.assertEqual(response.content, force_bytes(self.tenant.name))

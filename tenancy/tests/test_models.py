@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import logging
 import pickle
-from StringIO import StringIO
 import sys
 try:
     from unittest.case import skipIf
@@ -13,6 +12,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models as django_models
 from django.test.testcases import TransactionTestCase
+from django.utils.six import StringIO
 
 from .. import get_tenant_model
 from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,

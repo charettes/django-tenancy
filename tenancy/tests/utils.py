@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from functools import wraps
+from imp import reload
 import logging
 try:
     from unittest.case import skipIf
@@ -12,6 +13,7 @@ from django.dispatch.dispatcher import receiver
 from django.test.signals import setting_changed
 from django.test.testcases import TransactionTestCase
 from django.utils.datastructures import SortedDict
+from django.utils.six.moves import input
 
 from .. import settings
 from ..models import Tenant
@@ -101,18 +103,15 @@ def mock_inputs(inputs):
         @wraps(test_func)
         def wrapped(*args):
             replier = Replier(inputs)
-            old_input = createsuperuser.input
+            getpass = createsuperuser.getpass
             createsuperuser.input = replier
-            createtenant.raw_input = replier
-
-            old_getpass = createsuperuser.getpass
             createsuperuser.getpass = GetPass(replier)
-
+            createtenant.input = replier
             try:
                 test_func(*args)
             finally:
-                createsuperuser.input = old_input
-                createtenant.raw_input = raw_input
-                createsuperuser.getpass = old_getpass
+                createsuperuser.input = input
+                createtenant.input = input
+                createsuperuser.getpass = getpass
         return wrapped
     return inner

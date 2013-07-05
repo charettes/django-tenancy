@@ -1,9 +1,11 @@
 from __future__ import unicode_literals
+
 import logging
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
+from django.utils.six.moves import input
 
 from ... import get_tenant_model
 
@@ -55,14 +57,14 @@ class Command(BaseCommand):
         try:
             tenant.full_clean()
         except ValidationError as e:
-            name, messages = e.message_dict.items()[0]
+            name, messages = e.message_dict.popitem()
             raise CommandError(
                 'Invalid value for field "%s": %s.' % (name, messages[0])
             )
 
         # Redirect the output of the schema creation logger to our stdout.
         handler = CommandLoggingHandler(
-            self.stdout, self.stderr, int(options['verbosity'])
+            self.stdout._out, self.stderr._out, int(options['verbosity'])
         )
         logger = logging.getLogger('tenancy')
         logger.setLevel(handler.level)
@@ -77,14 +79,14 @@ class Command(BaseCommand):
 
         from ...settings import TENANT_AUTH_USER_MODEL
         if options.get('interactive', True) and TENANT_AUTH_USER_MODEL:
-            confirm = raw_input(
+            confirm = input(
                 "\nYou just created a new tenant, which means you don't have "
                 "any superusers defined.\nWould you like to create one "
                 "now? (yes/no): "
             )
             while True:
                 if confirm not in ('yes', 'no'):
-                    confirm = raw_input('Please enter either "yes" or "no": ')
+                    confirm = input('Please enter either "yes" or "no": ')
                 elif confirm == 'yes':
                     call_command('createsuperuser', tenant=tenant, **options)
                     break

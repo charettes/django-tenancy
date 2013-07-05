@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from django.db import connection
 from django.test.client import Client
 from django.test.utils import override_settings
+from django.utils.encoding import force_bytes
 
 from .client import TenantClient
 from .utils import TenancyTestCase
@@ -22,7 +23,7 @@ class GlobalTenantMiddlewareTest(TenancyTestCase):
     def test_process_response(self):
         response = self.client.get('/global')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, self.tenant.name)
+        self.assertEqual(response.content, force_bytes(self.tenant.name))
         self.assertRaises(
             AttributeError, getattr, connection, self.tenant.ATTR_NAME
         )
@@ -41,7 +42,7 @@ class GlobalTenantMiddlewareTest(TenancyTestCase):
         client = Client()
         response = client.get('/global')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, '')
+        self.assertEqual(response.content, b'')
         self.assertRaises(
             AttributeError, getattr, connection, self.tenant.ATTR_NAME
         )

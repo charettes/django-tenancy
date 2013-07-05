@@ -1,11 +1,10 @@
 from __future__ import unicode_literals
 
-from StringIO import StringIO
-
 from django.db import connections
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test.testcases import TransactionTestCase
+from django.utils.six import StringIO
 
 from ..models import Tenant, TenantModelBase
 
