@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import logging
 
-from django.db import connections
 from django.db.models.loading import get_model
 from django.utils.six.moves import copyreg
 from mutant.models import (BaseDefinition, ModelDefinition,
@@ -139,18 +138,15 @@ def unmanage_mutable_models(tenant, **kwargs):
 @receiver(pre_schema_deletion)
 def cached_mutable_models(tenant, using, **kwargs):
     """
-    Cache the mutable tenant model by bypassing their proxy.
+    Cache the mutable tenant model by bypassing their proxy and mark them as
+    managed to prevent `drop_tenant_schema` from dropping their associated
+    table twice.
     """
-    # Since the whole tenant schema is dropped on tenant deletion on PostgreSQL
-    # we make sure to not attempt dropping the table on model definition
-    # deletion. Marking the mutable model class `managed` nails it since
-    # mutant doesn't issue DDL statement for such models.
-    managed = connections[using].vendor == 'postgresql'
     models = []
     for model in tenant.models:
         if issubclass(model, MutableModel):
             # Access the underlying model class.
             model = model.model_class
-            model._meta.managed = managed
+            model._meta.managed = True
         models.append(model)
     tenant.models = tuple(models)

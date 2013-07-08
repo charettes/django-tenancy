@@ -154,8 +154,16 @@ def drop_tenant_schema(tenant, using=None):
     quote_name = connection.ops.quote_name
 
     signals.pre_schema_deletion.send(
-        sender=tenant.__class__, tenant=tenant, using=using
+        sender=tenant_class, tenant=tenant, using=using
     )
+
+    ContentType.objects.filter(
+        pk__in=[
+            ct.pk for ct in ContentType.objects.get_for_models(
+                *tenant.models, for_concrete_models=False
+            ).values()
+        ]
+    ).delete()
 
     if connection.vendor == 'postgresql':
         connection.cursor().execute(
@@ -169,12 +177,12 @@ def drop_tenant_schema(tenant, using=None):
             table_name = quote_name(opts.db_table)
             for db in allow_syncdbs(model):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)
-    ContentType.objects.filter(
-        model__startswith=tenant.model_name_prefix.lower()
-    ).delete()
-    ContentType.objects.clear_cache()
+
     tenant._default_manager._remove_from_cache(tenant)
+    ContentType.objects.clear_cache()
+
+    transaction.commit_unless_managed()
 
     signals.post_schema_deletion.send(
-        sender=tenant.__class__, tenant=tenant, using=using
+        sender=tenant_class, tenant=tenant, using=using
     )
