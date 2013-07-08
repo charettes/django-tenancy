@@ -70,8 +70,10 @@ class AbstractTenant(models.Model):
             self._default_manager._add_to_cache(self)
 
     def save(self, *args, **kwargs):
+        created = not self.pk
         save = super(AbstractTenant, self).save(*args, **kwargs)
-        create_tenant_schema(self)
+        if created:
+            create_tenant_schema(self)
         return save
 
     def delete(self, *args, **kwargs):
