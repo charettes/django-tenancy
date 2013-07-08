@@ -24,7 +24,11 @@ def lazy_class_prepared(app_label, object_name, callback):
                 callback(sender)
         class_prepared.connect(receiver, weak=False)
 
+pre_schema_creation = Signal(providing_args=['tenant', 'using'])
+post_schema_creation = Signal(providing_args=['tenant', 'using'])
 
-pre_tenant_models_creation = Signal(providing_args=['tenant', 'using'])
-post_tenant_models_creation = Signal(providing_args=['tenant', 'using'])
-pre_tenant_schema_deletion = Signal(providing_args=['tenant', 'using'])
+pre_models_creation = Signal(providing_args=['tenant', 'using'])
+post_models_creation = Signal(providing_args=['tenant', 'using'])
+
+pre_schema_deletion = Signal(providing_args=['tenant', 'using'])
+post_schema_deletion = Signal(providing_args=['tenant', 'using'])

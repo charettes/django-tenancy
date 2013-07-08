@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from collections import OrderedDict
 import logging
 
 import django
@@ -8,10 +9,8 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.management.color import no_style
 from django.db import connections, models, router, transaction
 from django.dispatch.dispatcher import receiver
-from django.utils.datastructures import SortedDict
 
-from ..signals import (post_tenant_models_creation, pre_tenant_models_creation,
-    pre_tenant_schema_deletion)
+from .. import signals
 from ..utils import (allow_syncdbs, disconnect_signals, receivers_for_model,
     remove_from_app_cache)
 
@@ -21,14 +20,32 @@ def create_tenant_schema(tenant, using=None):
     CREATE the tables associated with a tenant's models.
     """
     logger = logging.getLogger('tenancy.management.create_tenant_schema')
-    tenant._default_manager._add_to_cache(tenant)
-    using = using or router.db_for_write(tenant.__class__, instance=tenant)
+    tenant_class = tenant.__class__
+    using = using or router.db_for_write(tenant_class, instance=tenant)
     connection = connections[using]
+    quote_name = connection.ops.quote_name
+
+    tenant_class._default_manager._add_to_cache(tenant)
+
+    signals.pre_schema_creation.send(
+        sender=tenant_class, tenant=tenant, using=using
+    )
+
     if connection.vendor == 'postgresql':
-        db_schema = tenant.db_schema
-        quoted_db_schema = connection.ops.quote_name(db_schema)
-        connection.cursor().execute("CREATE SCHEMA %s" % quoted_db_schema)
-        logger.info("Creating schema %s ..." % db_schema)
+        schema = tenant.db_schema
+        quoted_schema = quote_name(schema)
+        from ..settings import SCHEMA_AUTHORIZATION
+        if SCHEMA_AUTHORIZATION:
+            create_schema = "CREATE SCHEMA AUTHORIZATION %s"
+        else:
+            create_schema = "CREATE SCHEMA %s"
+        logger.info("Creating schema %s ..." % schema)
+        connection.cursor().execute(create_schema % quoted_schema)
+
+    signals.post_schema_creation.send(
+        sender=tenant_class, tenant=tenant, using=using
+    )
+
     # Here we don't use south's API to avoid detecting things such
     # as `unique_together` and `index_together` (which are set on the
     # abstract base) and manually calling `create_index`.
@@ -44,24 +61,36 @@ def create_tenant_schema(tenant, using=None):
     )
     created_models = dict((db, set()) for db in connections)
     pending_references = dict((db, {}) for db in connections)
-    index_sql = SortedDict()
+    index_sql = OrderedDict()
     if connection.vendor == 'postgresql':
-        index_prefix = "%s." % quoted_db_schema
+        index_prefix = "%s." % quoted_schema
 
-    # Send pre creation signal
-    sender = tenant.__class__
-    pre_tenant_models_creation.send(
-        sender=sender, tenant=tenant, using=using
+    signals.pre_models_creation.send(
+        sender=tenant_class, tenant=tenant, using=using
     )
 
     for model in tenant.models:
         opts = model._meta
+        logger.debug(
+            "Processing %s.%s model" % (opts.app_label, opts.object_name)
+        )
+        # Has the side effect of creating the required `ContentType`.
         ContentType.objects.get_for_model(model)
-        for db in allow_syncdbs(model):
-            connection = connections[db]
-            logger.debug(
-                "Processing %s.%s model" % (opts.app_label, opts.object_name)
+        # Store index required for this model to be created later on.
+        index_sql[model] = connection.creation.sql_indexes_for_model(
+            model, style
+        )
+        if connection.vendor == 'postgresql':
+            table_name = "%s.%s" % (
+                schema, model._for_tenant_model._meta.db_table
             )
+            for i, statement in enumerate(index_sql[model]):
+                index_sql[model][i] = statement.replace(index_prefix, '', 1)
+        else:
+            table_name = opts.db_table
+        for db in allow_syncdbs(model):
+            logger.info("Creating table %s ..." % table_name)
+            connection = connections[db]
             sql, references = connection.creation.sql_create_model(
                 model, style, seen_models
             )
@@ -80,26 +109,15 @@ def create_tenant_schema(tenant, using=None):
                     model, style, pending_references[db]
                 )
             )
+            if connection.vendor == 'postgresql' and SCHEMA_AUTHORIZATION:
+                sql.append(
+                    "ALTER TABLE %s OWNER TO %s" % (
+                        table_name, quoted_schema
+                    )
+                )
             cursor = connection.cursor()
             for statement in sql:
                 cursor.execute(statement)
-        index_sql[model] = connection.creation.sql_indexes_for_model(
-            model, style
-        )
-        if connection.vendor == 'postgresql':
-            table_name = "%s.%s" % (
-                db_schema, model._for_tenant_model._meta.db_table
-            )
-            for i, statement in enumerate(index_sql[model]):
-                index_sql[model][i] = statement.replace(index_prefix, '', 1)
-        else:
-            table_name = opts.db_table
-        logger.info("Creating table %s ..." % table_name)
-
-    # Send post creation signal
-    post_tenant_models_creation.send(
-        sender=sender, tenant=tenant, using=using
-    )
 
     logger.info('Installing indexes ...')
     for model, statements in index_sql.items():
@@ -122,17 +140,21 @@ def create_tenant_schema(tenant, using=None):
                 else:
                     transaction.savepoint_commit(sid, db)
 
+    signals.post_models_creation.send(
+        sender=tenant_class, tenant=tenant, using=using
+    )
+
 
 def drop_tenant_schema(tenant, using=None):
     """
     DROP the tables associated with a tenant's models.
     """
-    using = using or router.db_for_write(tenant.__class__, instance=tenant)
+    tenant_class = tenant.__class__
+    using = using or router.db_for_write(tenant_class, instance=tenant)
     connection = connections[using]
     quote_name = connection.ops.quote_name
 
-    # Send pre schema deletion signal
-    pre_tenant_schema_deletion.send(
+    signals.pre_schema_deletion.send(
         sender=tenant.__class__, tenant=tenant, using=using
     )
 
@@ -153,3 +175,7 @@ def drop_tenant_schema(tenant, using=None):
     ).delete()
     ContentType.objects.clear_cache()
     tenant._default_manager._remove_from_cache(tenant)
+
+    signals.post_schema_deletion.send(
+        sender=tenant.__class__, tenant=tenant, using=using
+    )

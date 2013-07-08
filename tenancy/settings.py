@@ -52,3 +52,7 @@ lazy_class_prepared(app_label, model_name, is_tenant_user_model)
 HOST_NAME = getattr(
     settings, 'TENANCY_HOST_NAME', 'tenant'
 )
+
+SCHEMA_AUTHORIZATION = getattr(
+    settings, 'TENANCY_SCHEMA_AUTHORIZATION', False
+)

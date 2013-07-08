@@ -62,7 +62,7 @@ def setup_custom_tenant_user(test):
 
 @receiver(setting_changed)
 def reload_settings_module(signal, sender, setting, value):
-    if setting in ('AUTH_USER_MODEL', 'TENANCY_TENANT_MODEL'):
+    if setting == 'AUTH_USER_MODEL' or setting.startswith('TENANCY_'):
         logger.debug(
             "Attempt reload of settings because `%s` has changed to %r." % (
                 setting, value

@@ -1,10 +1,10 @@
 from __future__ import unicode_literals
 
-import copy_reg
 import logging
 
 from django.db import connections
 from django.db.models.loading import get_model
+from django.utils.six.moves import copyreg
 from mutant.models import (BaseDefinition, ModelDefinition,
     OrderingFieldDefinition)
 from django.dispatch.dispatcher import receiver
@@ -14,8 +14,8 @@ from mutant.models.model import _ModelClassProxy
 from .. import get_tenant_model
 from ..models import (db_schema_table, Reference, TenantModel, TenantModelBase,
     TenantSpecificModel)
-from ..signals import (post_tenant_models_creation, pre_tenant_models_creation,
-    pre_tenant_schema_deletion)
+from ..signals import (post_models_creation, pre_models_creation,
+    pre_schema_deletion)
 
 
 class MutableReference(Reference):
@@ -112,11 +112,11 @@ def __pickle_mutable_tenant_model_base(model):
         )
     return model.__name__
 
-copy_reg.pickle(MutableTenantModelBase, __pickle_mutable_tenant_model_base)
+copyreg.pickle(MutableTenantModelBase, __pickle_mutable_tenant_model_base)
 
 
-@receiver(pre_tenant_models_creation)
-def manage_tenant_mutable_models(tenant, **kwargs):
+@receiver(pre_models_creation)
+def manage_mutable_models(tenant, **kwargs):
     """
     Mark tenant mutable models as managed to prevent `create_tenant_schema`
     to create their associated table.
@@ -126,18 +126,18 @@ def manage_tenant_mutable_models(tenant, **kwargs):
             model._meta.managed = True
 
 
-@receiver(post_tenant_models_creation)
-def unmanage_tenant_mutable_models(tenant, **kwargs):
+@receiver(post_models_creation)
+def unmanage_mutable_models(tenant, **kwargs):
     """
-    Cleanup after our `manage_tenant_mutable_models` alteration.
+    Cleanup after our `manage_mutable_models` alteration.
     """
     for model in tenant.models:
         if issubclass(model, MutableModel):
             model._meta.managed = False
 
 
-@receiver(pre_tenant_schema_deletion)
-def cached_mutable_tenant_models(tenant, using, **kwargs):
+@receiver(pre_schema_deletion)
+def cached_mutable_models(tenant, using, **kwargs):
     """
     Cache the mutable tenant model by bypassing their proxy.
     """

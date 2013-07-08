@@ -5,7 +5,6 @@ import copy
 from contextlib import contextmanager
 import logging
 
-import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, DEFAULT_DB_ALIAS, models
 from django.db.models.base import ModelBase, subclass_exception
