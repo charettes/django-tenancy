@@ -1,14 +1,13 @@
 from __future__ import unicode_literals
 
-from collections import OrderedDict
 import logging
 
-import django
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.color import no_style
 from django.db import connections, models, router, transaction
 from django.dispatch.dispatcher import receiver
+from django.utils.datastructures import SortedDict
 
 from .. import signals
 from ..utils import (allow_syncdbs, disconnect_signals, receivers_for_model,
@@ -61,7 +60,7 @@ def create_tenant_schema(tenant, using=None):
     )
     created_models = dict((db, set()) for db in connections)
     pending_references = dict((db, {}) for db in connections)
-    index_sql = OrderedDict()
+    index_sql = SortedDict()
     if connection.vendor == 'postgresql':
         index_prefix = "%s." % quoted_schema
 
