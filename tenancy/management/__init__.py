@@ -87,6 +87,7 @@ def create_tenant_schema(tenant, using=None):
                 index_sql[model][i] = statement.replace(index_prefix, '', 1)
         else:
             table_name = opts.db_table
+        quoted_table_name = quote_name(opts.db_table)
         for db in allow_syncdbs(model):
             logger.info("Creating table %s ..." % table_name)
             connection = connections[db]
@@ -111,7 +112,7 @@ def create_tenant_schema(tenant, using=None):
             if connection.vendor == 'postgresql' and SCHEMA_AUTHORIZATION:
                 sql.append(
                     "ALTER TABLE %s OWNER TO %s" % (
-                        table_name, quoted_schema
+                        quoted_table_name, quoted_schema
                     )
                 )
             cursor = connection.cursor()
