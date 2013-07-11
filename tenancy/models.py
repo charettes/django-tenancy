@@ -399,13 +399,19 @@ class TenantModelBase(ModelBase):
                     if getattr(rel, 'parent_link', False):
                         continue
                     rel.to = self.references[to].for_tenant(tenant)
+                    # If no `related_name` was specified we make sure to
+                    # define one based on the non-tenant specific model name.
+                    if not rel.related_name:
+                        rel.related_name = "%s_set" % model_name(self._meta)
                 else:
                     clear_opts_related_cache(to)
-                related_name = reference.related_names[field.name]
-                if related_name:
-                    rel.related_name = related_name
-                else:
-                    rel.related_name = 'unspecified_for_tenant_model+'
+                    related_name = reference.related_names[field.name]
+                    # The `related_name` was validated earlier to either end
+                    # with a '+' sign or to contain %(class)s.
+                    if related_name:
+                        rel.related_name = related_name
+                    else:
+                        related_name = 'unspecified_for_tenant_model+'
                 if isinstance(field, models.ManyToManyField):
                     through = field.rel.through
                     rel.through = self.references[through].for_tenant(tenant)

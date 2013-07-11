@@ -322,6 +322,22 @@ class TenantModelTest(TenancyTestCase):
             # Test reverse filtering
             self.assertEqual(tenant.specificmodels.filter(fks=related).get(), specific)
 
+    def test_foreign_key_to_tenant_related_name(self):
+        """
+        Make sure foreign keys between tenant models use the correct
+        `related_name`. That is the generated `<model>_set` if none is
+        specified or the correctly interpolated specified one.
+        """
+        for tenant in Tenant.objects.all():
+            self.assertEqual(
+                tenant.related_tenant_models.model.m2mspecific_set.related.model,
+                tenant.m2m_specifics.model
+            )
+            self.assertEqual(
+                tenant.specificmodels.model.tests_m2mspecific_related.related.model,
+                tenant.m2m_specifics.model
+            )
+
     def test_m2m(self):
         """
         Make sure m2m between TenantModels work correctly.

@@ -113,7 +113,9 @@ class RelatedTenantModel(AbstractSpecificModelSubclass):
 
 class M2MSpecific(TenantModel):
     related = models.ForeignKey('RelatedTenantModel')
-    specific = models.ForeignKey(SpecificModel)
+    specific = models.ForeignKey(
+        SpecificModel, related_name="%(app_label)s_%(class)s_related"
+    )
 
     class Meta:
         if django.VERSION >= (1, 5):
