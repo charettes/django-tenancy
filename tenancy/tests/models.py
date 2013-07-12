@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import sys
 
-import django
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db import models
 
@@ -118,10 +117,9 @@ class M2MSpecific(TenantModel):
     )
 
     class Meta:
-        if django.VERSION >= (1, 5):
-            index_together = (
-                ('related', 'specific'),
-            )
+        index_together = (
+            ('related', 'specific'),
+        )
 
     class TenantMeta:
         related_name = 'm2m_specifics'
