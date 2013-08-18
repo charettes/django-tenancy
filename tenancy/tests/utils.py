@@ -45,6 +45,13 @@ class TenancyTestCase(TransactionTestCase):
         for tenant in Tenant.objects.all():
             tenant.delete()
 
+        # Remove references to tenants to allow them and their associated
+        # models to be garbage collected since unittest2 suites might keep
+        # references to testcases.
+        # See http://bugs.python.org/issue11798 for more details.
+        del self.tenant
+        del self.other_tenant
+
 
 def setup_custom_tenant_user(test):
     """

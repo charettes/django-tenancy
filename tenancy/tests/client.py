@@ -1,15 +1,18 @@
 from __future__ import unicode_literals
 
+import weakref
+
 from django.test.client import Client, ClientHandler
 
 
 class TenantClientHandler(ClientHandler):
     def __init__(self, tenant, *args, **kwargs):
-        self.tenant = tenant
+        self.tenant = weakref.ref(tenant)
         super(TenantClientHandler, self).__init__(*args, **kwargs)
 
     def get_response(self, request):
-        setattr(request, self.tenant.ATTR_NAME, self.tenant)
+        tenant = self.tenant()
+        setattr(request, tenant.ATTR_NAME, tenant)
         return super(TenantClientHandler, self).get_response(request)
 
 

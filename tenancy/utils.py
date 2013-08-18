@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
+
 import imp
 from contextlib import contextmanager
+from itertools import chain
 
 import django
 from django.db import connections, models, router
@@ -43,7 +45,8 @@ def remove_from_app_cache(model_class, quiet=False):
                 raise ValueError("%r is not cached" % model_class)
         app_cache._get_models_cache.clear()
         disconnect_signals(model)
-        for field, field_model in model._meta.get_fields_with_model():
+        for field, field_model in chain(opts.get_fields_with_model(),
+                                        opts.get_m2m_with_model()):
             rel = field.rel
             if field_model is None and rel:
                 to = rel.to

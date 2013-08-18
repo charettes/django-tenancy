@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import gc
 import logging
 import pickle
 import sys
@@ -8,6 +9,7 @@ if sys.version_info >= (2, 7):
     from unittest import skipIf
 else:
     from django.utils.unittest import skipIf
+import weakref
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
@@ -70,6 +72,35 @@ class TenantTest(TransactionTestCase):
         content_type = ContentType.objects.get_for_model(model)
         tenant.delete()
         self.assertFalse(ContentType.objects.filter(pk=content_type.pk).exists())
+
+    @skipIfCustomTenant
+    def test_model_garbage_collection(self):
+        """
+        Make sure tenant models are correctly garbage collected upon tenant
+        deletion.
+        """
+        tenant = Tenant.objects.create(name='tenant')
+
+        # Keep weak-references to tenant and associated models to make sure
+        # they have been colllected.
+        tenant_wref = weakref.ref(tenant)
+        models_wrefs = [
+            weakref.ref(model.for_tenant(tenant))
+            for model in TenantModelBase.references
+        ]
+
+        # Delete the tenant and all it's associated models.
+        tenant.delete()
+        del tenant
+
+        # Force a garbage collection for the benefit of non-reference counting
+        # implementations.
+        gc.collect()
+
+        # Make sure all references have been removed.
+        self.assertIsNone(tenant_wref())
+        for model_wref in models_wrefs:
+            self.assertIsNone(model_wref())
 
 
 class TenantModelsCacheTest(TenancyTestCase):
