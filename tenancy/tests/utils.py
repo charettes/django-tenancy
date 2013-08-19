@@ -1,5 +1,10 @@
 from __future__ import unicode_literals
 
+# TODO: Remove when support for Python 2.6 is dropped
+try:
+    from collections import OrderedDict
+except ImportError:
+    from django.utils.datastructures import SortedDict as OrderedDict
 from functools import wraps
 from imp import reload
 import logging
@@ -14,7 +19,6 @@ from django.contrib.auth.management.commands import createsuperuser
 from django.dispatch.dispatcher import receiver
 from django.test.signals import setting_changed
 from django.test.testcases import TransactionTestCase
-from django.utils.datastructures import SortedDict
 from django.utils.six.moves import input
 
 from .. import settings
@@ -85,7 +89,7 @@ def reload_settings_module(signal, sender, setting, value, **kwargs):
 
 class Replier(object):
     def __init__(self, replies):
-        self.replies = SortedDict(replies)
+        self.replies = OrderedDict(replies)
 
     def __call__(self, prompt):
         for p in self.replies:

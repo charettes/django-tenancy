@@ -1,6 +1,11 @@
 from __future__ import unicode_literals
 
 from abc import ABCMeta
+# TODO: Remove when support for Python 2.6 is dropped
+try:
+    from collections import OrderedDict
+except ImportError:
+    from django.utils.datastructures import SortedDict as OrderedDict
 import copy
 from contextlib import contextmanager
 import logging
@@ -13,7 +18,6 @@ from django.db.models.fields import Field
 from django.db.models.fields.related import add_lazy_relation
 from django.db.models.loading import get_model
 from django.dispatch.dispatcher import receiver
-from django.utils.datastructures import SortedDict
 from django.utils.six import with_metaclass, string_types
 from django.utils.six.moves import copyreg
 
@@ -170,7 +174,7 @@ class TenantSpecificModel(with_metaclass(ABCMeta)):
 
 class TenantModelBase(ModelBase):
     reference = Reference
-    references = SortedDict()
+    references = OrderedDict()
     tenant_model_class = None
     exceptions = ('DoesNotExist', 'MultipleObjectsReturned')
 
