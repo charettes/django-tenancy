@@ -7,6 +7,7 @@ except ImportError:
     from django.utils.datastructures import SortedDict as OrderedDict
 import logging
 
+import django
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.color import no_style
@@ -186,7 +187,9 @@ def drop_tenant_schema(tenant, using=None):
     tenant._default_manager._remove_from_cache(tenant)
     ContentType.objects.clear_cache()
 
-    transaction.commit_unless_managed()
+    # TODO: Remove when support for Django 1.5 is dropped
+    if django.VERSION < (1, 6):
+        transaction.commit_unless_managed()
 
     signals.post_schema_deletion.send(
         sender=tenant_class, tenant=tenant, using=using
