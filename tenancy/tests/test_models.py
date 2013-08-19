@@ -510,15 +510,14 @@ class TenantModelTest(TenancyTestCase):
             instance.save()
             instance.delete()
             self.assertListEqual(
-                signal_model.logs(),
-                [
-                 django_models.signals.pre_init,
-                 django_models.signals.post_init,
-                 django_models.signals.pre_save,
-                 django_models.signals.post_save,
-                 django_models.signals.pre_delete,
-                 django_models.signals.post_delete
-                 ]
+                signal_model.logs(), [
+                    django_models.signals.pre_init,
+                    django_models.signals.post_init,
+                    django_models.signals.pre_save,
+                    django_models.signals.post_save,
+                    django_models.signals.pre_delete,
+                    django_models.signals.post_delete
+                ]
             )
 
 

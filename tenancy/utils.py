@@ -66,12 +66,19 @@ model_sender_signals = (
 )
 
 
-# TODO: Remove when support for 1.5 is dropped
 def receivers_for_model(model):
+    # TODO: Remove `_make_id` reference check when support for 1.5 is dropped
     sender = model if django.VERSION >= (1, 6) else _make_id(model)
     for signal in model_sender_signals:
         for receiver in signal._live_receivers(sender):
             yield signal, receiver
+        # TODO: Remove `use_caching` getattr when support for 1.5 is dropped
+        if (getattr(signal, 'use_caching', False) and
+            sender in signal.sender_receivers_cache):
+            # `_live_receivers` might cache references to senders since this
+            # method is mainly used by `send`. Make sure to prevent this in
+            # order to allow tenant models to be garbage collected.
+            del signal.sender_receivers_cache[sender]
 
 
 def disconnect_signals(model):
@@ -79,7 +86,7 @@ def disconnect_signals(model):
         signal.disconnect(receiver, sender=model)
 
 
-# TODO: Remove when support for 1.5 is dropped
+# TODO: Remove `module_name` alternative when support for 1.5 is dropped
 if django.VERSION >= (1, 6):
     def model_name(opts):
         return opts.model_name
