@@ -6,6 +6,7 @@ import django
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.contenttypes.generic import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 
 from ..models import Tenant, TenantModel
@@ -74,7 +75,7 @@ class PostInitFieldsModel(TenantModel):
             from django.utils.image import Image as _
         else:
             from PIL import Image as _
-    except ImportError:
+    except (ImportError, ImproperlyConfigured):
         pass
     else:
         image = models.ImageField(upload_to='void')
