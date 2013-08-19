@@ -186,6 +186,8 @@ def drop_tenant_schema(tenant, using=None):
     tenant._default_manager._remove_from_cache(tenant)
     ContentType.objects.clear_cache()
 
+    transaction.commit_unless_managed()
+
     signals.post_schema_deletion.send(
         sender=tenant_class, tenant=tenant, using=using
     )
