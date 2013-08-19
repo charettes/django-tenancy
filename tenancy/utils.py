@@ -63,6 +63,7 @@ model_sender_signals = (
     models.signals.post_save,
     models.signals.pre_delete,
     models.signals.post_delete,
+    models.signals.m2m_changed
 )
 
 
