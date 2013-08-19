@@ -11,7 +11,11 @@ from django.db import connection, connections, router, transaction
 from django.db.utils import DatabaseError
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db.transaction import commit_on_success
+# TODO: Remove when support for Django 1.5 is dropped
+try:
+    from django.db.transaction import atomic
+except ImportError:
+    from django.db.transaction import commit_on_success as atomic
 from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
 
@@ -89,14 +93,14 @@ class SchemaAuthorizationTest(TenancyTestCase):
         super(SchemaAuthorizationTest, self).tearDown()
         post_schema_deletion.disconnect(self.drop_tenant_role, sender=Tenant)
 
-    @commit_on_success
+    @atomic
     def create_tenant_role(self, tenant, using, **kwargs):
         connection = connections[using]
         connection.cursor().execute(
             "CREATE ROLE %s" % connection.ops.quote_name(tenant.db_schema)
         )
 
-    @commit_on_success
+    @atomic
     def drop_tenant_role(self, tenant, using, **kwargs):
         connection = connections[using]
         connection.cursor().execute(
