@@ -40,6 +40,8 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
         related_name="%(class)ss",
         null=True
     )
+    o2o = models.OneToOneField(NonTenantModel, related_name="%(class)s_o2os", null=True)
+    o2o_hidden = models.OneToOneField(NonTenantModel, related_name='+', null=True)
 
     objects = ManagerSubclass()
     custom_objects = ManagerOtherSubclass()

@@ -52,8 +52,22 @@ def remove_from_app_cache(model_class, quiet=False):
                 to = rel.to
                 if isinstance(to, ModelBase):
                     clear_opts_related_cache(to)
-                    if not rel.is_hidden():
-                        delattr(to, field.related.get_accessor_name())
+                    rel_is_hidden = rel.is_hidden()
+                    # An accessor is added to related classes if they are not
+                    # hidden. However o2o fields *always* add an accessor
+                    # even if the relationship is hidden.
+                    o2o = isinstance(field, models.OneToOneField)
+                    if not rel_is_hidden or o2o:
+                        try:
+                            delattr(to, field.related.get_accessor_name())
+                        except AttributeError:
+                            # Hidden related names are not respected for o2o
+                            # thus a tenant models with a o2o pointing to
+                            # a non-tenant one would have a class for multiple
+                            # tenant thus the attribute might be attempted
+                            # to be deleted multiple times.
+                            if not (o2o and rel_is_hidden):
+                                raise
 
 
 model_sender_signals = (
