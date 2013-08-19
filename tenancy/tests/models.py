@@ -2,7 +2,10 @@ from __future__ import unicode_literals
 
 import sys
 
+import django
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.contenttypes.generic import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
 from ..models import Tenant, TenantModel
@@ -55,6 +58,26 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
 
     def save(self, *args, **kwargs):
         return super(SpecificModel, self).save(*args, **kwargs)
+
+
+class PostInitFieldsModel(TenantModel):
+    """
+    Model used to make sure fields (GenericForeignKey, ImageField) that are
+    attaching a `(pre|post)_init` signal to their model are not preventing
+    garbage collection of them.
+    """
+    content_type = models.ForeignKey(ContentType)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    try:
+        if django.VERSION >= (1, 6):
+            from django.utils.image import Image as _
+        else:
+            from PIL import Image as _
+    except ImportError:
+        pass
+    else:
+        image = models.ImageField(upload_to='void')
 
 
 class SpecificModelProxy(SpecificModel):

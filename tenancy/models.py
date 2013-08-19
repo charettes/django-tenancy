@@ -25,8 +25,8 @@ from . import get_tenant_model
 from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (AbstractTenantManager, TenantManager,
     TenantModelManagerDescriptor)
-from .utils import (clear_opts_related_cache, model_name, receivers_for_model,
-    remove_from_app_cache)
+from .utils import (clear_opts_related_cache, disconnect_signals, model_name,
+    receivers_for_model, remove_from_app_cache)
 
 
 class TenantModelsCache(object):
@@ -56,7 +56,7 @@ class TenantModelsCache(object):
 
     def __delete__(self, instance):
         for model in self.__get__(instance, owner=None):
-            remove_from_app_cache(model)
+            model.destroy()
 
 
 class AbstractTenant(models.Model):
@@ -488,6 +488,21 @@ class TenantModelBase(ModelBase):
         )
 
         return model
+
+    def destroy(self):
+        """
+        Remove all reference to this tenant model.
+        """
+        if not issubclass(self, TenantSpecificModel):
+            raise ValueError('Can only be called on tenant specific model.')
+        remove_from_app_cache(self)
+        if not self._meta.proxy:
+            # Some fields (GenericForeignKey, ImageField) attach (pre|post)_init
+            # signals to their associated model even if they are abstract.
+            # Since this instance was created from an abstract base generated
+            # by `abstract_tenant_model_factory` we must make sure to disconnect
+            # all signal receivers attached to it in order to be gc'ed.
+            disconnect_signals(self.__bases__[0])
 
     def __instancecheck__(self, instance):
         return self.__subclasscheck__(instance.__class__)
