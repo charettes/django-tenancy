@@ -73,6 +73,11 @@ class TenantTest(TransactionTestCase):
         tenant.delete()
         self.assertFalse(ContentType.objects.filter(pk=content_type.pk).exists())
 
+    @skipIf(
+        sys.version_info < (2, 7),
+        "Tenant models aren't correctly garbage collected on < 2.7. Feel free "
+        "to fix it up if you need support for Python 2.6."
+    )
     @skipIfCustomTenant
     def test_model_garbage_collection(self):
         """
