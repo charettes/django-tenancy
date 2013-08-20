@@ -87,13 +87,6 @@ def receivers_for_model(model):
     for signal in model_sender_signals:
         for receiver in signal._live_receivers(sender):
             yield signal, receiver
-        # TODO: Remove `use_caching` getattr when support for 1.5 is dropped
-        if (getattr(signal, 'use_caching', False) and
-            sender in signal.sender_receivers_cache):
-            # `_live_receivers` might cache references to senders since this
-            # method is mainly used by `send`. Make sure to prevent this in
-            # order to allow tenant models to be garbage collected.
-            del signal.sender_receivers_cache[sender]
 
 
 def disconnect_signals(model):
