@@ -19,9 +19,14 @@ class TenantMixin(object):
     View mixin that retrieve the current tenant from the request. This could
     have been set from a middleware base on a domain name for example.
     """
+    tenant_attr_name = get_tenant_model().ATTR_NAME
 
     def get_tenant(self):
-        return getattr(self.request, get_tenant_model().ATTR_NAME)
+        return getattr(self.request, self.tenant_attr_name)
+
+    def dispatch(self, request, *args, **kwargs):
+        setattr(self, self.tenant_attr_name, self.get_tenant())
+        return super(TenantMixin, self).dispatch(request, *args, **kwargs)
 
 
 class TenantObjectMixin(TenantMixin):

@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from django.core.exceptions import ImproperlyConfigured
+from django.test.client import RequestFactory
 
 from .forms import (RelatedInlineFormSet, RelatedTenantModelForm,
     SpecificModelForm, SpecificModelFormSet)
@@ -8,9 +9,32 @@ from .models import RelatedTenantModel, SpecificModel
 from .views import (InvalidModelMixin, MissingModelFormMixin,
     MissingModelMixin, NonModelFormMixin, NonTenantModelFormClass,
     RelatedInlineFormSetMixin, SpecificModelFormMixin,
-    SpecificModelFormSetMixin, SpecificModelMixin, TenantWizardView,
-    UnspecifiedFormClass)
+    SpecificModelFormSetMixin, SpecificModelMixin, TenantMixinView,
+    TenantWizardView, UnspecifiedFormClass)
 from .utils import TenancyTestCase
+
+
+class TenantMixinTest(TenancyTestCase):
+    urls = 'tenancy.tests.urls'
+    client_class = RequestFactory
+
+    def test_get_tenant(self):
+        view = TenantMixinView()
+        request = self.client.request()
+        setattr(request, view.tenant_attr_name, self.tenant)
+        view.request = request
+        self.assertEqual(view.get_tenant(), self.tenant)
+
+    def test_dispatch_set_tenant_attr(self):
+        view = TenantMixinView()
+        request = self.client.request()
+        setattr(request, view.tenant_attr_name, self.tenant)
+        view.request = request
+        view.method = request.method
+        view.dispatch(request)
+        self.assertEqual(
+            getattr(request, view.tenant_attr_name), self.tenant
+        )
 
 
 class TenantObjectMixinTest(TenancyTestCase):

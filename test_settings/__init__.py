@@ -6,6 +6,8 @@ INSTALLED_APPS = [
     'tenancy',
 ]
 
+ROOT_URLCONF = 'tenancy.tests.urls'
+
 try:
     import mutant
 except ImportError:

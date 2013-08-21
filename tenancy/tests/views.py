@@ -5,9 +5,11 @@ from django.contrib.formtools.wizard.views import NamedUrlWizardView
 from django.db import connection, models
 from django.forms.models import modelform_factory
 from django.http import HttpResponse
+from django.views.generic.base import View
 
 from ..models import Tenant
-from ..views import TenantObjectMixin, TenantModelFormMixin, TenantWizardMixin
+from ..views import (TenantObjectMixin, TenantMixin, TenantModelFormMixin,
+    TenantWizardMixin)
 
 from .forms import (MissingModelForm, RelatedInlineFormSet, SpecificModelForm,
     SpecificModelFormSet)
@@ -21,6 +23,10 @@ def raise_exception(request):
 def tenant_name(request):
     tenant = getattr(connection, Tenant.ATTR_NAME)
     return HttpResponse(tenant.name if tenant else '')
+
+
+class TenantMixinView(TenantMixin, View):
+    pass
 
 
 class TenancyTestMixin(object):
