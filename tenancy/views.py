@@ -75,9 +75,9 @@ class TenantObjectMixin(TenantMixin):
             return self.context_object_name
         elif (isinstance(obj, (Manager, QuerySet)) and
               issubclass(obj.model, TenantSpecificModel)):
-            return "%s_list" % obj.model._for_tenant_model._meta.model_name
+            return "%s_list" % model_name(obj.model._for_tenant_model._meta)
         elif isinstance(obj, TenantSpecificModel):
-            return obj._for_tenant_model._meta.model_name
+            return model_name(obj._for_tenant_model._meta)
 
 
 class TenantModelFormMixin(TenantObjectMixin):
