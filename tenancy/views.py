@@ -4,7 +4,8 @@ import warnings
 
 import django
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import Manager, QuerySet
+from django.db.models import Manager
+from django.db.models.query import QuerySet
 from django.forms.models import (BaseInlineFormSet, BaseModelFormSet,
     ModelForm, modelform_factory)
 
