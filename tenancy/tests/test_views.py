@@ -65,6 +65,28 @@ class TenantObjectMixinTest(TenancyTestCase):
             SpecificModelMixin().get_template_names()
         )
 
+    def test_get_context_object_name(self):
+        self.assertEqual(
+            SpecificModelMixin().get_context_object_name(
+                self.tenant.specificmodels.create()
+            ), 'specificmodel'
+        )
+        self.assertEqual(
+            SpecificModelMixin().get_context_object_name(
+                self.tenant.specificmodels
+            ), 'specificmodel_list'
+        )
+        self.assertEqual(
+            SpecificModelMixin().get_context_object_name(
+                self.tenant.specificmodels.all()
+            ), 'specificmodel_list'
+        )
+        mixin = SpecificModelMixin()
+        mixin.context_object_name = 'test'
+        self.assertEqual(
+            mixin.get_context_object_name(None), mixin.context_object_name
+        )
+
 
 class TenantModelFormMixinTest(TenancyTestCase):
     def test_unspecified_form_class(self):

@@ -4,13 +4,14 @@ import warnings
 
 import django
 from django.core.exceptions import ImproperlyConfigured
+from django.db.models import Manager, QuerySet
 from django.forms.models import (BaseInlineFormSet, BaseModelFormSet,
     ModelForm, modelform_factory)
 
 from . import get_tenant_model
 from .forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
-from .models import TenantModelBase
+from .models import TenantModelBase, TenantSpecificModel
 from .utils import model_name
 
 
@@ -35,6 +36,7 @@ class TenantObjectMixin(TenantMixin):
     on the retrieved tenant.
     """
     model = None
+    context_object_name = None
 
     def get_model(self):
         if self.model:
@@ -66,6 +68,15 @@ class TenantObjectMixin(TenantMixin):
         ))
 
         return names
+
+    def get_context_object_name(self, obj):
+        if self.context_object_name:
+            return self.context_object_name
+        elif (isinstance(obj, (Manager, QuerySet)) and
+              issubclass(obj.model, TenantSpecificModel)):
+            return "%s_list" % obj.model._for_tenant_model._meta.model_name
+        elif isinstance(obj, TenantSpecificModel):
+            return obj._for_tenant_model._meta.model_name
 
 
 class TenantModelFormMixin(TenantObjectMixin):
