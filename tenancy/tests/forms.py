@@ -13,7 +13,8 @@ class SpecificModelForm(forms.ModelForm):
 
 
 class MissingModelForm(forms.ModelForm):
-    pass
+    class Meta:
+        fields = ['id']
 
 
 class RelatedTenantModelForm(forms.ModelForm):

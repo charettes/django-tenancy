@@ -60,8 +60,11 @@ class NonModelFormMixin(TenancyTestMixin, TenantModelFormMixin):
 
 class MissingModelFormMixin(TenancyTestMixin, TenantModelFormMixin):
     model = SpecificModel
-    fields = ['id']
     form_class = MissingModelForm
+
+
+class MissingFieldsModelFormMixin(TenancyTestMixin, TenantModelFormMixin):
+    model = SpecificModel
 
 
 class NonTenantModelFormClass(TenancyTestMixin, TenantModelFormMixin):

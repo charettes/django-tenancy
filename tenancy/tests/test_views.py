@@ -1,14 +1,23 @@
 from __future__ import unicode_literals
 
+import sys
+# TODO: Remove when support for Python 2.6 is dropped
+if sys.version_info >= (2, 7):
+    from unittest import skipUnless
+else:
+    from django.utils.unittest import skipUnless
+import warnings
+
+import django
 from django.core.exceptions import ImproperlyConfigured
 from django.test.client import RequestFactory
 
 from .forms import (RelatedInlineFormSet, RelatedTenantModelForm,
     SpecificModelForm, SpecificModelFormSet)
 from .models import RelatedTenantModel, SpecificModel
-from .views import (InvalidModelMixin, MissingModelFormMixin,
-    MissingModelMixin, NonModelFormMixin, NonTenantModelFormClass,
-    RelatedInlineFormSetMixin, SpecificModelFormMixin,
+from .views import (InvalidModelMixin, MissingFieldsModelFormMixin,
+    MissingModelFormMixin, MissingModelMixin, NonModelFormMixin,
+    NonTenantModelFormClass, RelatedInlineFormSetMixin, SpecificModelFormMixin,
     SpecificModelFormSetMixin, SpecificModelMixin, TenantMixinView,
     TenantWizardView, UnspecifiedFormClass)
 from .utils import TenancyTestCase
@@ -126,6 +135,30 @@ class TenantModelFormMixinTest(TenancyTestCase):
             "NonTenantModelFormClass.form_class' model is not an "
             "instance of TenantModelBase.",
             NonTenantModelFormClass().get_form_class
+        )
+
+    @skipUnless(
+         (1, 6) <= django.VERSION < (1, 8),
+        'Missing `fields` warnings are only raised on Django 1.6 and 1.7.'
+    )
+    def test_missing_fields_warning(self):
+        """
+        Since `TenantModelFormMixin` is meant to override `ModelFormMixin`
+        make sure to mimic the raised warnings when no `fields` are specified.
+        """
+        with warnings.catch_warnings(record=True) as records:
+            warnings.simplefilter('always')
+            MissingFieldsModelFormMixin().get_form_class()
+        self.assertTrue(records)
+        warning = records[0]
+        self.assertEqual(warning.category,
+            DeprecationWarning if django.VERSION >= (1, 7)
+            else PendingDeprecationWarning
+        )
+        self.assertEqual(
+            str(warning.message),
+            "Using TenantModelFormMixin (base class of MissingFieldsModelFormMixin) "
+            "without the 'fields' attribute is deprecated."
         )
 
     def test_get_modelform_class(self):

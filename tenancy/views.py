@@ -82,19 +82,20 @@ class TenantObjectMixin(TenantMixin):
 
 class TenantModelFormMixin(TenantObjectMixin):
     form_class = None
+    fields = None
 
     def get_form_class(self):
         """
         Provide a model form class based on tenant specific model.
         """
         form_class = self.form_class
+        fields = self.fields
         if form_class:
             if issubclass(form_class, ModelForm):
-                form_class_model = form_class._meta.model
-                form_class_fields = form_class._meta.fields
+                model = form_class._meta.model
                 factory = tenant_modelform_factory
             elif issubclass(form_class, BaseModelFormSet):
-                form_class_model = form_class.model
+                model = form_class.model
                 if issubclass(form_class, BaseInlineFormSet):
                     factory = tenant_inlineformset_factory
                 else:
@@ -104,8 +105,8 @@ class TenantModelFormMixin(TenantObjectMixin):
                     "%s.form_class must be a subclass of `ModelForm` or "
                     "`BaseModelFormSet`." % self.__class__.__name__
                 )
-            if form_class_model:
-                if not isinstance(form_class_model, TenantModelBase):
+            if model:
+                if not isinstance(model, TenantModelBase):
                     raise ImproperlyConfigured(
                         "%s.form_class' model is not an instance of "
                         "TenantModelBase." % self.__class__.__name__
@@ -113,15 +114,15 @@ class TenantModelFormMixin(TenantObjectMixin):
                 return factory(self.get_tenant(), form_class)
         else:
             form_class = ModelForm
-            form_class_fields = None
-        fields = getattr(self, 'fields', form_class_fields)
-        if django.VERSION >= (1, 6) and fields is None:
-            warnings.warn(
-                "Using TenantModelFormMixin (base class of %s) without "
-                "the 'fields' attribute is deprecated." % self.__class__.__name__,
-                PendingDeprecationWarning
-            )
-        return modelform_factory(self.get_tenant_model(), form_class, fields=fields)
+            if django.VERSION >= (1, 6) and fields is None:
+                warnings.warn(
+                    "Using TenantModelFormMixin (base class of %s) without "
+                    "the 'fields' attribute is deprecated." % self.__class__.__name__,
+                    DeprecationWarning if django.VERSION >= (1, 7) else PendingDeprecationWarning
+                )
+        return modelform_factory(
+            self.get_tenant_model(), form_class, fields=fields
+        )
 
 
 class TenantWizardMixin(TenantMixin):
