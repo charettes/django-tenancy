@@ -24,7 +24,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
             "The `tenancy.auth.backends.CustomTenantUserBackend` "
             "authentification backend requires that a `tenant` attribute "
             "be set on the default connection to work properly. The "
-            "`tenancy.middleware.GlobalTenantMiddlewareTest` does "
+            "`tenancy.middleware.GlobalTenantMiddleware` does "
             "just that.",
             CustomTenantUserBackend
         )

@@ -18,15 +18,16 @@ class CustomTenantUserBackend(object):
                 "tenant user model."
             )
         tenant_model = get_tenant_model()
+        attr_name = tenant_model.ATTR_NAME
         try:
-            tenant = getattr(connection, tenant_model.ATTR_NAME)
+            tenant = getattr(connection, attr_name)
         except AttributeError:
             raise ImproperlyConfigured(
                 "The `tenancy.auth.backends.CustomTenantUserBackend` "
-                "authentification backend requires that a `tenant` attribute "
+                "authentification backend requires that a `%s` attribute "
                 "be set on the default connection to work properly. The "
-                "`tenancy.middleware.GlobalTenantMiddlewareTest` does "
-                "just that."
+                "`tenancy.middleware.GlobalTenantMiddleware` does "
+                "just that." % attr_name
             )
         self.tenant_user_model = user_model.for_tenant(tenant)
 
