@@ -8,6 +8,7 @@ from django.db.models import Manager
 from django.db.models.query import QuerySet
 from django.forms.models import (BaseInlineFormSet, BaseModelFormSet,
     ModelForm, modelform_factory)
+from django.utils.functional import cached_property
 
 from . import get_tenant_model
 from .forms import (tenant_inlineformset_factory, tenant_modelform_factory,
@@ -26,9 +27,10 @@ class TenantMixin(object):
     def get_tenant(self):
         return getattr(self.request, self.tenant_attr_name)
 
-    def dispatch(self, request, *args, **kwargs):
-        setattr(self, self.tenant_attr_name, self.get_tenant())
-        return super(TenantMixin, self).dispatch(request, *args, **kwargs)
+setattr(
+    TenantMixin, get_tenant_model().ATTR_NAME,
+    cached_property(lambda self: self.get_tenant())
+)
 
 
 class TenantObjectMixin(TenantMixin):

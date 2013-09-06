@@ -34,16 +34,13 @@ class TenantMixinTest(TenancyTestCase):
         view.request = request
         self.assertEqual(view.get_tenant(), self.tenant)
 
-    def test_dispatch_set_tenant_attr(self):
+    def test_tenant_attr(self):
         view = TenantMixinView()
         request = self.client.request()
-        setattr(request, view.tenant_attr_name, self.tenant)
+        attr_name = view.tenant_attr_name
+        setattr(request, attr_name, self.tenant)
         view.request = request
-        view.method = request.method
-        view.dispatch(request)
-        self.assertEqual(
-            getattr(request, view.tenant_attr_name), self.tenant
-        )
+        self.assertEqual(getattr(view, attr_name), self.tenant)
 
 
 class TenantObjectMixinTest(TenancyTestCase):
