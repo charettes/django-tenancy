@@ -15,7 +15,7 @@ from django.db import connections, models, router, transaction
 from django.dispatch.dispatcher import receiver
 
 from .. import signals
-from ..utils import (allow_syncdbs, disconnect_signals, receivers_for_model,
+from ..utils import (allow_migrate, disconnect_signals, receivers_for_model,
     remove_from_app_cache)
 
 
@@ -93,7 +93,7 @@ def create_tenant_schema(tenant, using=None):
         else:
             table_name = opts.db_table
         quoted_table_name = quote_name(opts.db_table)
-        for db in allow_syncdbs(model):
+        for db in allow_migrate(model):
             logger.info("Creating table %s ..." % table_name)
             connection = connections[db]
             sql, references = connection.creation.sql_create_model(
@@ -127,7 +127,7 @@ def create_tenant_schema(tenant, using=None):
     logger.info('Installing indexes ...')
     for model, statements in index_sql.items():
         if statements:
-            for db in allow_syncdbs(model):
+            for db in allow_migrate(model):
                 connection = connections[db]
                 sid = transaction.savepoint(db)
                 cursor = connection.cursor()
@@ -181,7 +181,7 @@ def drop_tenant_schema(tenant, using=None):
             if not opts.managed or opts.proxy:
                 continue
             table_name = quote_name(opts.db_table)
-            for db in allow_syncdbs(model):
+            for db in allow_migrate(model):
                 connections[db].cursor().execute("DROP TABLE %s" % table_name)
 
     tenant._default_manager._remove_from_cache(tenant)

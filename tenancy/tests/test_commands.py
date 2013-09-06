@@ -21,7 +21,7 @@ from django.utils.six import StringIO
 
 from ..models import Tenant, TenantModelBase
 from ..signals import pre_schema_creation, post_schema_deletion
-from ..utils import allow_syncdbs
+from ..utils import allow_migrate
 
 from .utils import (mock_inputs, setup_custom_tenant_user, skipIfCustomTenant,
     TenancyTestCase)
@@ -111,7 +111,7 @@ class SchemaAuthorizationTest(TenancyTestCase):
         """
         Make sure schema and table owner is correctly assigned.
         """
-        for db in allow_syncdbs(Tenant):
+        for db in allow_migrate(Tenant):
             connection = connections[db]
             cursor = connection.cursor()
             for tenant in Tenant.objects.all():

@@ -11,10 +11,17 @@ from django.db.models.loading import cache as app_cache
 from django.dispatch.dispatcher import _make_id
 
 
-def allow_syncdbs(model):
-    for db in connections:
-        if router.allow_syncdb(db, model):
-            yield db
+# TODO: Remove `allow_syncdb` alternative when support for 1.6 is dropped
+if django.VERSION >= (1, 7):
+    def allow_migrate(model):
+        for db in connections:
+            if router.allow_migrate(db, model):
+                yield db
+else:
+    def allow_migrate(model):
+        for db in connections:
+            if router.allow_syncdb(db, model):
+                yield db
 
 
 @contextmanager
