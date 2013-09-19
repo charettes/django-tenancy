@@ -87,6 +87,7 @@ class Command(BaseCommand):
             while True:
                 if confirm not in ('yes', 'no'):
                     confirm = input('Please enter either "yes" or "no": ')
-                elif confirm == 'yes':
-                    call_command('createsuperuser', tenant=tenant, **options)
+                else:
+                    if confirm == 'yes':
+                        call_command('createsuperuser', tenant=tenant, **options)
                     break

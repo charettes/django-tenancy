@@ -76,6 +76,17 @@ class CreateTenantCommandTest(TransactionTestCase):
         self.assertIn('Superuser created successfully.', stdout.read())
         Tenant.objects.get(name='tenant').delete()
 
+    @setup_custom_tenant_user
+    @mock_inputs((
+        ('\nYou just created a new tenant,', 'no'),
+    ))
+    def test_superuser_creation_prompt(self):
+        stdout = StringIO()
+        call_command('createtenant', 'tenant', stdout=stdout, interactive=True)
+        stdout.seek(0)
+        self.assertNotIn('Superuser created successfully.', stdout.read())
+        Tenant.objects.get(name='tenant').delete()
+
 
 @skipUnless(
     connection.vendor == 'postgresql',
