@@ -4,17 +4,22 @@ import logging
 
 from django.db.models.loading import get_model
 from django.utils.six.moves import copyreg
-from mutant.models import (BaseDefinition, ModelDefinition,
-    OrderingFieldDefinition)
 from django.dispatch.dispatcher import receiver
 from mutant.db.models import MutableModel
+from mutant.models import (
+    BaseDefinition, ModelDefinition, OrderingFieldDefinition
+)
 from mutant.models.model import _ModelClassProxy
+from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
-from ..models import (db_schema_table, Reference, TenantModel, TenantModelBase,
-    TenantSpecificModel)
-from ..signals import (post_models_creation, pre_models_creation,
-    pre_schema_deletion)
+from ..models import (
+    db_schema_table, Reference, TenantModel, TenantModelBase,
+    TenantSpecificModel
+)
+from ..signals import (
+    post_models_creation, pre_models_creation, pre_schema_deletion
+)
 
 
 class MutableReference(Reference):
@@ -54,7 +59,7 @@ class MutableTenantModelBase(TenantModelBase):
             return _ModelClassProxy(model)
 
         base = self.abstract_tenant_model_factory(tenant)
-        # Create the model definition as managed and unmanaged it right after
+        # Create the model definition as managed and unmanage it right after
         # to make sure tables are all created on tenant model creation.
         model_def, created = ModelDefinition.objects.get_or_create(
             app_label=app_label,
@@ -112,6 +117,24 @@ def __pickle_mutable_tenant_model_base(model):
     return model.__name__
 
 copyreg.pickle(MutableTenantModelBase, __pickle_mutable_tenant_model_base)
+
+
+@receiver(mutable_class_prepared)
+def contribute_to_related_mutable_class(sender, existing_model_class, **kwargs):
+    """
+    Since related fields are contributing to the related class only once (on
+    the first time `class_prepared` is triggered) we make sure they also do
+    the same with mutated classes they relate to in order to attach objects
+    such as reverse descriptor.
+    """
+    if existing_model_class:
+        related_objects = (
+            related_object for related_object, model in
+            sender._meta.get_all_related_objects_with_model() if model is None
+        )
+        for related_object in related_objects:
+            field = related_object.field
+            field.contribute_to_related_class(sender, field.related)
 
 
 @receiver(pre_models_creation)

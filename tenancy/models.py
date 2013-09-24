@@ -282,7 +282,7 @@ class TenantModelBase(ModelBase):
         """
         if isinstance(rel_to, string_types):
             add_lazy_relation(model, field, rel_to, cls.validate_related_name)
-        elif not isinstance(rel_to, cls):
+        elif not isinstance(rel_to, TenantModelBase):
             related_name = cls.references[model].related_names[field.name]
             if (related_name is not None and
                 not (field.rel.is_hidden() or '%(class)s' in related_name)):

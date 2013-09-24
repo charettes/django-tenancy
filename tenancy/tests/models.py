@@ -226,7 +226,7 @@ else:
                 related_name = 'mutable_models'
 
         class MutableModelSubclass(MutableModel):
-            non_mutable_fk = models.ForeignKey(SpecificModel)
+            non_mutable_fk = models.ForeignKey(SpecificModel, related_name='mutables')
 
         class NonMutableModel(TenantModel):
-            mutable_fk = models.ForeignKey(MutableModel)
+            mutable_fk = models.ForeignKey(MutableModel, related_name='non_mutables')

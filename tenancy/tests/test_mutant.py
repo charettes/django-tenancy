@@ -41,14 +41,18 @@ class MutableTenantModelTest(TenancyTestCase):
             self.tenant.specificmodels.model
         )
         specific_model = self.tenant.specificmodels.create()
-        model_class.objects.create(
+        mutable = model_class.objects.create(
             field=True, non_mutable_fk=specific_model
         )
+        # Make sure the reverse descriptor is accessible before mutation
+        self.assertEqual(specific_model.mutables.get(), mutable)
         # Add a field to the parent class
         NullBooleanFieldDefinition.objects.create(
             model_def=MutableModel.for_tenant(self.tenant).definition(),
             name='is_cool',
         )
+        # Make sure the reverse descriptor is accessible after mutation
+        self.assertEqual(specific_model.mutables.get(), mutable)
         self.assertEqual(
             1,
             model_class.objects.filter(
@@ -78,6 +82,9 @@ class MutableTenantModelTest(TenancyTestCase):
         """
         from .models import MutableModel, NonMutableModel
         mutable_model_class = MutableModel.for_tenant(self.tenant)
+        mutable = mutable_model_class.objects.create(field=True)
+        # Make sure the reverse descriptor is accessible before mutation
+        self.assertFalse(mutable.non_mutables.exists())
         # Alter the model definition
         NullBooleanFieldDefinition.objects.create_with_default(False,
             model_def=mutable_model_class.definition(),
@@ -85,7 +92,9 @@ class MutableTenantModelTest(TenancyTestCase):
         )
         mutable = mutable_model_class.objects.create(field=True)
         non_mutable_model_class = NonMutableModel.for_tenant(self.tenant)
-        non_mutable_model_class.objects.create(mutable_fk=mutable)
+        non_mutable = non_mutable_model_class.objects.create(mutable_fk=mutable)
+        # Make sure the reverse descriptor is accessible after mutation
+        self.assertEqual(mutable.non_mutables.get(), non_mutable)
 
     def test_cached_model_class(self):
         """
