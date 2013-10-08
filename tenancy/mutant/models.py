@@ -9,7 +9,10 @@ from mutant.db.models import MutableModel
 from mutant.models import (
     BaseDefinition, ModelDefinition, OrderingFieldDefinition
 )
-from mutant.models.model import _ModelClassProxy
+try:
+    from mutant.models.model import MutableModelProxy
+except ImportError:
+    from mutant.models.model import _ModelClassProxy as MutableModelProxy
 from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
@@ -34,7 +37,7 @@ class MutableTenantModelBase(TenantModelBase):
     def tenant_model_bases(cls, tenant, bases):
         tenant_bases = super(MutableTenantModelBase, cls).tenant_model_bases(tenant, bases)
         return tuple(
-            tenant_base.model_class if isinstance(base, cls) and
+            tenant_base.__get__(None, None) if isinstance(base, cls) and
                 not base._meta.abstract else tenant_base
             for base, tenant_base in zip(bases, tenant_bases)
         )
@@ -52,11 +55,10 @@ class MutableTenantModelBase(TenantModelBase):
 
         # Return the already cached model instead of creating a new one.
         model = get_model(
-            opts.app_label, object_name.lower(),
-            only_installed=False
+            opts.app_label, object_name.lower(), only_installed=False
         )
         if model:
-            return _ModelClassProxy(model)
+            return MutableModelProxy(model)
 
         base = self.abstract_tenant_model_factory(tenant)
         # Create the model definition as managed and unmanage it right after
@@ -169,7 +171,7 @@ def cached_mutable_models(tenant, using, **kwargs):
     for model in tenant.models:
         if issubclass(model, MutableModel):
             # Access the underlying model class.
-            model = model.model_class
+            model = model.__get__(None, None)
             model._meta.managed = True
         models.append(model)
     tenant.models = tuple(models)
