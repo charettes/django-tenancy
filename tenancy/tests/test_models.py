@@ -6,9 +6,9 @@ import pickle
 import sys
 # TODO: Remove when support for Python 2.6 is dropped
 if sys.version_info >= (2, 7):
-    from unittest import skipIf
+    from unittest import skipIf, skipUnless
 else:
-    from django.utils.unittest import skipIf
+    from django.utils.unittest import skipIf, skipUnless
 import weakref
 
 from django.contrib.contenttypes.models import ContentType
@@ -524,6 +524,19 @@ class TenantModelTest(TenancyTestCase):
                     django_models.signals.post_delete
                 ]
             )
+
+    @skipUnless(hasattr(django_models, 'ForeignObject'),
+                'Foreign object is not present is this version of Django.')
+    def test_virtual_foreign_object(self):
+        """
+        Make sure a virtual foreign object pointing to a tenant specific
+        model is correctly handled.
+        """
+        for tenant in Tenant.objects.all():
+            specific = tenant.specificmodels.create()
+            related = tenant.related_tenant_models.create(fk=specific)
+            m2m_specific = tenant.m2m_specifics.create(specific=specific)
+            self.assertEqual(m2m_specific.specific_related_fk, related)
 
 
 class NonTenantModelTest(TransactionTestCase):

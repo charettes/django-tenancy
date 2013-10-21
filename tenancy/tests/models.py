@@ -137,7 +137,7 @@ class RelatedTenantModel(AbstractSpecificModelSubclass):
 
 
 class M2MSpecific(TenantModel):
-    related = models.ForeignKey('RelatedTenantModel')
+    related = models.ForeignKey('RelatedTenantModel', null=True)
     specific = models.ForeignKey(
         SpecificModel, related_name="%(app_label)s_%(class)s_related"
     )
@@ -230,3 +230,15 @@ else:
 
         class NonMutableModel(TenantModel):
             mutable_fk = models.ForeignKey(MutableModel, related_name='non_mutables')
+
+
+try:
+    from django.db.models.fields.related import ForeignObject
+except ImportError:
+    pass
+else:
+    ForeignObject(
+        RelatedTenantModel, ['specific'], ['fk'], related_name='+'
+    ).contribute_to_class(
+        M2MSpecific, 'specific_related_fk', virtual_only=True
+    )

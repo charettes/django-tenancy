@@ -231,14 +231,17 @@ class TenantModelBase(ModelBase):
                 cls.references[model] = cls.reference(model, Meta, related_names)
                 opts = model._meta
                 # Validate related name of related fields.
-                for field in opts.local_fields:
-                    if field.rel:
+                for field in (opts.local_fields + opts.virtual_fields):
+                    rel = getattr(field, 'rel', None)
+                    if rel:
                         cls.validate_related_name(field, field.rel.to, model)
                         # Replace and store the current `on_delete` value to
                         # make sure non-tenant models are not collected on
                         # deletion.
-                        field.rel._on_delete = field.rel.on_delete
-                        field.rel.on_delete = DO_NOTHING
+                        on_delete = rel.on_delete
+                        if on_delete is not DO_NOTHING:
+                            rel._on_delete = on_delete
+                            rel.on_delete = DO_NOTHING
                 for m2m in opts.local_many_to_many:
                     rel = m2m.rel
                     to = rel.to
@@ -389,12 +392,16 @@ class TenantModelBase(ModelBase):
             local_ptr = self._meta.parents[parent._for_tenant_model]
             ptr.name = None
             ptr.set_attributes_from_name(local_ptr.name)
-
-        # Add the local fields of this class
-        local_fields = self._meta.local_fields + self._meta.local_many_to_many
-        for local_field in local_fields:
-            field = copy.deepcopy(local_field)
-            rel = field.rel
+        # Add copy of the fields to cloak the inherited ones.
+        fields = (
+            copy.deepcopy(field) for field in (
+                self._meta.local_fields +
+                self._meta.local_many_to_many +
+                self._meta.virtual_fields
+            )
+        )
+        for field in fields:
+            rel = getattr(field, 'rel', None)
             if rel:
                 # Make sure related fields pointing to tenant models are
                 # pointing to their tenant specific counterpart.
@@ -419,10 +426,11 @@ class TenantModelBase(ModelBase):
                 if isinstance(field, models.ManyToManyField):
                     through = field.rel.through
                     rel.through = self.references[through].for_tenant(tenant)
-                else:
-                    # Re-assign the correct `on_delete` that was swapped for
-                    # `DO_NOTHING` to prevent non-tenant model collection.
-                    rel.on_delete = rel._on_delete
+                # Re-assign the correct `on_delete` that was swapped for
+                # `DO_NOTHING` to prevent non-tenant model collection.
+                on_delete = getattr(rel, '_on_delete', None)
+                if on_delete:
+                    rel.on_delete = on_delete
             field.contribute_to_class(model, field.name)
 
         return model
