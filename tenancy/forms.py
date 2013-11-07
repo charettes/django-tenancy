@@ -10,7 +10,7 @@ def _get_tenant_model(tenant, model):
         raise ImproperlyConfigured(
             "%s must be an instance of TenantModelBase" % model.__name__
         )
-    return model.for_tenant(tenant)
+    return tenant.models[model]
 
 
 def tenant_modelform_factory(tenant, form):

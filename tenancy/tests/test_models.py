@@ -108,12 +108,21 @@ class TenantTest(TransactionTestCase):
             self.assertIsNone(model_wref())
 
 
-class TenantModelsCacheTest(TenancyTestCase):
-    def test_initialized_models(self):
-        """
-        Make sure models are loaded upon model initialization.
-        """
-        self.assertIn('models', self.tenant.__dict__)
+class TenantModelsDescriptorTest(TenancyTestCase):
+    def setUp(self):
+        super(TenantModelsDescriptorTest, self).setUp()
+        Tenant.objects.clear_cache()
+
+    def test_uncached_upon_tenant_initialization(self):
+        """Make sure models are not created upon model initialization."""
+        tenant = Tenant.objects.get(pk=self.tenant.pk)
+        self.assertNotIn('models', tenant.__dict__)
+
+    def test_created_models_upon_cache_access(self):
+        """Make sure all tenant models are created upon cache access."""
+        tenant = Tenant.objects.get(pk=self.tenant.pk)
+        for reference in TenantModelBase.references:
+            tenant.models[reference]
 
 
 class TenantModelBaseTest(TenancyTestCase):

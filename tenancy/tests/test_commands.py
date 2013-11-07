@@ -55,13 +55,15 @@ class CreateTenantCommandTest(TransactionTestCase):
         tenant = Tenant.objects.get(name='tenant')
         stdout.seek(0)
         connection = connections[tenant._state.db]
-        if connection.vendor == 'postgresql':
-            self.assertIn(tenant.db_schema, stdout.readline())
-        for model in TenantModelBase.references:
-            self.assertIn(model._meta.object_name, stdout.readline())
-            self.assertIn(model._meta.db_table, stdout.readline())
-        self.assertIn('Installing indexes ...', stdout.readline())
-        tenant.delete()
+        try:
+            if connection.vendor == 'postgresql':
+                self.assertIn(tenant.db_schema, stdout.readline())
+            for model in TenantModelBase.references:
+                self.assertIn(model._meta.object_name, stdout.readline())
+                self.assertIn(model._meta.db_table, stdout.readline())
+            self.assertIn('Installing indexes ...', stdout.readline())
+        finally:
+            tenant.delete()
 
     @setup_custom_tenant_user
     @mock_inputs((

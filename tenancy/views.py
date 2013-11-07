@@ -52,7 +52,8 @@ class TenantObjectMixin(TenantMixin):
         )
 
     def get_tenant_model(self):
-        return self.get_model().for_tenant(self.get_tenant())
+        tenant = self.get_tenant()
+        return tenant.models[self.get_model()]
 
     def get_queryset(self):
         return self.get_tenant_model()._default_manager.all()

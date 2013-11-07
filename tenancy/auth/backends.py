@@ -29,7 +29,7 @@ class CustomTenantUserBackend(object):
                 "`tenancy.middleware.GlobalTenantMiddleware` does "
                 "just that." % attr_name
             )
-        self.tenant_user_model = user_model.for_tenant(tenant)
+        self.tenant_user_model = tenant.models[user_model]
 
     def authenticate(self, username=None, password=None, **kwargs):
         if username is None:

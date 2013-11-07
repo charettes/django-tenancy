@@ -18,7 +18,7 @@ from django.db.models.fields import Field
 from django.db.models.fields.related import add_lazy_relation
 from django.db.models.loading import get_model
 from django.dispatch.dispatcher import receiver
-from django.utils.six import with_metaclass, string_types
+from django.utils.six import itervalues, string_types, with_metaclass
 from django.utils.six.moves import copyreg
 
 from . import get_tenant_model
@@ -29,7 +29,23 @@ from .utils import (clear_opts_related_cache, disconnect_signals, model_name,
     receivers_for_model, remove_from_app_cache)
 
 
-class TenantModelsCache(object):
+class TenantModels(object):
+    __slots__ = ['references']
+
+    def __init__(self, tenant):
+        self.references = OrderedDict((
+            (reference, reference.for_tenant(tenant))
+            for reference in TenantModelBase.references
+        ))
+
+    def __getitem__(self, key):
+        return self.references[key]
+
+    def __iter__(self, **kwargs):
+        return itervalues(self.references, **kwargs)
+
+
+class TenantModelsDescriptor(object):
     def contribute_to_class(self, cls, name):
         self.name = name
         setattr(cls, name, self)
@@ -43,10 +59,7 @@ class TenantModelsCache(object):
         try:
             models = instance.__dict__[self.name]
         except KeyError:
-            models = tuple(
-                reference.for_tenant(instance)
-                for reference in TenantModelBase.references
-            )
+            models = TenantModels(instance)
             self.__set__(instance, models)
         return models
 
@@ -86,7 +99,7 @@ class AbstractTenant(models.Model):
     def natural_key(self):
         raise NotImplementedError
 
-    models = TenantModelsCache()
+    models = TenantModelsDescriptor()
 
     @contextmanager
     def as_global(self):
@@ -142,7 +155,7 @@ def db_schema_table(tenant, db_table):
 
 
 class Reference(object):
-    __slots__ = ('model', 'bases', 'Meta', 'related_names')
+    __slots__ = ['model', 'bases', 'Meta', 'related_names']
 
     def __init__(self, model, Meta, related_names=None):
         self.model = model
@@ -551,7 +564,7 @@ copyreg.pickle(TenantModelBase, __pickle_tenant_model_base)
 
 
 class TenantModelDescriptor(object):
-    __slots__ = ('model',)
+    __slots__ = ['model']
 
     def __init__(self, model):
         self.model = model
@@ -559,7 +572,7 @@ class TenantModelDescriptor(object):
     def __get__(self, tenant, owner):
         if not tenant:
             return self
-        return self.model.for_tenant(tenant)._default_manager
+        return tenant.models[self.model]._default_manager
 
 
 class TenantModel(with_metaclass(TenantModelBase, models.Model)):

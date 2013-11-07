@@ -31,7 +31,7 @@ class Command(Command):
     def handle(self, *args, **kwargs):
         tenant = kwargs.get('tenant')
         if tenant:
-            self.UserModel = self.UserModel.for_tenant(tenant)
+            self.UserModel = tenant.models[self.UserModel]
         elif self.tenant_auth_user_model:
             raise CommandError(
                 "Since your swapped `AUTH_USER_MODEL` is tenant specific "
