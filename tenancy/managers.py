@@ -21,7 +21,6 @@ class AbstractTenantManager(models.Manager):
             return self._get_from_cache(*key)
         except KeyError:
             self.__cache[key] = tenant
-            getattr(tenant, 'models')
         return tenant
 
     def _remove_from_cache(self, tenant):

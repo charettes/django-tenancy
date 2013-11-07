@@ -43,7 +43,6 @@ class TenantModelsCache(object):
         try:
             models = instance.__dict__[self.name]
         except KeyError:
-            assert instance.pk, 'Cannot create models for an unexistent tenant.'
             models = tuple(
                 reference.for_tenant(instance)
                 for reference in TenantModelBase.references
