@@ -85,6 +85,8 @@ class TenantObjectMixin(TenantMixin):
 
 
 class TenantModelFormMixin(TenantObjectMixin, ModelFormMixin):
+    fields = None  # Required on Django < 1.6
+
     def get_form_class(self):
         """
         Provide a model form class based on tenant specific model.
