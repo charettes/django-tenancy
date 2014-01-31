@@ -9,6 +9,7 @@ from django.db.models.query import QuerySet
 from django.forms.models import (BaseInlineFormSet, BaseModelFormSet,
     ModelForm, modelform_factory)
 from django.utils.functional import cached_property
+from django.views.generic.edit import ModelFormMixin
 
 from . import get_tenant_model
 from .forms import (tenant_inlineformset_factory, tenant_modelform_factory,
@@ -83,10 +84,7 @@ class TenantObjectMixin(TenantMixin):
             return model_name(obj._for_tenant_model._meta)
 
 
-class TenantModelFormMixin(TenantObjectMixin):
-    form_class = None
-    fields = None
-
+class TenantModelFormMixin(TenantObjectMixin, ModelFormMixin):
     def get_form_class(self):
         """
         Provide a model form class based on tenant specific model.
