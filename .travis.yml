@@ -33,8 +33,8 @@ before_script:
   - if echo $SETTINGS | grep 'postgresql' -q; then psql -c 'CREATE DATABASE tenancy;' -U postgres; fi
 
 install:
-  - pip install $DJANGO coveralls django-hosts -q --use-mirrors
-  - if echo $SETTINGS | grep 'psycopg2' -q; then pip install psycopg2 -q --use-mirrors; fi
+  - pip install $DJANGO coveralls django-hosts -q
+  - if echo $SETTINGS | grep 'psycopg2' -q; then pip install psycopg2 -q; fi
   - if python --version 2>&1 > /dev/null | grep -E '^Python 2' -q; then
       pip install django-mutant;
     else
