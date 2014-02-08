@@ -38,7 +38,7 @@ install:
   - if python --version 2>&1 > /dev/null | grep -E '^Python 2' -q; then
       pip install django-mutant;
     else
-      echo "django-mutant doesn't support Python 3 yet.";
+      echo "django-mutant has not been ported to Python 3 yet.";
     fi
 
 script:
