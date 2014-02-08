@@ -17,7 +17,7 @@ Assuming you have django installed, the first step is to install
 
 ::
 
-   pip install django-tenany
+   pip install django-tenancy
 
 Now you can import the ``tenancy`` module in your Django project.
 
