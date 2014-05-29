@@ -227,8 +227,7 @@ class TenantModelBaseTest(TenancyTestCase):
             tenant_model = model.for_tenant(self.tenant)
             try:
                 tenant_model._default_manager.get()
-            except Exception as e:
-                self.assertIsInstance(e, model.DoesNotExist)
+            except model.DoesNotExist as e:
                 for parent in model._meta.parents:
                     self.assertIsInstance(e, parent.DoesNotExist)
 
@@ -274,6 +273,17 @@ class TenantModelBaseTest(TenancyTestCase):
         self.assertIsInstance(
             specific_model_subclass.objects, ManagerOtherSubclass
         )
+
+    def test_mro(self):
+        """
+        Make sure __mro__ is correctly working in all supported
+        inheritance scenarios.
+        """
+        for model in TenantModelBase.references:
+            if model._meta.auto_created:
+                continue
+            tenant_model = model.for_tenant(self.tenant)
+            self.assertEqual(tenant_model().test_mro(), model.__name__)
 
 
 class TenantModelDescriptorTest(TenancyTestCase):
@@ -520,6 +530,7 @@ class TenantModelTest(TenancyTestCase):
         """
         for tenant in Tenant.objects.all():
             signal_model = tenant.signal_models.model
+            signal_model.clear_logs()
             instance = signal_model()
             instance.save()
             instance.delete()

@@ -60,6 +60,9 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
     def save(self, *args, **kwargs):
         return super(SpecificModel, self).save(*args, **kwargs)
 
+    def test_mro(self):
+        return 'SpecificModel'
+
 
 class PostInitFieldsModel(TenantModel):
     """
@@ -80,6 +83,9 @@ class PostInitFieldsModel(TenantModel):
     else:
         image = models.ImageField(upload_to='void')
 
+    def test_mro(self):
+        return 'PostInitFieldsModel'
+
 
 class SpecificModelProxy(SpecificModel):
     objects = ManagerOtherSubclass()
@@ -91,10 +97,16 @@ class SpecificModelProxy(SpecificModel):
     class TenantMeta:
         related_name = 'specific_model_proxies'
 
+    def test_mro(self):
+        return 'SpecificModelProxy'
+
 
 class SpecificModelProxySubclass(SpecificModelProxy):
     class Meta:
         proxy = True
+
+    def test_mro(self):
+        return 'SpecificModelProxySubclass'
 
 
 class SpecificModelSubclass(SpecificModel):
@@ -103,15 +115,24 @@ class SpecificModelSubclass(SpecificModel):
     class TenantMeta:
         related_name = 'specific_models_subclasses'
 
+    def test_mro(self):
+        return 'SpecificModelSubclass'
+
 
 class SpecificModelSubclassProxy(SpecificModelSubclass):
     class Meta:
         proxy = True
 
+    def test_mro(self):
+        return 'SpecificModelSubclassProxy'
+
 
 class RelatedSpecificModel(TenantModel):
     class TenantMeta:
         related_name = 'related_specific_models'
+
+    def test_mro(self):
+        return 'RelatedSpecificModel'
 
 
 class AbstractSpecificModelSubclass(TenantModel):
@@ -135,6 +156,9 @@ class RelatedTenantModel(AbstractSpecificModelSubclass):
     class TenantMeta:
         related_name = 'related_tenant_models'
 
+    def test_mro(self):
+        return 'RelatedTenantModel'
+
 
 class M2MSpecific(TenantModel):
     related = models.ForeignKey('RelatedTenantModel', null=True)
@@ -150,10 +174,8 @@ class M2MSpecific(TenantModel):
     class TenantMeta:
         related_name = 'm2m_specifics'
 
-
-class RelatedTenantModelSubclass(RelatedTenantModel):
-    def __init__(self, *args, **kwargs):
-        super(RelatedTenantModelSubclass, self).__init__(*args, **kwargs)
+    def test_mro(self):
+        return 'M2MSpecific'
 
 
 class SignalTenantModel(TenantModel):
@@ -163,16 +185,23 @@ class SignalTenantModel(TenantModel):
     _logs = {}
 
     @classmethod
-    def logs(cls):
+    def logs(cls, value=None):
         return cls._logs.setdefault(getattr(cls, Tenant.ATTR_NAME), [])
+
+    @classmethod
+    def clear_logs(cls):
+        cls._logs[getattr(cls, Tenant.ATTR_NAME)] = []
 
     @classmethod
     def log(cls, signal):
         cls.logs().append(signal)
 
+    def test_mro(self):
+        return 'SignalTenantModel'
+
 
 def add_to_dispatched(signal, sender, **kwargs):
-    sender.log(signal)
+    sender.logs().append(signal)
 
 for signal in model_sender_signals:
     signal.connect(add_to_dispatched, sender=SignalTenantModel)
@@ -209,6 +238,9 @@ class TenantUser(TenantModel, AbstractBaseUser):
     class TenantMeta:
         related_name = 'users'
 
+    def test_mro(self):
+        return 'TenantUser'
+
 
 try:
     from ..mutant.models import MutableTenantModel
@@ -225,11 +257,20 @@ else:
             class TenantMeta:
                 related_name = 'mutable_models'
 
+            def test_mro(self):
+                return 'MutableModel'
+
         class MutableModelSubclass(MutableModel):
             non_mutable_fk = models.ForeignKey(SpecificModel, related_name='mutables')
 
+            def test_mro(self):
+                return 'MutableModelSubclass'
+
         class NonMutableModel(TenantModel):
             mutable_fk = models.ForeignKey(MutableModel, related_name='non_mutables')
+
+            def test_mro(self):
+                return 'NonMutableModel'
 
 
 try:

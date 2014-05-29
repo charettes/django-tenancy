@@ -499,7 +499,26 @@ class TenantModelBase(ModelBase):
 
         if opts.proxy:
             attrs.update(tenant=tenant, _for_tenant_model=self)
-            bases = self.tenant_model_bases(tenant, self.__bases__)
+
+            # In order to make sure the non-tenant model is part of the
+            # __mro__ we create an abstract model with stripped fields and
+            # inject it as the first base.
+            base = type(
+                str("Abstract%s" % reference.object_name_for_tenant(tenant)),
+                (self,), {
+                    '__module__':self.__module__,
+                    'Meta':  meta(abstract=True)
+                }
+            )
+            base_opts = base._meta
+            base_opts.fields = []
+
+            # Remove ourself from the parents chain and our descriptor
+            ptr = base_opts.parents.pop(opts.concrete_model)
+            base_opts.local_fields.remove(ptr)
+            delattr(base, ptr.name)
+
+            bases = (base,) + self.tenant_model_bases(tenant, self.__bases__)
         else:
             bases = (self.abstract_tenant_model_factory(tenant),)
 
@@ -523,19 +542,6 @@ class TenantModelBase(ModelBase):
             # by `abstract_tenant_model_factory` we must make sure to disconnect
             # all signal receivers attached to it in order to be gc'ed.
             disconnect_signals(self.__bases__[0])
-
-    def __instancecheck__(self, instance):
-        return self.__subclasscheck__(instance.__class__)
-
-    def __subclasscheck__(self, subclass):
-        if (self._meta.proxy and subclass._meta.proxy and
-            not issubclass(self, TenantSpecificModel) and
-            issubclass(subclass, TenantSpecificModel)):
-            return (
-                subclass._for_tenant_model is self or
-                issubclass(subclass, self.for_tenant(subclass.tenant))
-            )
-        return super(TenantModelBase, self).__subclasscheck__(subclass)
 
 
 def __unpickle_tenant_model_base(model, natural_key, abstract):
