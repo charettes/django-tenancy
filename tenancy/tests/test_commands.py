@@ -60,7 +60,8 @@ class CreateTenantCommandTest(TransactionTestCase):
                 self.assertIn(tenant.db_schema, stdout.readline())
             for model in TenantModelBase.references:
                 self.assertIn(model._meta.object_name, stdout.readline())
-                self.assertIn(model._meta.db_table, stdout.readline())
+                if not model._meta.proxy:
+                    self.assertIn(model._meta.db_table, stdout.readline())
             self.assertIn('Installing indexes ...', stdout.readline())
         finally:
             tenant.delete()

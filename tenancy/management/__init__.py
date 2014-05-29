@@ -80,6 +80,10 @@ def create_tenant_schema(tenant, using=None):
         )
         # Has the side effect of creating the required `ContentType`.
         ContentType.objects.get_for_model(model)
+        # Avoid further processing we're dealing with an unmanaged model or
+        # one proxying another.
+        if not opts.managed or opts.proxy:
+            continue
         # Store index required for this model to be created later on.
         index_sql[model] = connection.creation.sql_indexes_for_model(
             model, style
