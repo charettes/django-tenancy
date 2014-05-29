@@ -510,10 +510,8 @@ class TenantModelBase(ModelBase):
                     'Meta':  meta(abstract=True)
                 }
             )
-            base_opts = base._meta
-            base_opts.fields = []
-
             # Remove ourself from the parents chain and our descriptor
+            base_opts = base._meta
             ptr = base_opts.parents.pop(opts.concrete_model)
             base_opts.local_fields.remove(ptr)
             delattr(base, ptr.name)
