@@ -3,3 +3,4 @@ syntax:glob
 dist/
 django_tenancy.egg-info/*
 .coverage
+.tox
