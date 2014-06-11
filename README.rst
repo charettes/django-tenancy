@@ -52,7 +52,7 @@ Now that you have your tenant model, let's declare in your project in
 
 ::
 
-   TENANCY_TENANT_MODEL=myapp.MyTenantModel
+   TENANCY_TENANT_MODEL = 'myapp.MyTenantModel'
 
 Run a database synchronization to create the corresponding table:
 
