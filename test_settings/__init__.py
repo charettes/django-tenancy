@@ -8,6 +8,8 @@ INSTALLED_APPS = [
 
 ROOT_URLCONF = 'tenancy.tests.urls'
 
+SILENCED_SYSTEM_CHECKS = ['1_7.W001']
+
 try:
     import mutant
 except ImportError:

@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 
 from django.core.signals import Signal
-from django.db.models.loading import get_model
 from django.db.models.signals import class_prepared
+
+from .utils import get_model
 
 
 def lazy_class_prepared(app_label, object_name, callback):

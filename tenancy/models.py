@@ -16,7 +16,6 @@ from django.db.models.base import ModelBase, subclass_exception
 from django.db.models.deletion import DO_NOTHING
 from django.db.models.fields import Field
 from django.db.models.fields.related import add_lazy_relation
-from django.db.models.loading import get_model
 from django.dispatch.dispatcher import receiver
 from django.utils.six import itervalues, string_types, with_metaclass
 from django.utils.six.moves import copyreg
@@ -25,8 +24,10 @@ from . import get_tenant_model
 from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (AbstractTenantManager, TenantManager,
     TenantModelManagerDescriptor)
-from .utils import (clear_opts_related_cache, disconnect_signals, model_name,
-    receivers_for_model, remove_from_app_cache)
+from .utils import (
+    clear_opts_related_cache, disconnect_signals, get_model, model_name,
+    receivers_for_model, remove_from_app_cache
+)
 
 
 class TenantModels(object):
