@@ -191,10 +191,6 @@ def drop_tenant_schema(tenant, using=None):
     tenant._default_manager._remove_from_cache(tenant)
     ContentType.objects.clear_cache()
 
-    # TODO: Remove when support for Django 1.5 is dropped
-    if django.VERSION < (1, 6):
-        transaction.commit_unless_managed()
-
     signals.post_schema_deletion.send(
         sender=tenant_class, tenant=tenant, using=using
     )

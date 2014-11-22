@@ -7,7 +7,6 @@ import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, models, router
 from django.db.models.base import ModelBase
-from django.dispatch.dispatcher import _make_id
 
 
 # TODO: Remove `allow_syncdb` alternative when support for 1.6 is dropped
@@ -81,7 +80,7 @@ else:
                     raise ValueError(
                         "No cached models for app %s" % opts.app_label
                     )
-            model = app_models.pop(model_name(opts), None)
+            model = app_models.pop(opts.model_name, None)
             if model is None:
                 if quiet:
                     return
@@ -131,25 +130,14 @@ model_sender_signals = (
 
 
 def receivers_for_model(model):
-    # TODO: Remove `_make_id` reference check when support for 1.5 is dropped
-    sender = model if django.VERSION >= (1, 6) else _make_id(model)
     for signal in model_sender_signals:
-        for receiver in signal._live_receivers(sender):
+        for receiver in signal._live_receivers(model):
             yield signal, receiver
 
 
 def disconnect_signals(model):
     for signal, receiver in receivers_for_model(model):
         signal.disconnect(receiver, sender=model)
-
-
-# TODO: Remove `module_name` alternative when support for 1.5 is dropped
-if django.VERSION >= (1, 6):
-    def model_name(opts):
-        return opts.model_name
-else:
-    def model_name(opts):
-        return opts.module_name
 
 
 _opts_related_cache_attrs = (

@@ -20,7 +20,7 @@ from django.utils.six import StringIO
 from .. import get_tenant_model
 from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
     TenantModelDescriptor, TenantSpecificModel)
-from ..utils import model_name, remove_from_app_cache
+from ..utils import remove_from_app_cache
 
 from .managers import ManagerOtherSubclass, ManagerSubclass
 from .models import (AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
@@ -245,7 +245,7 @@ class TenantModelBaseTest(TenancyTestCase):
             SpecificModel,
             tenant_specific_model._meta.parents
         )
-        attr_name = "%s_ptr" % model_name(SpecificModel._meta)
+        attr_name = "%s_ptr" % SpecificModel._meta.model_name
         self.assertFalse(hasattr(tenant_specific_model, attr_name))
 
     def test_manager_assignment(self):
@@ -319,7 +319,7 @@ class TenantModelDescriptorTest(TenancyTestCase):
         self.assertTrue(
             ContentType.objects.filter(
                 app_label=opts.app_label,
-                model=model_name(opts)
+                model=opts.model_name,
             ).exists()
         )
 

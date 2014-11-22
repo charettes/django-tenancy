@@ -12,8 +12,6 @@ python:
   - 3.4
 
 env:
-  - DJANGO="django>=1.5,<1.6" SETTINGS=sqlite3
-  - DJANGO="django>=1.5,<1.6" SETTINGS=postgresql_psycopg2
   - DJANGO="django>=1.6,<1.7" SETTINGS=sqlite3
   - DJANGO="django>=1.6,<1.7" SETTINGS=postgresql_psycopg2
   - DJANGO="django>=1.7,<1.8" SETTINGS=sqlite3

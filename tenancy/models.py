@@ -25,7 +25,7 @@ from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (AbstractTenantManager, TenantManager,
     TenantModelManagerDescriptor)
 from .utils import (
-    clear_opts_related_cache, disconnect_signals, get_model, model_name,
+    clear_opts_related_cache, disconnect_signals, get_model,
     receivers_for_model, remove_from_app_cache
 )
 
@@ -334,7 +334,7 @@ class TenantModelBase(ModelBase):
     def intermediary_model_factory(cls, field, from_model):
         to_model = field.rel.to
         opts = from_model._meta
-        from_model_name = model_name(opts)
+        from_model_name = opts.model_name
         if to_model == from_model:
             from_ = "from_%s" % from_model_name
             to = "to_%s" % from_model_name
@@ -344,7 +344,7 @@ class TenantModelBase(ModelBase):
             if isinstance(to_model, string_types):
                 to = to_model.split('.')[-1].lower()
             else:
-                to = model_name(to_model._meta)
+                to = to_model._meta.model_name
         Meta = meta(
             db_table=field._get_m2m_db_table(opts),
             auto_created=from_model,
@@ -426,7 +426,7 @@ class TenantModelBase(ModelBase):
                     # If no `related_name` was specified we make sure to
                     # define one based on the non-tenant specific model name.
                     if not rel.related_name:
-                        rel.related_name = "%s_set" % model_name(self._meta)
+                        rel.related_name = "%s_set" % self._meta.model_name
                 else:
                     clear_opts_related_cache(to)
                     related_name = reference.related_names[field.name]

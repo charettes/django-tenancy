@@ -11,11 +11,7 @@ from django.db import connection, connections, router, transaction
 from django.db.utils import DatabaseError
 from django.core.management import call_command
 from django.core.management.base import CommandError
-# TODO: Remove when support for Django 1.5 is dropped
-try:
-    from django.db.transaction import atomic
-except ImportError:
-    from django.db.transaction import commit_on_success as atomic
+from django.db.transaction import atomic
 from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
 

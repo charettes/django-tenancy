@@ -15,7 +15,6 @@ from . import get_tenant_model
 from .forms import (tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory)
 from .models import TenantModelBase, TenantSpecificModel
-from .utils import model_name
 
 
 class TenantMixin(object):
@@ -68,8 +67,8 @@ class TenantObjectMixin(TenantMixin):
         model = self.get_model()
         names.append("%s/%s%s.html" % (
             model._meta.app_label,
-            model_name(model._meta),
-            getattr(self, 'template_name_suffix', '')
+            model._meta.model_name,
+            getattr(self, 'template_name_suffix', ''),
         ))
 
         return names
@@ -79,9 +78,9 @@ class TenantObjectMixin(TenantMixin):
             return self.context_object_name
         elif (isinstance(obj, (Manager, QuerySet)) and
               issubclass(obj.model, TenantSpecificModel)):
-            return "%s_list" % model_name(obj.model._for_tenant_model._meta)
+            return "%s_list" % obj.model._for_tenant_model._meta.model_name
         elif isinstance(obj, TenantSpecificModel):
-            return model_name(obj._for_tenant_model._meta)
+            return obj._for_tenant_model._meta.model_name
 
 
 class TenantModelFormMixin(TenantObjectMixin, ModelFormMixin):
