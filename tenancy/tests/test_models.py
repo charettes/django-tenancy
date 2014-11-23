@@ -20,7 +20,7 @@ from django.utils.six import StringIO
 from .. import get_tenant_model
 from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
     TenantModelDescriptor, TenantSpecificModel)
-from ..utils import model_name
+from ..utils import remove_from_app_cache
 
 from .managers import ManagerOtherSubclass, ManagerSubclass
 from .models import (AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
@@ -206,17 +206,22 @@ class TenantModelBaseTest(TenancyTestCase):
         Make sure tenant specific models can be dynamically subclassed.
         """
         model = self.tenant.specificmodels.model
+
         model_subclass = type(
             str("%sDynamicSubclass" % model.__name__),
             (model,),
             {'__module__': model.__module__}
         )
-        self.assertEqual(
-            getattr(model, self.tenant.ATTR_NAME),
-            getattr(model_subclass, self.tenant.ATTR_NAME)
-        )
-        self.assertIsSubclass(model_subclass, model)
-        self.assertIsNotSubclass(model, model_subclass)
+
+        try:
+            self.assertEqual(
+                getattr(model, self.tenant.ATTR_NAME),
+                getattr(model_subclass, self.tenant.ATTR_NAME)
+            )
+            self.assertIsSubclass(model_subclass, model)
+            self.assertIsNotSubclass(model, model_subclass)
+        finally:
+            remove_from_app_cache(model_subclass)
 
     def test_exceptions_subclassing(self):
         """
@@ -240,7 +245,7 @@ class TenantModelBaseTest(TenancyTestCase):
             SpecificModel,
             tenant_specific_model._meta.parents
         )
-        attr_name = "%s_ptr" % model_name(SpecificModel._meta)
+        attr_name = "%s_ptr" % SpecificModel._meta.model_name
         self.assertFalse(hasattr(tenant_specific_model, attr_name))
 
     def test_manager_assignment(self):
@@ -314,7 +319,7 @@ class TenantModelDescriptorTest(TenancyTestCase):
         self.assertTrue(
             ContentType.objects.filter(
                 app_label=opts.app_label,
-                model=model_name(opts)
+                model=opts.model_name,
             ).exists()
         )
 
@@ -389,7 +394,7 @@ class TenantModelTest(TenancyTestCase):
                 tenant.m2m_specifics.model
             )
             self.assertEqual(
-                tenant.specificmodels.model.tests_m2mspecific_related.related.model,
+                tenant.specificmodels.model.tenancy_m2mspecific_related.related.model,
                 tenant.m2m_specifics.model
             )
 

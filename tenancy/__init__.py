@@ -1,13 +1,13 @@
 from __future__ import unicode_literals
 
 
-__version__ = (0, 1, 2)
+__version__ = (0, 1, 3, 'dev')
 
 
 def get_tenant_model(seed_cache=True):
     from django.core.exceptions import ImproperlyConfigured
-    from django.db.models import get_model
     from .models import AbstractTenant
+    from .utils import get_model
     from .settings import TENANT_MODEL
 
     app_label, object_name = TENANT_MODEL.split('.')

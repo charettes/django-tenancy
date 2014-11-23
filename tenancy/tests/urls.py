@@ -1,12 +1,12 @@
 from __future__ import unicode_literals
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 from django.http import HttpResponse
 
 from .views import raise_exception, tenant_name
 
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'^$',
         lambda request: HttpResponse(),
         name='default'
@@ -18,5 +18,5 @@ urlpatterns = patterns('',
     url(r'^exception$',
         raise_exception,
         name='exception'
-    )
-)
+    ),
+]

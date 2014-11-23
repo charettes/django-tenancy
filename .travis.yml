@@ -12,8 +12,6 @@ python:
   - 3.4
 
 env:
-  - DJANGO="django>=1.5,<1.6" SETTINGS=sqlite3
-  - DJANGO="django>=1.5,<1.6" SETTINGS=postgresql_psycopg2
   - DJANGO="django>=1.6,<1.7" SETTINGS=sqlite3
   - DJANGO="django>=1.6,<1.7" SETTINGS=postgresql_psycopg2
   - DJANGO="django>=1.7,<1.8" SETTINGS=sqlite3
@@ -32,8 +30,6 @@ matrix:
     - python: 2.6
       env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=postgresql_psycopg2
   allow_failures:
-    - env: DJANGO="django>=1.7,<1.8" SETTINGS=sqlite3
-    - env: DJANGO="django>=1.7,<1.8" SETTINGS=postgresql_psycopg2
     - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=sqlite3
     - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=postgresql_psycopg2
 
@@ -44,10 +40,12 @@ before_script:
 install:
   - pip install $DJANGO coveralls django-hosts
   - if echo $SETTINGS | grep 'psycopg2' -q; then pip install psycopg2 -q; fi
-  - if python --version 2>&1 > /dev/null | grep -E '^Python 2' -q; then
-      pip install django-mutant;
-    else
+  - if python --version 2>&1 | grep -E '^Python 3' -q; then
       echo "django-mutant has not been ported to Python 3 yet.";
+    elif python -c "import django; print(django.VERSION >= (1, 7, 0))" | grep "True" -q; then
+      echo "django-mutant has not been ported to Django 1.7+ yet.";
+    else
+      pip install django-mutant;
     fi
 
 script:

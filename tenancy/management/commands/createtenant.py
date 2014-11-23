@@ -33,6 +33,8 @@ class CommandLoggingHandler(logging.StreamHandler):
 
 
 class Command(BaseCommand):
+    args = '<field1 field2 ...>'
+
     def handle(self, *args, **options):
         tenant_model = get_tenant_model()
         # Attempt to build the instance based on specified data

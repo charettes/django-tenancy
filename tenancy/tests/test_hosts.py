@@ -40,9 +40,8 @@ def django_hosts_installed_setup(func):
     )(func)
 
 
+@override_settings(ROOT_URLCONF='tenancy.tests.urls')
 class TenantHostMiddlewareTest(TenancyTestCase):
-    urls = 'tenancy.tests.urls'
-
     @classmethod
     def tenant_client(cls, tenant):
         domain = "%s.testserver" % tenant.name

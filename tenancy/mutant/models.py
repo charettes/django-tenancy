@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import logging
 
-from django.db.models.loading import get_model
 from django.utils.six.moves import copyreg
 from django.dispatch.dispatcher import receiver
 from mutant.db.models import MutableModel
@@ -23,6 +22,7 @@ from ..models import (
 from ..signals import (
     post_models_creation, pre_models_creation, pre_schema_deletion
 )
+from ..utils import get_model
 
 
 class MutableReference(Reference):
