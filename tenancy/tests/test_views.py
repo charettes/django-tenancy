@@ -11,6 +11,7 @@ import warnings
 import django
 from django.core.exceptions import ImproperlyConfigured
 from django.test.client import RequestFactory
+from django.test.utils import override_settings
 
 from .forms import (RelatedInlineFormSet, RelatedTenantModelForm,
     SpecificModelForm, SpecificModelFormSet)
@@ -23,8 +24,8 @@ from .views import (InvalidModelMixin, MissingFieldsModelFormMixin,
 from .utils import TenancyTestCase
 
 
+@override_settings(ROOT_URLCONF='tenancy.tests.urls')
 class TenantMixinTest(TenancyTestCase):
-    urls = 'tenancy.tests.urls'
     client_class = RequestFactory
 
     def test_get_tenant(self):
