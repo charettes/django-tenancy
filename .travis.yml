@@ -42,7 +42,7 @@ before_script:
   - if echo $SETTINGS | grep 'postgresql' -q; then psql -c 'CREATE DATABASE tenancy;' -U postgres; fi
 
 install:
-  - pip install $DJANGO coveralls django-hosts -q
+  - pip install $DJANGO coveralls django-hosts
   - if echo $SETTINGS | grep 'psycopg2' -q; then pip install psycopg2 -q; fi
   - if python --version 2>&1 > /dev/null | grep -E '^Python 2' -q; then
       pip install django-mutant;
