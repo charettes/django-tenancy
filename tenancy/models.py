@@ -179,7 +179,12 @@ class TenantSpecificModel(with_metaclass(ABCMeta)):
     @classmethod
     def __subclasshook__(cls, subclass):
         if isinstance(subclass, TenantModelBase):
-            tenant_model = get_tenant_model(False)
+            try:
+                tenant_model = get_tenant_model(False)
+            except ImproperlyConfigured:
+                # If the tenant model is not configured yet we can assume
+                # no specific models have been defined so far.
+                return False
             tenant = getattr(subclass, tenant_model.ATTR_NAME, None)
             return isinstance(tenant, tenant_model)
         return NotImplemented
