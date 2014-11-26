@@ -36,10 +36,20 @@ else:
 
 
 if django.VERSION >= (1, 7):
+    @contextmanager
+    def _apps_lock():
+        # The registry lock is not re-entrant so we must avoid acquiring it
+        # during the initialization phase in order to prevent deadlocks.
+        if apps.ready:
+            with apps._lock:
+                yield
+        else:
+            yield
+
     def remove_from_app_cache(model_class, quiet=False):
         opts = model_class._meta
         apps = opts.apps
-        with apps._lock:
+        with _apps_lock():
             try:
                 app_config = apps.get_app_config(opts.app_label)
             except ImproperlyConfigured:
