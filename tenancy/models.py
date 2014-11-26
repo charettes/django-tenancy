@@ -24,6 +24,7 @@ from . import get_tenant_model
 from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (AbstractTenantManager, TenantManager,
     TenantModelManagerDescriptor)
+from .signals import lazy_class_prepared
 from .utils import (
     clear_opts_related_cache, disconnect_signals, get_model,
     receivers_for_model, remove_from_app_cache
@@ -289,9 +290,13 @@ class TenantModelBase(ModelBase):
             else:
                 # Attach a descriptor to the tenant model to access the
                 # underlying model based on the tenant instance.
-                tenant_model = get_tenant_model(False)
-                descriptor = TenantModelDescriptor(model)
-                setattr(tenant_model, related_name, descriptor)
+                def attach_descriptor(tenant_model):
+                    descriptor = TenantModelDescriptor(model)
+                    setattr(tenant_model, related_name, descriptor)
+                # Avoid circular imports on Django < 1.7
+                from .settings import TENANT_MODEL
+                app_label, model_name = TENANT_MODEL.split('.')
+                lazy_class_prepared(app_label, model_name, attach_descriptor)
             model._for_tenant_model = model
         return model
 
