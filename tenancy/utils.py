@@ -24,12 +24,11 @@ else:
 
 if django.VERSION >= (1, 7):
     from django.apps import apps
-    from django.core.exceptions import AppRegistryNotReady
 
     def get_model(app_label, model_name, **kwargs):
         try:
-            return apps.get_model(app_label, model_name)
-        except (AppRegistryNotReady, LookupError):
+            return apps.get_registered_model(app_label, model_name)
+        except LookupError:
             pass
 else:
     from django.db.models.loading import get_model  # NOQA
