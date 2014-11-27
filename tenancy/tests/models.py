@@ -5,9 +5,13 @@ import sys
 import django
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 try:
-    from django.contrib.contenttypes.fields import GenericForeignKey
+    from django.contrib.contenttypes.fields import (
+        GenericRelation, GenericForeignKey
+    )
 except ImportError:
-    from django.contrib.contenttypes.generic import GenericForeignKey
+    from django.contrib.contenttypes.generic import (
+        GenericRelation, GenericForeignKey
+    )
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
@@ -91,8 +95,24 @@ class PostInitFieldsModel(TenantModel):
     class Meta:
         app_label = 'tenancy'
 
+    class TenantMeta:
+        related_name = 'postinits'
+
     def test_mro(self):
         return 'PostInitFieldsModel'
+
+
+class GenericRelationModel(TenantModel):
+    postinits = GenericRelation(PostInitFieldsModel)
+
+    class Meta:
+        app_label = 'tenancy'
+
+    class TenantMeta:
+        related_name = 'generic_relations'
+
+    def test_mro(self):
+        return 'GenericRelationModel'
 
 
 class SpecificModelProxy(SpecificModel):

@@ -563,6 +563,13 @@ class TenantModelTest(TenancyTestCase):
             m2m_specific = tenant.m2m_specifics.create(specific=specific)
             self.assertEqual(m2m_specific.specific_related_fk, related)
 
+    def test_generic_relation(self):
+        for tenant in Tenant.objects.all():
+            generic = tenant.generic_relations.create()
+            generic.postinits.create()
+            generic.delete()
+            self.assertFalse(tenant.postinits.exists())
+
 
 class NonTenantModelTest(TransactionTestCase):
     def test_fk_to_tenant(self):

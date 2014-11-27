@@ -456,6 +456,13 @@ class TenantModelBase(ModelBase):
                     rel.on_delete = on_delete
             field.contribute_to_class(model, field.name)
 
+        # Some virtual fields such as GenericRelation are not correctly
+        # cloaked by `contribute_to_class`. Make sure to remove non-tenant
+        # virtual instances from tenant specific model options.
+        for virtual_field in self._meta.virtual_fields:
+            if virtual_field in opts.virtual_fields:
+                opts.virtual_fields.remove(virtual_field)
+
         return model
 
     def _prepare(self):
