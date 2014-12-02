@@ -86,7 +86,8 @@ class MutableTenantModelTest(TenancyTestCase):
         # Make sure the reverse descriptor is accessible before mutation
         self.assertFalse(mutable.non_mutables.exists())
         # Alter the model definition
-        NullBooleanFieldDefinition.objects.create_with_default(False,
+        NullBooleanFieldDefinition.objects.create_with_default(
+            False,
             model_def=mutable_model_class.definition(),
             name='is_cool',
         )

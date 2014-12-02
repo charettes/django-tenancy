@@ -13,7 +13,7 @@ from .utils import TenancyTestCase
     ROOT_URLCONF='tenancy.tests.urls',
     MIDDLEWARE_CLASSES=(
         'tenancy.middleware.GlobalTenantMiddleware',
-    )
+    ),
 )
 class GlobalTenantMiddlewareTest(TenancyTestCase):
     def setUp(self):

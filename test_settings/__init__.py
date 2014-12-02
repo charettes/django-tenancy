@@ -11,7 +11,7 @@ ROOT_URLCONF = 'tenancy.tests.urls'
 SILENCED_SYSTEM_CHECKS = ['1_7.W001']
 
 try:
-    import mutant
+    import mutant  # NOQA
 except ImportError:
     pass
 else:

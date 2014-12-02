@@ -37,8 +37,8 @@ class MutableTenantModelBase(TenantModelBase):
     def tenant_model_bases(cls, tenant, bases):
         tenant_bases = super(MutableTenantModelBase, cls).tenant_model_bases(tenant, bases)
         return tuple(
-            tenant_base.__get__(None, None) if isinstance(base, cls) and
-                not base._meta.abstract else tenant_base
+            tenant_base.__get__(None, None)
+            if isinstance(base, cls) and not base._meta.abstract else tenant_base
             for base, tenant_base in zip(bases, tenant_bases)
         )
 

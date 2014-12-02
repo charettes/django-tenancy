@@ -55,5 +55,6 @@ class TenantModelManagerDescriptor(object):
     def __get__(self, instance, owner):
         raise AttributeError(
             "Manager isn't available; %s is tenant specific" % (
-            self.model._meta.object_name,
-        ))
+                self.model._meta.object_name,
+            )
+        )

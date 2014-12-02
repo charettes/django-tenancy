@@ -13,14 +13,18 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test.client import RequestFactory
 from django.test.utils import override_settings
 
-from .forms import (RelatedInlineFormSet, RelatedTenantModelForm,
-    SpecificModelForm, SpecificModelFormSet)
+from .forms import (
+    RelatedInlineFormSet, RelatedTenantModelForm,
+    SpecificModelForm, SpecificModelFormSet,
+)
 from .models import RelatedTenantModel, SpecificModel
-from .views import (InvalidModelMixin, MissingFieldsModelFormMixin,
+from .views import (
+    InvalidModelMixin, MissingFieldsModelFormMixin,
     MissingModelFormMixin, MissingModelMixin, NonModelFormMixin,
     NonTenantModelFormClass, RelatedInlineFormSetMixin, SpecificModelFormMixin,
     SpecificModelFormSetMixin, SpecificModelMixin, TenantMixinView,
-    TenantWizardView, UnspecifiedFormClass)
+    TenantWizardView, UnspecifiedFormClass
+)
 from .utils import TenancyTestCase
 
 
@@ -136,8 +140,8 @@ class TenantModelFormMixinTest(TenancyTestCase):
         )
 
     @skipUnless(
-         (1, 6) <= django.VERSION < (1, 8),
-        'Missing `fields` warnings are only raised on Django 1.6 and 1.7.'
+        django.VERSION < (1, 8),
+        'Missing `fields` warnings are only raised on Django < 1.8'
     )
     def test_missing_fields_warning(self):
         """
@@ -149,9 +153,9 @@ class TenantModelFormMixinTest(TenancyTestCase):
             MissingFieldsModelFormMixin().get_form_class()
         self.assertTrue(records)
         warning = records[0]
-        self.assertEqual(warning.category,
-            DeprecationWarning if django.VERSION >= (1, 7)
-            else PendingDeprecationWarning
+        self.assertEqual(
+            warning.category,
+            DeprecationWarning if django.VERSION >= (1, 7) else PendingDeprecationWarning
         )
         self.assertEqual(
             str(warning.message),

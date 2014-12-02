@@ -22,8 +22,9 @@ from django.utils.six.moves import copyreg
 
 from . import get_tenant_model
 from .management import create_tenant_schema, drop_tenant_schema
-from .managers import (AbstractTenantManager, TenantManager,
-    TenantModelManagerDescriptor)
+from .managers import (
+    AbstractTenantManager, TenantManager, TenantModelManagerDescriptor
+)
 from .signals import lazy_class_prepared
 from .utils import (
     clear_opts_related_cache, disconnect_signals, get_model,
@@ -207,7 +208,7 @@ class TenantModelBase(ModelBase):
 
         Meta = attrs.setdefault('Meta', meta())
         if (getattr(Meta, 'abstract', False) or
-            any(issubclass(base, TenantSpecificModel) for base in bases)):
+                any(issubclass(base, TenantSpecificModel) for base in bases)):
             # Abstract model definition and ones subclassing tenant specific
             # ones shouldn't get any special treatment.
             model = super_new(cls, name, bases, attrs)
@@ -267,7 +268,7 @@ class TenantModelBase(ModelBase):
                     cls.validate_related_name(m2m, to, model)
                     through = rel.through
                     if (not isinstance(through, string_types) and
-                        through._meta.auto_created):
+                            through._meta.auto_created):
                         # Replace the automatically created intermediary model
                         # by a TenantModelBase instance.
                         remove_from_app_cache(through)
@@ -311,7 +312,7 @@ class TenantModelBase(ModelBase):
         elif not isinstance(rel_to, TenantModelBase):
             related_name = cls.references[model].related_names[field.name]
             if (related_name is not None and
-                not (field.rel.is_hidden() or '%(class)s' in related_name)):
+                    not (field.rel.is_hidden() or '%(class)s' in related_name)):
                     del cls.references[model]
                     remove_from_app_cache(model, quiet=True)
                     raise ImproperlyConfigured(
@@ -391,7 +392,8 @@ class TenantModelBase(ModelBase):
         if issubclass(self, TenantSpecificModel):
             raise ValueError('Can only be called on non-tenant specific model.')
         reference = self.references[self]
-        model = super(TenantModelBase, self).__new__(self.__class__,
+        model = super(TenantModelBase, self).__new__(
+            self.__class__,
             str("Abstract%s" % reference.object_name_for_tenant(tenant)),
             (self,) + self.tenant_model_bases(tenant, self.__bases__), {
                 '__module__': self.__module__,
@@ -482,11 +484,13 @@ class TenantModelBase(ModelBase):
             # Since our declaration class is not one of our parents we must
             # make sure our exceptions extend his.
             for exception in self.exceptions:
-                self.add_to_class(exception, subclass_exception(str(exception),
-                    (getattr(self, exception),
-                     getattr(for_tenant_model, exception)),
-                    self.__module__, self
-                ))
+                subclass = subclass_exception(
+                    str(exception),
+                    (getattr(self, exception), getattr(for_tenant_model, exception)),
+                    self.__module__,
+                    self,
+                )
+                self.add_to_class(exception, subclass)
 
     def for_tenant(self, tenant):
         """
@@ -524,8 +528,8 @@ class TenantModelBase(ModelBase):
             base = type(
                 str("Abstract%s" % reference.object_name_for_tenant(tenant)),
                 (self,), {
-                    '__module__':self.__module__,
-                    'Meta':  meta(abstract=True)
+                    '__module__': self.__module__,
+                    'Meta': meta(abstract=True),
                 }
             )
             # Remove ourself from the parents chain and our descriptor
@@ -608,8 +612,8 @@ def attach_signals(signal, sender, **kwargs):
     Re-attach signals to tenant models
     """
     if issubclass(sender, TenantSpecificModel):
-        for signal, receiver in receivers_for_model(sender._for_tenant_model):
-            signal.connect(receiver, sender=sender)
+        for signal, receiver_ in receivers_for_model(sender._for_tenant_model):
+            signal.connect(receiver_, sender=sender)
 
 
 def validate_not_to_tenant_model(field, to, model):

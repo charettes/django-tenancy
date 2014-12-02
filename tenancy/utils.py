@@ -135,7 +135,7 @@ model_sender_signals = (
     models.signals.post_save,
     models.signals.pre_delete,
     models.signals.post_delete,
-    models.signals.m2m_changed
+    models.signals.m2m_changed,
 )
 
 
@@ -154,7 +154,7 @@ _opts_related_cache_attrs = (
     '_related_objects_cache',
     '_related_objects_proxy_cache',
     '_related_many_to_many_cache',
-    '_name_map'
+    '_name_map',
 )
 
 

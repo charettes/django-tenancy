@@ -2,8 +2,10 @@ from __future__ import unicode_literals
 
 from ..models import Tenant
 
-from .models import (SpecificModel, SpecificModelProxy, SpecificModelSubclass,
-    SpecificModelSubclassProxy)
+from .models import (
+    SpecificModel, SpecificModelProxy, SpecificModelSubclass,
+    SpecificModelSubclassProxy
+)
 from .utils import TenancyTestCase
 
 
@@ -46,35 +48,47 @@ class TenantModelManagerDescriptorTest(TenancyTestCase):
         Make sure managers can't be accessed from non-tenant-specific models.
         """
         # Concrete default manager
-        with self.assertRaisesMessage(AttributeError,
+        with self.assertRaisesMessage(
+            AttributeError,
             "Manager isn't available; SpecificModelSubclass is tenant "
-            "specific"):
+            "specific"
+        ):
             getattr(SpecificModelSubclass, 'objects')
 
         # Concrete default overridden manager
-        with self.assertRaisesMessage(AttributeError,
-            "Manager isn't available; SpecificModel is tenant specific"):
+        with self.assertRaisesMessage(
+            AttributeError,
+            "Manager isn't available; SpecificModel is tenant specific"
+        ):
             getattr(SpecificModel, 'objects')
 
         # Concrete custom manager
-        with self.assertRaisesMessage(AttributeError,
-            "Manager isn't available; SpecificModel is tenant specific"):
+        with self.assertRaisesMessage(
+            AttributeError,
+            "Manager isn't available; SpecificModel is tenant specific"
+        ):
             getattr(SpecificModel, 'custom_objects')
 
         # Proxy default manager
-        with self.assertRaisesMessage(AttributeError,
+        with self.assertRaisesMessage(
+            AttributeError,
             "Manager isn't available; SpecificModelSubclassProxy is tenant "
-            "specific"):
+            "specific"
+        ):
             getattr(SpecificModelSubclassProxy, 'objects')
 
         # Proxy default overridden manager
-        with self.assertRaisesMessage(AttributeError,
-            "Manager isn't available; SpecificModelProxy is tenant specific"):
+        with self.assertRaisesMessage(
+            AttributeError,
+            "Manager isn't available; SpecificModelProxy is tenant specific"
+        ):
             getattr(SpecificModelProxy, 'objects')
 
         # Proxy custom manager
-        with self.assertRaisesMessage(AttributeError,
-            "Manager isn't available; SpecificModelProxy is tenant specific"):
+        with self.assertRaisesMessage(
+            AttributeError,
+            "Manager isn't available; SpecificModelProxy is tenant specific"
+        ):
             getattr(SpecificModelProxy, 'proxied_objects')
 
     def test_allowed_access(self):

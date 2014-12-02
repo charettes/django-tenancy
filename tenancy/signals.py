@@ -20,7 +20,7 @@ def lazy_class_prepared(app_label, object_name, callback):
         def receiver(sender, **kwargs):
             opts = sender._meta
             if (opts.app_label == app_label and
-                opts.object_name == object_name):
+                    opts.object_name == object_name):
                 class_prepared.disconnect(receiver)
                 callback(sender)
         class_prepared.connect(receiver, weak=False)

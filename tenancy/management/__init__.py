@@ -7,16 +7,12 @@ except ImportError:
     from django.utils.datastructures import SortedDict as OrderedDict
 import logging
 
-import django
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ImproperlyConfigured
 from django.core.management.color import no_style
-from django.db import connections, models, router, transaction
-from django.dispatch.dispatcher import receiver
+from django.db import connections, router, transaction
 
 from .. import signals
-from ..utils import (allow_migrate, disconnect_signals, receivers_for_model,
-    remove_from_app_cache)
+from ..utils import allow_migrate
 
 
 def create_tenant_schema(tenant, using=None):

@@ -8,11 +8,13 @@ from django.http import HttpResponse
 from django.views.generic.base import View
 
 from ..models import Tenant
-from ..views import (TenantObjectMixin, TenantMixin, TenantModelFormMixin,
-    TenantWizardMixin)
+from ..views import (
+    TenantObjectMixin, TenantMixin, TenantModelFormMixin, TenantWizardMixin
+)
 
-from .forms import (MissingModelForm, RelatedInlineFormSet, SpecificModelForm,
-    SpecificModelFormSet)
+from .forms import (
+    MissingModelForm, RelatedInlineFormSet, SpecificModelForm, SpecificModelFormSet
+)
 from .models import RelatedTenantModel, SpecificModel
 
 

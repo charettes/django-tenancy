@@ -6,14 +6,17 @@ import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Manager
 from django.db.models.query import QuerySet
-from django.forms.models import (BaseInlineFormSet, BaseModelFormSet,
-    ModelForm, modelform_factory)
+from django.forms.models import (
+    BaseInlineFormSet, BaseModelFormSet, ModelForm, modelform_factory
+)
 from django.utils.functional import cached_property
 from django.views.generic.edit import ModelFormMixin
 
 from . import get_tenant_model
-from .forms import (tenant_inlineformset_factory, tenant_modelform_factory,
-    tenant_modelformset_factory)
+from .forms import (
+    tenant_inlineformset_factory, tenant_modelform_factory,
+    tenant_modelformset_factory,
+)
 from .models import TenantModelBase, TenantSpecificModel
 
 
@@ -134,7 +137,7 @@ class TenantWizardMixin(TenantMixin):
         kwargs = self.get_form_kwargs(step)
         form_class = self.form_list[step]
         if (issubclass(form_class, ModelForm) and
-            isinstance(form_class._meta.model, TenantModelBase)):
+                isinstance(form_class._meta.model, TenantModelBase)):
             kwargs.setdefault('instance', self.get_form_instance(step))
             form_class = tenant_modelform_factory(self.get_tenant(), form_class)
         elif (issubclass(form_class, BaseModelFormSet) and

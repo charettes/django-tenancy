@@ -12,7 +12,7 @@ from .settings import HOST_NAME
 class TenantHostMiddleware(object):
     def __init__(self):
         try:
-            import django_hosts
+            import django_hosts  # NOQA
         except ImportError:
             raise ImproperlyConfigured(
                 'You must install django-hosts in order to '

@@ -18,14 +18,18 @@ from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
 
 from .. import get_tenant_model
-from ..models import (db_schema_table, Tenant, TenantModel, TenantModelBase,
-    TenantModelDescriptor, TenantSpecificModel)
+from ..models import (
+    db_schema_table, Tenant, TenantModel, TenantModelBase,
+    TenantModelDescriptor, TenantSpecificModel,
+)
 from ..utils import remove_from_app_cache
 
 from .managers import ManagerOtherSubclass, ManagerSubclass
-from .models import (AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
+from .models import (
+    AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
     RelatedTenantModel, SpecificModel, SpecificModelProxy,
-    SpecificModelProxySubclass, SpecificModelSubclass, TenantModelMixin)
+    SpecificModelProxySubclass, SpecificModelSubclass, TenantModelMixin
+)
 from .utils import logger, skipIfCustomTenant, TenancyTestCase
 
 
@@ -58,7 +62,8 @@ class TenantTest(TransactionTestCase):
         )
         self.assertSwapFailure(
             'contenttypes.ContentType',
-            "TENANCY_TENANT_MODEL refers to models 'contenttypes.ContentType' which is not a subclass of 'tenancy.AbstractTenant'"
+            "TENANCY_TENANT_MODEL refers to models 'contenttypes.ContentType' "
+            "which is not a subclass of 'tenancy.AbstractTenant'"
         )
 
     @skipIfCustomTenant
@@ -483,20 +488,23 @@ class TenantModelTest(TenancyTestCase):
     def test_invalid_foreign_key_related_name(self):
         # Ensure `related_name` with no %(tenant)s format placeholder also
         # raises an improperly configured error.
-        with self.assertRaisesMessage(ImproperlyConfigured,
+        with self.assertRaisesMessage(
+            ImproperlyConfigured,
             "Since `InvalidRelatedName.fk` is originating from an instance "
             "of `TenantModelBase` and not pointing to one "
             "its `related_name` option must ends with a "
-            "'+' or contain the '%(class)s' format "
-            "placeholder."):
+            "'+' or contain the '%(class)s' format placeholder."
+        ):
             class InvalidRelatedName(TenantModel):
                 fk = django_models.ForeignKey(NonTenantModel, related_name='no-tenant')
 
     def test_invalid_m2m_through(self):
-        with self.assertRaisesMessage(ImproperlyConfigured,
+        with self.assertRaisesMessage(
+            ImproperlyConfigured,
             "Since `InvalidThrough.m2m` is originating from an instance of "
             "`TenantModelBase` its `through` option must also be pointing "
-            "to one."):
+            "to one."
+        ):
             class InvalidThrough(TenantModel):
                 m2m = django_models.ManyToManyField(
                     NonTenantModel, through='InvalidIntermediary'
@@ -577,9 +585,11 @@ class NonTenantModelTest(TransactionTestCase):
         Non-tenant models shouldn't be allowed to have a ForeignKey pointing
         to an instance of `TenantModelBase`.
         """
-        with self.assertRaisesMessage(ImproperlyConfigured,
+        with self.assertRaisesMessage(
+            ImproperlyConfigured,
             "`NonTenantFkToTenant.fk`'s `to` option` can't point to an "
-            "instance of `TenantModelBase` since it's not one itself."):
+            "instance of `TenantModelBase` since it's not one itself."
+        ):
             class NonTenantFkToTenant(django_models.Model):
                 fk = django_models.ForeignKey('UndeclaredSpecificModel')
 
@@ -591,8 +601,10 @@ class NonTenantModelTest(TransactionTestCase):
         Non-tenant models shouldn't be allowed to have ManyToManyField pointing
         to an instance of `TenantModelBase`.
         """
-        with self.assertRaisesMessage(ImproperlyConfigured,
+        with self.assertRaisesMessage(
+            ImproperlyConfigured,
             "`NonTenantM2MToTenant.m2m`'s `to` option` can't point to an "
-            "instance of `TenantModelBase` since it's not one itself."):
+            "instance of `TenantModelBase` since it's not one itself."
+        ):
             class NonTenantM2MToTenant(django_models.Model):
                 m2m = django_models.ManyToManyField(SpecificModel)

@@ -9,14 +9,11 @@ from .views import raise_exception, tenant_name
 urlpatterns = [
     url(r'^$',
         lambda request: HttpResponse(),
-        name='default'
-    ),
+        name='default'),
     url(r'^global$',
         tenant_name,
-        name='tenant'
-    ),
+        name='tenant'),
     url(r'^exception$',
         raise_exception,
-        name='exception'
-    ),
+        name='exception'),
 ]

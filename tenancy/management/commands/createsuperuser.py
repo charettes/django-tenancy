@@ -15,6 +15,8 @@ def get_tenant_by_natural_key(option, opt, value, parser):
 
 
 class Command(Command):
+    requires_model_validation = False
+
     def __init__(self):
         super(Command, self).__init__()
         from ...settings import TENANT_AUTH_USER_MODEL

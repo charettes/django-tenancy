@@ -20,9 +20,7 @@ from .utils import TenancyTestCase
 try:
     import django_hosts
 except ImportError:
-    django_hosts_installed = False
-else:
-    django_hosts_installed = True
+    django_hosts = None
 
 
 def django_hosts_installed_setup(func):
@@ -35,7 +33,7 @@ def django_hosts_installed_setup(func):
         )
     )(func)
     return skipUnless(
-        django_hosts_installed,
+        django_hosts,
         'django-hosts is not installed.'
     )(func)
 
@@ -47,7 +45,7 @@ class TenantHostMiddlewareTest(TenancyTestCase):
         domain = "%s.testserver" % tenant.name
         return cls.client_class(SERVER_NAME=domain)
 
-    @skipIf(django_hosts_installed, 'django-hosts is installed.')
+    @skipIf(django_hosts, 'django-hosts is installed.')
     def test_not_installed(self):
         self.assertRaisesMessage(
             ImproperlyConfigured,
@@ -56,7 +54,7 @@ class TenantHostMiddlewareTest(TenancyTestCase):
             TenantHostMiddleware
         )
 
-    @skipUnless(django_hosts_installed, 'django-hosts is not installed.')
+    @skipUnless(django_hosts, 'django-hosts is not installed.')
     @override_settings(
         MIDDLEWARE_CLASSES=(
             'tenancy.middleware.TenantHostMiddleware',
@@ -64,7 +62,8 @@ class TenantHostMiddlewareTest(TenancyTestCase):
         )
     )
     def test_wrong_order(self):
-        self.assertRaisesMessage(ImproperlyConfigured,
+        self.assertRaisesMessage(
+            ImproperlyConfigured,
             "Make sure that 'django_hosts.middleware.HostsMiddleware' is "
             "placed before 'tenancy.middleware.TenantHostMiddleware' in your "
             "`MIDDLEWARE_CLASSES` setting.",

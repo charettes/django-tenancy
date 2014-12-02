@@ -11,7 +11,8 @@ from .utils import setup_custom_tenant_user, TenancyTestCase
 class CustomTenantUserBackendTest(TenancyTestCase):
     @override_settings(AUTH_USER_MODEL='auth.User')
     def test_custom_user_not_tenant(self):
-        self.assertRaisesMessage(ImproperlyConfigured,
+        self.assertRaisesMessage(
+            ImproperlyConfigured,
             "The `tenancy.auth.backends.CustomTenantUserBackend` "
             "authentification backend can only be used with a custom "
             "tenant user model.",
@@ -20,7 +21,8 @@ class CustomTenantUserBackendTest(TenancyTestCase):
 
     @override_settings(AUTH_USER_MODEL='tenancy.TenantUser')
     def test_missing_connection_tenant(self):
-        self.assertRaisesMessage(ImproperlyConfigured,
+        self.assertRaisesMessage(
+            ImproperlyConfigured,
             "The `tenancy.auth.backends.CustomTenantUserBackend` "
             "authentification backend requires that a `tenant` attribute "
             "be set on the default connection to work properly. The "

@@ -3,10 +3,11 @@ from __future__ import unicode_literals
 import sys
 # TODO: Remove when support for Python 2.6 is dropped
 if sys.version_info >= (2, 7):
-    from unittest import skipUnless
+    from unittest import skipIf, skipUnless
 else:
-    from django.utils.unittest import skipUnless
+    from django.utils.unittest import skipIf, skipUnless
 
+import django
 from django.db import connection, connections, router, transaction
 from django.db.utils import DatabaseError
 from django.core.management import call_command
@@ -19,8 +20,9 @@ from ..models import Tenant, TenantModelBase
 from ..signals import pre_schema_creation, post_schema_deletion
 from ..utils import allow_migrate
 
-from .utils import (mock_inputs, setup_custom_tenant_user, skipIfCustomTenant,
-    TenancyTestCase)
+from .utils import (
+    mock_inputs, setup_custom_tenant_user, skipIfCustomTenant, TenancyTestCase
+)
 
 
 @skipIfCustomTenant
@@ -62,6 +64,9 @@ class CreateTenantCommandTest(TransactionTestCase):
         finally:
             tenant.delete()
 
+    @skipIf(
+        django.VERSION >= (1, 7), 'Management commands cannot be overriden on Django >= 1.7'
+    )
     @setup_custom_tenant_user
     @mock_inputs((
         ('\nYou just created a new tenant,', 'yes'),
@@ -79,7 +84,7 @@ class CreateTenantCommandTest(TransactionTestCase):
     @mock_inputs((
         ('\nYou just created a new tenant,', 'no'),
     ))
-    def test_superuser_creation_prompt(self):
+    def test_superuser_creation_cancelled_prompt(self):
         stdout = StringIO()
         call_command('createtenant', 'tenant', stdout=stdout, interactive=True)
         stdout.seek(0)
