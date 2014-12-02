@@ -192,6 +192,17 @@ class TenantSpecificModel(with_metaclass(ABCMeta)):
         return NotImplemented
 
 
+class TenantDescriptor(object):
+    __slots__ = ['natural_key']
+
+    def __init__(self, tenant):
+        self.natural_key = tenant.natural_key()
+
+    def __get__(self, model, owner):
+        tenant_model = get_tenant_model()
+        return tenant_model._default_manager.get_by_natural_key(*self.natural_key)
+
+
 class TenantModelBase(ModelBase):
     reference = Reference
     references = OrderedDict()
@@ -401,7 +412,7 @@ class TenantModelBase(ModelBase):
                     reference.Meta,
                     abstract=True
                 ),
-                tenant.ATTR_NAME: tenant,
+                tenant.ATTR_NAME: TenantDescriptor(tenant),
                 '_for_tenant_model': self
             }
         )
