@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import logging
 
+from django.utils import six
 from django.utils.six.moves import copyreg
 from django.dispatch.dispatcher import receiver
 from mutant.db.models import MutableModel
@@ -74,7 +75,7 @@ class MutableTenantModelBase(TenantModelBase):
         )
         if created:
             model_def.managed = False
-            model_def.save()
+            model_def.save(update_fields=['managed'])
             for order, lookup in enumerate(base._meta.ordering):
                 if lookup.startswith('-'):
                     lookup = lookup[1:]
@@ -90,9 +91,7 @@ class MutableTenantModelBase(TenantModelBase):
         return model_def.model_class()
 
 
-class MutableTenantModel(TenantModel):
-    __metaclass__ = MutableTenantModelBase
-
+class MutableTenantModel(six.with_metaclass(MutableTenantModelBase, TenantModel)):
     class Meta:
         abstract = True
 

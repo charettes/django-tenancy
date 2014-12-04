@@ -15,6 +15,8 @@ try:
 except ImportError:
     mutant_installed = False
 else:
+    if sys.version_info >= (2, 7):
+        from .models import MutableModel, MutableModelSubclass, NonMutableModel
     mutant_installed = True
 
 
@@ -22,7 +24,6 @@ else:
 @skipIf(sys.version_info < (2, 7), "Model class can't be pickled on python < 2.7")
 class MutableTenantModelTest(TenancyTestCase):
     def test_field_creation(self):
-        from .models import MutableModel
         model_class = MutableModel.for_tenant(self.tenant)
         model_def = model_class.definition()
         NullBooleanFieldDefinition.objects.create(
@@ -34,7 +35,6 @@ class MutableTenantModelTest(TenancyTestCase):
         self.assertEqual(1, tenant_mutable_models.filter(is_cool=False).count())
 
     def test_subclassing(self):
-        from .models import MutableModel, MutableModelSubclass
         model_class = MutableModelSubclass.for_tenant(self.tenant)
         self.assertEqual(
             model_class.non_mutable_fk.field.rel.to,
@@ -66,7 +66,6 @@ class MutableTenantModelTest(TenancyTestCase):
         OrderingFieldDefinition must be created in order to maintain the
         specified ordering.
         """
-        from .models import MutableModel
         model_class = MutableModel.for_tenant(self.tenant)
         first = model_class.objects.create(field=True)
         second = model_class.objects.create(field=False)
@@ -80,7 +79,6 @@ class MutableTenantModelTest(TenancyTestCase):
         """
         Make sure non mutable models reference mutable ones through a proxy.
         """
-        from .models import MutableModel, NonMutableModel
         mutable_model_class = MutableModel.for_tenant(self.tenant)
         mutable = mutable_model_class.objects.create(field=True)
         # Make sure the reverse descriptor is accessible before mutation
@@ -102,7 +100,6 @@ class MutableTenantModelTest(TenancyTestCase):
         Make sure mutable model class is also retrieved from app cache when
         possible.
         """
-        from .models import MutableModel
         model_class = MutableModel.for_tenant(self.tenant)
         with self.assertNumQueries(0):
             self.assertEqual(model_class, MutableModel.for_tenant(self.tenant))

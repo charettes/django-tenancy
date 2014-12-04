@@ -53,12 +53,15 @@ class TenantModelsDescriptor(object):
         self.name = name
         setattr(cls, name, self)
 
+    def _get_instance(self, instance):
+        return instance._default_manager.get_by_natural_key(
+            *instance.natural_key()
+        )
+
     def __get__(self, instance, owner):
         if instance is None:
             return self
-        instance = instance._default_manager.get_by_natural_key(
-            *instance.natural_key()
-        )
+        instance = self._get_instance(instance)
         try:
             models = instance.__dict__[self.name]
         except KeyError:
@@ -67,6 +70,7 @@ class TenantModelsDescriptor(object):
         return models
 
     def __set__(self, instance, value):
+        instance = self._get_instance(instance)
         instance.__dict__[self.name] = value
 
     def __delete__(self, instance):
@@ -565,7 +569,7 @@ class TenantModelBase(ModelBase):
         """
         if not issubclass(self, TenantSpecificModel):
             raise ValueError('Can only be called on tenant specific model.')
-        remove_from_app_cache(self)
+        remove_from_app_cache(self, quiet=True)
         if not self._meta.proxy:
             # Some fields (GenericForeignKey, ImageField) attach (pre|post)_init
             # signals to their associated model even if they are abstract.
