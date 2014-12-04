@@ -171,6 +171,11 @@ def cached_mutable_models(tenant, using, **kwargs):
         if issubclass(model, MutableModel):
             # Access the underlying model class.
             model = model.__get__(None, None)
-            model._meta.managed = True
+            opts = model._meta
+            opts.managed = True
+            # Repoint all local related object to the existing model class to
+            # prevent access to the definition once it's deleted.
+            for related_object in opts.get_all_related_objects(local_only=True):
+                related_object.field.rel.to = model
         models.append(model)
     tenant.models = tuple(models)

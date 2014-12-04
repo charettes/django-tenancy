@@ -150,21 +150,28 @@ def disconnect_signals(model):
         signal.disconnect(receiver, sender=model)
 
 
-_opts_related_cache_attrs = (
+_opts_related_cache_attrs = [
     '_related_objects_cache',
     '_related_objects_proxy_cache',
     '_related_many_to_many_cache',
     '_name_map',
-)
+]
 
 
 def clear_opts_related_cache(model_class):
     """
-    Clear the specified model opts related cache
+    Clear the specified model and its children opts related cache.
     """
     opts = model_class._meta
+    children = [
+        related_object.model
+        for related_object in opts.get_all_related_objects()
+        if related_object.field.rel.parent_link
+    ]
     for attr in _opts_related_cache_attrs:
         try:
             delattr(opts, attr)
         except AttributeError:
             pass
+    for child in children:
+        clear_opts_related_cache(child)

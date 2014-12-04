@@ -284,13 +284,14 @@ class TenantUser(TenantModel, AbstractBaseUser):
 
 
 try:
-    from ..mutant.models import MutableTenantModel
+    from ..mutant.models import ModelDefinition, MutableTenantModel
 except ImportError:
     pass
 else:
     if sys.version_info >= (2, 7):
         class MutableModel(MutableTenantModel):
             field = models.BooleanField()
+            model_def = models.ForeignKey(ModelDefinition, null=True)
 
             class Meta:
                 app_label = 'tenancy'
