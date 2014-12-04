@@ -578,6 +578,11 @@ class TenantModelTest(TenancyTestCase):
             generic.delete()
             self.assertFalse(tenant.postinits.exists())
 
+    def test_specific_model_tenant(self):
+        for tenant in Tenant.objects.all():
+            for model in tenant.models:
+                self.assertEqual(getattr(model, tenant.ATTR_NAME), tenant)
+
 
 class NonTenantModelTest(TransactionTestCase):
     def test_fk_to_tenant(self):

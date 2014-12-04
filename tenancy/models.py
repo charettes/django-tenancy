@@ -535,7 +535,7 @@ class TenantModelBase(ModelBase):
         }
 
         if opts.proxy:
-            attrs.update(tenant=tenant, _for_tenant_model=self)
+            attrs['_for_tenant_model'] = self
 
             # In order to make sure the non-tenant model is part of the
             # __mro__ we create an abstract model with stripped fields and
