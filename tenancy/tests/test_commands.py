@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-import sys
+from unittest import skipIf, skipUnless
 
 import django
 from django.core.management import call_command
@@ -17,12 +17,6 @@ from ..utils import allow_migrate
 from .utils import (
     TenancyTestCase, mock_inputs, setup_custom_tenant_user, skipIfCustomTenant,
 )
-
-# TODO: Remove when support for Python 2.6 is dropped
-if sys.version_info >= (2, 7):
-    from unittest import skipIf, skipUnless
-else:
-    from django.utils.unittest import skipIf, skipUnless
 
 
 @skipIfCustomTenant

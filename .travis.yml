@@ -29,11 +29,6 @@ env:
 
 matrix:
   fast_finish: true
-  include:
-    - python: 2.6
-      env: TOXENV=py26-1.6-sqlite3
-    - python: 2.6
-      env: TOXENV=py26-1.6-postgresql
   allow_failures:
     - env: TOXENV=py27-master-sqlite3
     - env: TOXENV=py27-master-postgresql

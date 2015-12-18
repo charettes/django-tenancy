@@ -1,9 +1,10 @@
 from __future__ import unicode_literals
 
 import logging
-import sys
+from collections import OrderedDict
 from functools import wraps
 from imp import reload
+from unittest import skipIf
 
 from django.contrib.auth.management.commands import createsuperuser
 from django.dispatch.dispatcher import receiver
@@ -14,19 +15,6 @@ from django.utils.six.moves import input
 from .. import settings
 from ..management.commands import createtenant
 from ..models import Tenant
-
-# TODO: Remove when support for Python 2.6 is dropped
-try:
-    from collections import OrderedDict
-except ImportError:
-    from django.utils.datastructures import SortedDict as OrderedDict
-
-# TODO: Remove when support for Python 2.6 is dropped
-if sys.version_info >= (2, 7):
-    from unittest import skipIf
-else:
-    from django.utils.unittest import skipIf
-
 
 logger = logging.getLogger('tenancy.tests')
 

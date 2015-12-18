@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import logging
+from collections import OrderedDict
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.color import no_style
@@ -8,12 +9,6 @@ from django.db import connections, router, transaction
 
 from .. import signals
 from ..utils import allow_migrate
-
-# TODO: Remove when support for Python 2.6 is dropped
-try:
-    from collections import OrderedDict
-except ImportError:
-    from django.utils.datastructures import SortedDict as OrderedDict
 
 
 def create_tenant_schema(tenant, using=None):

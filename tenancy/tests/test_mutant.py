@@ -1,28 +1,19 @@
 from __future__ import unicode_literals
 
-import sys
+from unittest import skipUnless
 
 from .utils import TenancyTestCase
-
-# TODO: Remove when support for Python 2.6 is dropped
-if sys.version_info >= (2, 7):
-    from unittest import skipIf, skipUnless
-else:
-    from django.utils.unittest import skipIf, skipUnless
-
 
 try:
     from mutant.contrib.boolean.models import NullBooleanFieldDefinition
 except ImportError:
     mutant_installed = False
 else:
-    if sys.version_info >= (2, 7):
-        from .models import MutableModel, MutableModelSubclass, NonMutableModel
+    from .models import MutableModel, MutableModelSubclass, NonMutableModel
     mutant_installed = True
 
 
 @skipUnless(mutant_installed, 'django-mutant is not installed.')
-@skipIf(sys.version_info < (2, 7), "Model class can't be pickled on python < 2.7")
 class MutableTenantModelTest(TenancyTestCase):
     def test_field_creation(self):
         model_class = MutableModel.for_tenant(self.tenant)

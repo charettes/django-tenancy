@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-import sys
+from unittest import skipIf, skipUnless
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
@@ -9,13 +9,6 @@ from django.utils.encoding import force_bytes
 from ..middleware import TenantHostMiddleware
 from ..models import Tenant
 from .utils import TenancyTestCase
-
-# TODO: Remove when support for Python 2.6 is dropped
-if sys.version_info >= (2, 7):
-    from unittest import skipIf, skipUnless
-else:
-    from django.utils.unittest import skipIf, skipUnless
-
 
 try:
     import django_hosts

@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
-import sys
 import warnings
+from unittest import skipUnless
 
 import django
 from django.core.exceptions import ImproperlyConfigured
@@ -21,12 +21,6 @@ from .views import (
     SpecificModelFormSetMixin, SpecificModelMixin, TenantMixinView,
     TenantWizardView, UnspecifiedFormClass,
 )
-
-# TODO: Remove when support for Python 2.6 is dropped
-if sys.version_info >= (2, 7):
-    from unittest import skipUnless
-else:
-    from django.utils.unittest import skipUnless
 
 
 @override_settings(ROOT_URLCONF='tenancy.tests.urls')

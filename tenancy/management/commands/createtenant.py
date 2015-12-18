@@ -20,16 +20,14 @@ class CommandLoggingHandler(logging.StreamHandler):
 
     def __init__(self, stdout, stderr, verbosity=1):
         self.error_stream = logging.StreamHandler(stderr)
-        # TODO: Use super when support for Python 2.6 is dropped
-        logging.StreamHandler.__init__(self, stdout)
+        super(CommandLoggingHandler, self).__init__(stdout)
         self.setLevel(self.VERBOSITY_LEVELS[verbosity])
 
     def emit(self, record):
         if record.levelno >= logging.ERROR:
             self.error_stream.emit(record)
         else:
-            # TODO: Use super when support for Python 2.6 is dropped
-            logging.StreamHandler.emit(self, record)
+            super(CommandLoggingHandler, self).emit(record)
 
 
 class Command(BaseCommand):

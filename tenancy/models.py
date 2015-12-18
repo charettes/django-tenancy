@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import copy
 import logging
 from abc import ABCMeta
+from collections import OrderedDict
 from contextlib import contextmanager
 
 from django.core.exceptions import ImproperlyConfigured
@@ -25,12 +26,6 @@ from .utils import (
     clear_opts_related_cache, disconnect_signals, get_model,
     receivers_for_model, remove_from_app_cache,
 )
-
-# TODO: Remove when support for Python 2.6 is dropped
-try:
-    from collections import OrderedDict
-except ImportError:
-    from django.utils.datastructures import SortedDict as OrderedDict
 
 
 class TenantModels(object):
