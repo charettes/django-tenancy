@@ -5,7 +5,6 @@ from django.http import HttpResponse
 
 from .views import raise_exception, tenant_name
 
-
 urlpatterns = [
     url(r'^$',
         lambda request: HttpResponse(),

@@ -3,7 +3,14 @@ from __future__ import unicode_literals
 import sys
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
+from django.db import models
+
+from ..models import Tenant, TenantModel
+from ..utils import model_sender_signals
+from .managers import ManagerOtherSubclass, ManagerSubclass
+
 try:
     from django.contrib.contenttypes.fields import (
         GenericRelation, GenericForeignKey
@@ -12,13 +19,6 @@ except ImportError:
     from django.contrib.contenttypes.generic import (
         GenericRelation, GenericForeignKey
     )
-from django.contrib.contenttypes.models import ContentType
-from django.db import models
-
-from ..models import Tenant, TenantModel
-from ..utils import model_sender_signals
-
-from .managers import ManagerOtherSubclass, ManagerSubclass
 
 
 class NonTenantModel(models.Model):

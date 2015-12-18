@@ -1,10 +1,9 @@
 from __future__ import unicode_literals
 
 from ..models import Tenant
-
 from .models import (
     SpecificModel, SpecificModelProxy, SpecificModelSubclass,
-    SpecificModelSubclassProxy
+    SpecificModelSubclassProxy,
 )
 from .utils import TenancyTestCase
 

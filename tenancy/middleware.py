@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.db import connections, DEFAULT_DB_ALIAS
+from django.db import DEFAULT_DB_ALIAS, connections
 from django.http import Http404
 
 from . import get_tenant_model

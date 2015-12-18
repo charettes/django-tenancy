@@ -1,17 +1,12 @@
 from __future__ import unicode_literals
 
-from abc import ABCMeta
-# TODO: Remove when support for Python 2.6 is dropped
-try:
-    from collections import OrderedDict
-except ImportError:
-    from django.utils.datastructures import SortedDict as OrderedDict
 import copy
-from contextlib import contextmanager
 import logging
+from abc import ABCMeta
+from contextlib import contextmanager
 
 from django.core.exceptions import ImproperlyConfigured
-from django.db import connections, DEFAULT_DB_ALIAS, models
+from django.db import DEFAULT_DB_ALIAS, connections, models
 from django.db.models.base import ModelBase, subclass_exception
 from django.db.models.deletion import DO_NOTHING
 from django.db.models.fields import Field
@@ -23,13 +18,19 @@ from django.utils.six.moves import copyreg
 from . import get_tenant_model
 from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (
-    AbstractTenantManager, TenantManager, TenantModelManagerDescriptor
+    AbstractTenantManager, TenantManager, TenantModelManagerDescriptor,
 )
 from .signals import lazy_class_prepared
 from .utils import (
     clear_opts_related_cache, disconnect_signals, get_model,
-    receivers_for_model, remove_from_app_cache
+    receivers_for_model, remove_from_app_cache,
 )
+
+# TODO: Remove when support for Python 2.6 is dropped
+try:
+    from collections import OrderedDict
+except ImportError:
+    from django.utils.datastructures import SortedDict as OrderedDict
 
 
 class TenantModels(object):

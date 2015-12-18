@@ -8,7 +8,6 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import connections, models, router
 from django.db.models.base import ModelBase
 
-
 # TODO: Remove `allow_syncdb` alternative when support for 1.6 is dropped
 if django.VERSION >= (1, 7):
     def allow_migrate(model):

@@ -1,28 +1,28 @@
 from __future__ import unicode_literals
 
 import sys
+
+import django
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.db import connection, connections, router, transaction
+from django.db.transaction import atomic
+from django.db.utils import DatabaseError
+from django.test.testcases import TransactionTestCase
+from django.utils.six import StringIO
+
+from ..models import Tenant, TenantModelBase
+from ..signals import post_schema_deletion, pre_schema_creation
+from ..utils import allow_migrate
+from .utils import (
+    TenancyTestCase, mock_inputs, setup_custom_tenant_user, skipIfCustomTenant,
+)
+
 # TODO: Remove when support for Python 2.6 is dropped
 if sys.version_info >= (2, 7):
     from unittest import skipIf, skipUnless
 else:
     from django.utils.unittest import skipIf, skipUnless
-
-import django
-from django.db import connection, connections, router, transaction
-from django.db.utils import DatabaseError
-from django.core.management import call_command
-from django.core.management.base import CommandError
-from django.db.transaction import atomic
-from django.test.testcases import TransactionTestCase
-from django.utils.six import StringIO
-
-from ..models import Tenant, TenantModelBase
-from ..signals import pre_schema_creation, post_schema_deletion
-from ..utils import allow_migrate
-
-from .utils import (
-    mock_inputs, setup_custom_tenant_user, skipIfCustomTenant, TenancyTestCase
-)
 
 
 @skipIfCustomTenant

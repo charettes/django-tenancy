@@ -4,11 +4,6 @@ import gc
 import logging
 import pickle
 import sys
-# TODO: Remove when support for Python 2.6 is dropped
-if sys.version_info >= (2, 7):
-    from unittest import skipIf, skipUnless
-else:
-    from django.utils.unittest import skipIf, skipUnless
 import weakref
 
 from django.contrib.contenttypes.models import ContentType
@@ -19,18 +14,23 @@ from django.utils.six import StringIO
 
 from .. import get_tenant_model
 from ..models import (
-    db_schema_table, Tenant, TenantModel, TenantModelBase,
-    TenantModelDescriptor, TenantSpecificModel,
+    Tenant, TenantModel, TenantModelBase, TenantModelDescriptor,
+    TenantSpecificModel, db_schema_table,
 )
 from ..utils import remove_from_app_cache
-
 from .managers import ManagerOtherSubclass, ManagerSubclass
 from .models import (
     AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
     RelatedTenantModel, SpecificModel, SpecificModelProxy,
-    SpecificModelProxySubclass, SpecificModelSubclass, TenantModelMixin
+    SpecificModelProxySubclass, SpecificModelSubclass, TenantModelMixin,
 )
-from .utils import logger, skipIfCustomTenant, TenancyTestCase
+from .utils import TenancyTestCase, logger, skipIfCustomTenant
+
+# TODO: Remove when support for Python 2.6 is dropped
+if sys.version_info >= (2, 7):
+    from unittest import skipIf, skipUnless
+else:
+    from django.utils.unittest import skipIf, skipUnless
 
 
 class TenantTest(TransactionTestCase):

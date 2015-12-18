@@ -2,28 +2,30 @@ from __future__ import unicode_literals
 
 import logging
 
+from django.dispatch.dispatcher import receiver
 from django.utils import six
 from django.utils.six.moves import copyreg
-from django.dispatch.dispatcher import receiver
+
 from mutant.db.models import MutableModel
 from mutant.models import (
-    BaseDefinition, ModelDefinition, OrderingFieldDefinition
+    BaseDefinition, ModelDefinition, OrderingFieldDefinition,
 )
-try:
-    from mutant.models.model import MutableModelProxy
-except ImportError:
-    from mutant.models.model import _ModelClassProxy as MutableModelProxy
 from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
 from ..models import (
-    db_schema_table, Reference, TenantModel, TenantModelBase,
-    TenantSpecificModel
+    Reference, TenantModel, TenantModelBase, TenantSpecificModel,
+    db_schema_table,
 )
 from ..signals import (
-    post_models_creation, pre_models_creation, pre_schema_deletion
+    post_models_creation, pre_models_creation, pre_schema_deletion,
 )
 from ..utils import get_model
+
+try:
+    from mutant.models.model import MutableModelProxy
+except ImportError:
+    from mutant.models.model import _ModelClassProxy as MutableModelProxy
 
 
 class MutableReference(Reference):

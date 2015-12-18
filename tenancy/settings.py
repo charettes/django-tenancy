@@ -1,17 +1,17 @@
 from __future__ import unicode_literals
 
+from django.conf import settings
 from django.contrib.auth import models as auth_app
+from django.core.exceptions import ImproperlyConfigured
+from django.db.models.signals import post_syncdb
+
+from .signals import lazy_class_prepared
+
 try:
     from django.contrib.auth.management import create_superuser
 except ImportError:
     def create_superuser(*args, **kwargs):
         pass
-
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
-from django.db.models.signals import post_syncdb
-
-from .signals import lazy_class_prepared
 
 
 DEFAULT_TENANT_MODEL = 'tenancy.Tenant'

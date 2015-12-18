@@ -4,8 +4,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 
 from ..auth.backends import CustomTenantUserBackend
-
-from .utils import setup_custom_tenant_user, TenancyTestCase
+from .utils import TenancyTestCase, setup_custom_tenant_user
 
 
 class CustomTenantUserBackendTest(TenancyTestCase):

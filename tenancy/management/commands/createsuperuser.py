@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+
 from optparse import make_option
 
 from django.contrib.auth.management.commands.createsuperuser import Command

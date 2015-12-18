@@ -9,11 +9,11 @@ from django.views.generic.base import View
 
 from ..models import Tenant
 from ..views import (
-    TenantObjectMixin, TenantMixin, TenantModelFormMixin, TenantWizardMixin
+    TenantMixin, TenantModelFormMixin, TenantObjectMixin, TenantWizardMixin,
 )
-
 from .forms import (
-    MissingModelForm, RelatedInlineFormSet, SpecificModelForm, SpecificModelFormSet
+    MissingModelForm, RelatedInlineFormSet, SpecificModelForm,
+    SpecificModelFormSet,
 )
 from .models import RelatedTenantModel, SpecificModel
 

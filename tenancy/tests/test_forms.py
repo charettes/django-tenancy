@@ -5,13 +5,12 @@ from django.forms.models import modelform_factory, modelformset_factory
 
 from ..forms import (
     tenant_inlineformset_factory, tenant_modelform_factory,
-    tenant_modelformset_factory
+    tenant_modelformset_factory,
 )
 from ..models import Tenant
-
 from .forms import (
     NonTenantInlineFormSet, RelatedInlineFormSet, RelatedTenantModelForm,
-    SpecificModelForm, SpecificModelFormSet
+    SpecificModelForm, SpecificModelFormSet,
 )
 from .models import NonTenantModel, RelatedTenantModel, SpecificModel
 from .utils import TenancyTestCase

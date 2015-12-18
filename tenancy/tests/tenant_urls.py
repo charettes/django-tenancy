@@ -5,7 +5,6 @@ from django.http import HttpResponse
 
 from ..models import Tenant
 
-
 urlpatterns = [
     url(r'^$',
         lambda request: HttpResponse(getattr(request, Tenant.ATTR_NAME).name),
