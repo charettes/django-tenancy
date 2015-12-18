@@ -2,53 +2,49 @@ sudo: no
 
 language: python
 
-python:
-  - 2.6
-  - 2.7
-  - 3.2
-  - 3.3
-  - 3.4
+addons:
+  postgresql: "9.3"
 
 env:
-  - DJANGO="django>=1.6,<1.7" SETTINGS=sqlite3
-  - DJANGO="django>=1.6,<1.7" SETTINGS=postgresql_psycopg2
-  - DJANGO="django>=1.7,<1.8" SETTINGS=sqlite3
-  - DJANGO="django>=1.7,<1.8" SETTINGS=postgresql_psycopg2
-  - DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=sqlite3
-  - DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=postgresql_psycopg2
+  - TOXENV=py27-1.6-sqlite3
+  - TOXENV=py27-1.6-postgresql
+  - TOXENV=py27-1.7-sqlite3
+  - TOXENV=py27-1.7-postgresql
+  - TOXENV=py27-master-sqlite3
+  - TOXENV=py27-master-postgresql
+  - TOXENV=py32-1.6-sqlite3
+  - TOXENV=py32-1.6-postgresql
+  - TOXENV=py32-1.7-sqlite3
+  - TOXENV=py32-1.7-postgresql
+  - TOXENV=py33-1.6-sqlite3
+  - TOXENV=py33-1.6-postgresql
+  - TOXENV=py33-1.7-sqlite3
+  - TOXENV=py33-1.7-postgresql
+  - TOXENV=py34-1.7-sqlite3
+  - TOXENV=py34-1.7-postgresql
+  - TOXENV=py34-master-sqlite3
+  - TOXENV=py34-master-postgresql
 
 matrix:
-  exclude:
+  include:
     - python: 2.6
-      env: DJANGO="django>=1.7,<1.8" SETTINGS=sqlite3
+      env: TOXENV=py26-1.6-sqlite3
     - python: 2.6
-      env: DJANGO="django>=1.7,<1.8" SETTINGS=postgresql_psycopg2
-    - python: 2.6
-      env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=sqlite3
-    - python: 2.6
-      env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=postgresql_psycopg2
+      env: TOXENV=py26-1.6-postgresql
   allow_failures:
-    - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=sqlite3
-    - env: DJANGO="https://github.com/django/django/archive/master.tar.gz" SETTINGS=postgresql_psycopg2
+    - env: TOXENV=py27-master-sqlite3
+    - env: TOXENV=py27-master-postgresql
+    - env: TOXENV=py34-master-sqlite3
+    - env: TOXENV=py34-master-postgresql
 
 before_script:
-  - export PGUSER='postgres'
-  - if echo $SETTINGS | grep 'postgresql' -q; then psql -c 'CREATE DATABASE tenancy;' -U postgres; fi
+  - if echo $TOXENV | grep -E 'postgresql' -q; then psql -U postgres -c "CREATE DATABASE tenancy;"; fi
 
 install:
-  - pip install $DJANGO coveralls django-hosts
-  - if echo $SETTINGS | grep 'psycopg2' -q; then pip install psycopg2 -q; fi
-  - if python --version 2>&1 | grep -E '^Python 3' -q; then
-      echo "django-mutant has not been ported to Python 3 yet.";
-    elif python -c "import django; print(django.VERSION >= (1, 7, 0))" | grep "True" -q; then
-      echo "django-mutant has not been ported to Django 1.7+ yet.";
-    else
-      pip install django-mutant;
-    fi
+  - pip install tox coveralls
 
 script:
-  - python -Wonce `which coverage` run `which django-admin.py` test tenancy --pythonpath=`pwd` --settings=test_settings.$SETTINGS -v2
+  - tox
 
 after_success:
-  - coverage report -m
   - coveralls
