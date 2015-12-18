@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import warnings
 
-import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Manager
 from django.db.models.query import QuerySet
@@ -87,8 +86,6 @@ class TenantObjectMixin(TenantMixin):
 
 
 class TenantModelFormMixin(TenantObjectMixin, ModelFormMixin):
-    fields = None  # Required on Django < 1.6
-
     def get_form_class(self):
         """
         Provide a model form class based on tenant specific model.
@@ -119,11 +116,11 @@ class TenantModelFormMixin(TenantObjectMixin, ModelFormMixin):
                 return factory(self.get_tenant(), form_class)
         else:
             form_class = ModelForm
-            if django.VERSION >= (1, 6) and fields is None:
+            if fields is None:
                 warnings.warn(
                     "Using TenantModelFormMixin (base class of %s) without "
                     "the 'fields' attribute is deprecated." % self.__class__.__name__,
-                    DeprecationWarning if django.VERSION >= (1, 7) else PendingDeprecationWarning
+                    DeprecationWarning,
                 )
         return modelform_factory(
             self.get_tenant_model(), form_class, fields=fields

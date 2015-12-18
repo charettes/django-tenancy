@@ -8,18 +8,12 @@ addons:
 env:
   - TOXENV=flake8
   - TOXENV=isort
-  - TOXENV=py27-1.6-sqlite3
-  - TOXENV=py27-1.6-postgresql
   - TOXENV=py27-1.7-sqlite3
   - TOXENV=py27-1.7-postgresql
   - TOXENV=py27-master-sqlite3
   - TOXENV=py27-master-postgresql
-  - TOXENV=py32-1.6-sqlite3
-  - TOXENV=py32-1.6-postgresql
   - TOXENV=py32-1.7-sqlite3
   - TOXENV=py32-1.7-postgresql
-  - TOXENV=py33-1.6-sqlite3
-  - TOXENV=py33-1.6-postgresql
   - TOXENV=py33-1.7-sqlite3
   - TOXENV=py33-1.7-postgresql
   - TOXENV=py34-1.7-sqlite3

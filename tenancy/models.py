@@ -378,7 +378,6 @@ class TenantModelBase(ModelBase):
         )
         name = str("%s_%s" % (opts.object_name, field.name))
         field_opts = {'db_tablespace': field.db_tablespace}
-        # Django 1.6 introduced `db_contraint`.
         if hasattr(field, 'db_constraint'):
             field_opts['db_constraint'] = field.db_constraint
         return type(name, (cls.tenant_model_class,), {

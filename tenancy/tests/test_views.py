@@ -148,10 +148,7 @@ class TenantModelFormMixinTest(TenancyTestCase):
             MissingFieldsModelFormMixin().get_form_class()
         self.assertTrue(records)
         warning = records[0]
-        self.assertEqual(
-            warning.category,
-            DeprecationWarning if django.VERSION >= (1, 7) else PendingDeprecationWarning
-        )
+        self.assertEqual(warning.category, DeprecationWarning)
         self.assertEqual(
             str(warning.message),
             "Using TenantModelFormMixin (base class of MissingFieldsModelFormMixin) "
