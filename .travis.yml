@@ -6,6 +6,7 @@ addons:
   postgresql: "9.3"
 
 env:
+  - TOXENV=flake8
   - TOXENV=py27-1.6-sqlite3
   - TOXENV=py27-1.6-postgresql
   - TOXENV=py27-1.7-sqlite3
