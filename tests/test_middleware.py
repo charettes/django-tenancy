@@ -10,7 +10,7 @@ from .utils import TenancyTestCase
 
 
 @override_settings(
-    ROOT_URLCONF='tenancy.tests.urls',
+    ROOT_URLCONF='tests.urls',
     MIDDLEWARE_CLASSES=(
         'tenancy.middleware.GlobalTenantMiddleware',
     ),

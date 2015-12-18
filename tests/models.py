@@ -1,14 +1,13 @@
 from __future__ import unicode_literals
 
-import sys
-
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 
-from ..models import Tenant, TenantModel
-from ..utils import model_sender_signals
+from tenancy.models import Tenant, TenantModel
+from tenancy.utils import model_sender_signals
+
 from .managers import ManagerOtherSubclass, ManagerSubclass
 
 try:
@@ -23,14 +22,14 @@ except ImportError:
 
 class NonTenantModel(models.Model):
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
 
 
 class AbstractNonTenant(models.Model):
     hidden_non_tenant = models.ForeignKey(NonTenantModel, null=True)
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
         abstract = True
 
 
@@ -38,7 +37,7 @@ class AbstractTenantModel(TenantModel):
     date = models.DateField(null=True)
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
         abstract = True
 
 
@@ -59,7 +58,7 @@ class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
     custom_objects = ManagerOtherSubclass()
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
         db_table = 'custom_db_table'
 
     class TenantMeta:
@@ -89,7 +88,7 @@ class PostInitFieldsModel(TenantModel):
         image = models.ImageField(upload_to='void')
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
 
     class TenantMeta:
         related_name = 'postinits'
@@ -102,7 +101,7 @@ class GenericRelationModel(TenantModel):
     postinits = GenericRelation(PostInitFieldsModel)
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
 
     class TenantMeta:
         related_name = 'generic_relations'
@@ -116,7 +115,7 @@ class SpecificModelProxy(SpecificModel):
     proxied_objects = ManagerSubclass()
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
         proxy = True
 
     class TenantMeta:
@@ -128,7 +127,7 @@ class SpecificModelProxy(SpecificModel):
 
 class SpecificModelProxySubclass(SpecificModelProxy):
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
         proxy = True
 
     def test_mro(self):
@@ -139,7 +138,7 @@ class SpecificModelSubclass(SpecificModel):
     objects = ManagerOtherSubclass()
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
 
     class TenantMeta:
         related_name = 'specific_models_subclasses'
@@ -150,7 +149,7 @@ class SpecificModelSubclass(SpecificModel):
 
 class SpecificModelSubclassProxy(SpecificModelSubclass):
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
         proxy = True
 
     def test_mro(self):
@@ -159,7 +158,7 @@ class SpecificModelSubclassProxy(SpecificModelSubclass):
 
 class RelatedSpecificModel(TenantModel):
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
 
     class TenantMeta:
         related_name = 'related_specific_models'
@@ -172,7 +171,7 @@ class AbstractSpecificModelSubclass(TenantModel):
     fk = models.ForeignKey(SpecificModel, related_name='fks', null=True)
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
         abstract = True
 
 
@@ -188,7 +187,7 @@ class RelatedTenantModel(AbstractSpecificModelSubclass):
     )
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
 
     class TenantMeta:
         related_name = 'related_tenant_models'
@@ -204,7 +203,7 @@ class M2MSpecific(TenantModel):
     )
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
         index_together = (
             ('related', 'specific'),
         )
@@ -218,7 +217,7 @@ class M2MSpecific(TenantModel):
 
 class SignalTenantModel(TenantModel):
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
 
     class TenantMeta:
         related_name = 'signal_models'
@@ -274,7 +273,7 @@ class TenantUser(TenantModel, AbstractBaseUser):
     USERNAME_FIELD = 'email'
 
     class Meta:
-        app_label = 'tenancy'
+        app_label = 'tests'
 
     class TenantMeta:
         related_name = 'users'
@@ -284,42 +283,41 @@ class TenantUser(TenantModel, AbstractBaseUser):
 
 
 try:
-    from ..mutant.models import ModelDefinition, MutableTenantModel
+    from tenancy.mutant.models import ModelDefinition, MutableTenantModel
 except ImportError:
     pass
 else:
-    if sys.version_info >= (2, 7):
-        class MutableModel(MutableTenantModel):
-            field = models.BooleanField()
-            model_def = models.ForeignKey(ModelDefinition, null=True)
+    class MutableModel(MutableTenantModel):
+        field = models.BooleanField()
+        model_def = models.ForeignKey(ModelDefinition, null=True)
 
-            class Meta:
-                app_label = 'tenancy'
-                ordering = ('-id',)
+        class Meta:
+            app_label = 'tests'
+            ordering = ('-id',)
 
-            class TenantMeta:
-                related_name = 'mutable_models'
+        class TenantMeta:
+            related_name = 'mutable_models'
 
-            def test_mro(self):
-                return 'MutableModel'
+        def test_mro(self):
+            return 'MutableModel'
 
-        class MutableModelSubclass(MutableModel):
-            non_mutable_fk = models.ForeignKey(SpecificModel, related_name='mutables')
+    class MutableModelSubclass(MutableModel):
+        non_mutable_fk = models.ForeignKey(SpecificModel, related_name='mutables')
 
-            class Meta:
-                app_label = 'tenancy'
+        class Meta:
+            app_label = 'tests'
 
-            def test_mro(self):
-                return 'MutableModelSubclass'
+        def test_mro(self):
+            return 'MutableModelSubclass'
 
-        class NonMutableModel(TenantModel):
-            mutable_fk = models.ForeignKey(MutableModel, related_name='non_mutables')
+    class NonMutableModel(TenantModel):
+        mutable_fk = models.ForeignKey(MutableModel, related_name='non_mutables')
 
-            class Meta:
-                app_label = 'tenancy'
+        class Meta:
+            app_label = 'tests'
 
-            def test_mro(self):
-                return 'NonMutableModel'
+        def test_mro(self):
+            return 'NonMutableModel'
 
 
 try:

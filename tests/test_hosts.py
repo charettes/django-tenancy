@@ -6,8 +6,9 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 from django.utils.encoding import force_bytes
 
-from ..middleware import TenantHostMiddleware
-from ..models import Tenant
+from tenancy.middleware import TenantHostMiddleware
+from tenancy.models import Tenant
+
 from .utils import TenancyTestCase
 
 try:
@@ -19,7 +20,7 @@ except ImportError:
 def django_hosts_installed_setup(func):
     func = override_settings(
         DEFAULT_HOST='default',
-        ROOT_HOSTCONF='tenancy.tests.hosts',
+        ROOT_HOSTCONF='tests.hosts',
         MIDDLEWARE_CLASSES=(
             'django_hosts.middleware.HostsMiddleware',
             'tenancy.middleware.TenantHostMiddleware'
@@ -31,7 +32,7 @@ def django_hosts_installed_setup(func):
     )(func)
 
 
-@override_settings(ROOT_URLCONF='tenancy.tests.urls')
+@override_settings(ROOT_URLCONF='tests.urls')
 class TenantHostMiddlewareTest(TenancyTestCase):
     @classmethod
     def tenant_client(cls, tenant):

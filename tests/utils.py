@@ -12,11 +12,11 @@ from django.test.signals import setting_changed
 from django.test.testcases import TransactionTestCase
 from django.utils.six.moves import input
 
-from .. import settings
-from ..management.commands import createtenant
-from ..models import Tenant
+from tenancy import settings
+from tenancy.management.commands import createtenant
+from tenancy.models import Tenant
 
-logger = logging.getLogger('tenancy.tests')
+logger = logging.getLogger('tests')
 
 
 def skipIfCustomTenant(test):
@@ -54,8 +54,8 @@ def setup_custom_tenant_user(test):
     """
     @wraps(test)
     def wrapped(self, *args, **kwargs):
-        with self.settings(AUTH_USER_MODEL='tenancy.TenantUser'):
-            from ..settings import TENANT_AUTH_USER_MODEL
+        with self.settings(AUTH_USER_MODEL='tests.TenantUser'):
+            from tenancy.settings import TENANT_AUTH_USER_MODEL
             self.assertTrue(TENANT_AUTH_USER_MODEL)
             test(self, *args, **kwargs)
     return wrapped

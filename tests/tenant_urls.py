@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from django.conf.urls import url
 from django.http import HttpResponse
 
-from ..models import Tenant
+from tenancy.models import Tenant
 
 urlpatterns = [
     url(r'^$',

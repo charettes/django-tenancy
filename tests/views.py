@@ -7,10 +7,11 @@ from django.forms.models import modelform_factory
 from django.http import HttpResponse
 from django.views.generic.base import View
 
-from ..models import Tenant
-from ..views import (
+from tenancy.models import Tenant
+from tenancy.views import (
     TenantMixin, TenantModelFormMixin, TenantObjectMixin, TenantWizardMixin,
 )
+
 from .forms import (
     MissingModelForm, RelatedInlineFormSet, SpecificModelForm,
     SpecificModelFormSet,

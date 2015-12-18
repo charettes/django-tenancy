@@ -4,9 +4,10 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.auth',
     'tenancy',
+    'tests',
 ]
 
-ROOT_URLCONF = 'tenancy.tests.urls'
+ROOT_URLCONF = 'tests.urls'
 
 SILENCED_SYSTEM_CHECKS = ['1_7.W001']
 

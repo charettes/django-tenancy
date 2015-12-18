@@ -3,7 +3,8 @@ from __future__ import unicode_literals
 from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 
-from ..auth.backends import CustomTenantUserBackend
+from tenancy.auth.backends import CustomTenantUserBackend
+
 from .utils import TenancyTestCase, setup_custom_tenant_user
 
 
@@ -18,7 +19,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
             CustomTenantUserBackend
         )
 
-    @override_settings(AUTH_USER_MODEL='tenancy.TenantUser')
+    @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     def test_missing_connection_tenant(self):
         self.assertRaisesMessage(
             ImproperlyConfigured,

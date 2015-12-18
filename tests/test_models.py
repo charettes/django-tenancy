@@ -3,9 +3,8 @@ from __future__ import unicode_literals
 import gc
 import logging
 import pickle
-import sys
 import weakref
-from unittest import skipIf, skipUnless
+from unittest import skipUnless
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
@@ -13,12 +12,13 @@ from django.db import models as django_models
 from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
 
-from .. import get_tenant_model
-from ..models import (
+from tenancy import get_tenant_model
+from tenancy.models import (
     Tenant, TenantModel, TenantModelBase, TenantModelDescriptor,
     TenantSpecificModel, db_schema_table,
 )
-from ..utils import remove_from_app_cache
+from tenancy.utils import remove_from_app_cache
+
 from .managers import ManagerOtherSubclass, ManagerSubclass
 from .models import (
     AbstractTenantModel, NonTenantModel, RelatedSpecificModel,
@@ -187,8 +187,6 @@ class TenantModelBaseTest(TenancyTestCase):
         pickled = pickle.dumps(obj)
         self.assertEqual(pickle.loads(pickled), obj)
 
-    @skipIf(sys.version_info < (2, 7),
-            "Model class can't be pickled on python < 2.7")
     def test_pickling(self):
         self.assertPickleEqual(SpecificModel)
         self.assertPickleEqual(self.tenant.specificmodels.model)
@@ -389,7 +387,7 @@ class TenantModelTest(TenancyTestCase):
                 tenant.m2m_specifics.model
             )
             self.assertEqual(
-                tenant.specificmodels.model.tenancy_m2mspecific_related.related.model,
+                tenant.specificmodels.model.tests_m2mspecific_related.related.model,
                 tenant.m2m_specifics.model
             )
 

@@ -120,6 +120,8 @@ def clear_opts_related_cache(model_class):
     Clear the specified model and its children opts related cache.
     """
     opts = model_class._meta
+    if not opts.apps.ready:
+        return
     children = [
         related_object.model
         for related_object in opts.get_all_related_objects()

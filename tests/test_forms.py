@@ -3,11 +3,12 @@ from __future__ import unicode_literals
 from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import modelform_factory, modelformset_factory
 
-from ..forms import (
+from tenancy.forms import (
     tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory,
 )
-from ..models import Tenant
+from tenancy.models import Tenant
+
 from .forms import (
     NonTenantInlineFormSet, RelatedInlineFormSet, RelatedTenantModelForm,
     SpecificModelForm, SpecificModelFormSet,

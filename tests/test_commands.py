@@ -11,9 +11,10 @@ from django.db.utils import DatabaseError
 from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
 
-from ..models import Tenant, TenantModelBase
-from ..signals import post_schema_deletion, pre_schema_creation
-from ..utils import allow_migrate
+from tenancy.models import Tenant, TenantModelBase
+from tenancy.signals import post_schema_deletion, pre_schema_creation
+from tenancy.utils import allow_migrate
+
 from .utils import (
     TenancyTestCase, mock_inputs, setup_custom_tenant_user, skipIfCustomTenant,
 )

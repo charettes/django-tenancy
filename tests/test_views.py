@@ -23,7 +23,7 @@ from .views import (
 )
 
 
-@override_settings(ROOT_URLCONF='tenancy.tests.urls')
+@override_settings(ROOT_URLCONF='tests.urls')
 class TenantMixinTest(TenancyTestCase):
     client_class = RequestFactory
 
@@ -67,7 +67,7 @@ class TenantObjectMixinTest(TenancyTestCase):
 
     def test_get_template_names(self):
         self.assertIn(
-            'tenancy/specificmodel.html',
+            'tests/specificmodel.html',
             SpecificModelMixin().get_template_names()
         )
 

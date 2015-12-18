@@ -3,9 +3,9 @@ from __future__ import unicode_literals
 from django.db import models
 from django.test import SimpleTestCase
 
-from .. import get_tenant_model
-from ..signals import lazy_class_prepared
-from ..utils import remove_from_app_cache
+from tenancy import get_tenant_model
+from tenancy.signals import lazy_class_prepared
+from tenancy.utils import remove_from_app_cache
 
 
 def prepare_model():
