@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 
 from tenancy.models import Tenant, TenantModel
@@ -81,8 +80,8 @@ class PostInitFieldsModel(TenantModel):
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
     try:
-        from django.utils.image import Image as _  # NOQA
-    except ImproperlyConfigured:
+        from PIL import Image as _  # NOQA
+    except ImportError:
         pass
     else:
         image = models.ImageField(upload_to='void')
