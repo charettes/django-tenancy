@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 from django import forms
-from django.contrib.formtools.wizard.views import NamedUrlWizardView
 from django.db import connection, models
 from django.forms.models import modelform_factory
 from django.http import HttpResponse
@@ -17,6 +16,14 @@ from .forms import (
     SpecificModelFormSet,
 )
 from .models import RelatedTenantModel, SpecificModel
+
+try:
+    from formtools.wizard.views import NamedUrlWizardView
+except ImportError:
+    try:
+        from django.contrib.formtools.wizard.views import NamedUrlWizardView
+    except ImportError:
+        NamedUrlWizardView = None
 
 
 def raise_exception(request):
@@ -91,16 +98,17 @@ class RelatedInlineFormSetMixin(TenancyTestMixin, TenantModelFormMixin):
 
 
 # Class used by TenantWizardMixinTest
-class TenantWizardView(TenancyTestMixin, TenantWizardMixin,
-                       NamedUrlWizardView):
-    @classmethod
-    def get_initkwargs(cls, *args, **kwargs):
-        form_list = (
-            ('tenant_model_form', SpecificModelForm),
-            ('tenant_model_formset', SpecificModelFormSet),
-            ('tenant_inline_formset', RelatedInlineFormSet)
-        )
-        kwargs.setdefault('url_name', 'wizard')
-        return super(TenantWizardView, cls).get_initkwargs(
-            form_list, *args, **kwargs
-        )
+if NamedUrlWizardView:
+    class TenantWizardView(TenancyTestMixin, TenantWizardMixin,
+                           NamedUrlWizardView):
+        @classmethod
+        def get_initkwargs(cls, *args, **kwargs):
+            form_list = (
+                ('tenant_model_form', SpecificModelForm),
+                ('tenant_model_formset', SpecificModelFormSet),
+                ('tenant_inline_formset', RelatedInlineFormSet)
+            )
+            kwargs.setdefault('url_name', 'wizard')
+            return super(TenantWizardView, cls).get_initkwargs(
+                form_list, *args, **kwargs
+            )

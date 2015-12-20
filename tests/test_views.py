@@ -19,8 +19,13 @@ from .views import (
     MissingModelMixin, NonModelFormMixin, NonTenantModelFormClass,
     RelatedInlineFormSetMixin, SpecificModelFormMixin,
     SpecificModelFormSetMixin, SpecificModelMixin, TenantMixinView,
-    TenantWizardView, UnspecifiedFormClass,
+    UnspecifiedFormClass,
 )
+
+try:
+    from .views import TenantWizardView
+except ImportError:
+    TenantWizardView = None
 
 
 @override_settings(ROOT_URLCONF='tests.urls')
@@ -183,6 +188,7 @@ class TenantModelFormMixinTest(TenancyTestCase):
         self.assertEqual(form_class._meta.model, model)
 
 
+@skipUnless(TenantWizardView, 'Missing formtools.')
 class TenantWizardMixinTest(TenancyTestCase):
     def create_wizard(self):
         return TenantWizardView(**TenantWizardView.get_initkwargs())
