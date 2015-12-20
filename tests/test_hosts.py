@@ -21,10 +21,11 @@ def django_hosts_installed_setup(func):
     func = override_settings(
         DEFAULT_HOST='default',
         ROOT_HOSTCONF='tests.hosts',
-        MIDDLEWARE_CLASSES=(
-            'django_hosts.middleware.HostsMiddleware',
-            'tenancy.middleware.TenantHostMiddleware'
-        )
+        MIDDLEWARE_CLASSES=[
+            'django_hosts.middleware.HostsRequestMiddleware',
+            'tenancy.middleware.TenantHostMiddleware',
+            'django_hosts.middleware.HostsResponseMiddleware',
+        ],
     )(func)
     return skipUnless(
         django_hosts,
@@ -52,13 +53,13 @@ class TenantHostMiddlewareTest(TenancyTestCase):
     @override_settings(
         MIDDLEWARE_CLASSES=(
             'tenancy.middleware.TenantHostMiddleware',
-            'django_hosts.middleware.HostsMiddleware'
+            'django_hosts.middleware.HostsRequestMiddleware',
         )
     )
     def test_wrong_order(self):
         self.assertRaisesMessage(
             ImproperlyConfigured,
-            "Make sure that 'django_hosts.middleware.HostsMiddleware' is "
+            "Make sure that 'django_hosts.middleware.HostsRequestMiddleware' is "
             "placed before 'tenancy.middleware.TenantHostMiddleware' in your "
             "`MIDDLEWARE_CLASSES` setting.",
             TenantHostMiddleware

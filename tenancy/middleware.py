@@ -20,11 +20,11 @@ class TenantHostMiddleware(object):
             )
         path = "%s.%s" % (self.__module__, self.__class__.__name__)
         for middleware in settings.MIDDLEWARE_CLASSES:
-            if middleware == 'django_hosts.middleware.HostsMiddleware':
+            if middleware == 'django_hosts.middleware.HostsRequestMiddleware':
                 break
             elif middleware == path:
                 raise ImproperlyConfigured(
-                    "Make sure that 'django_hosts.middleware.HostsMiddleware' "
+                    "Make sure that 'django_hosts.middleware.HostsRequestMiddleware' "
                     "is placed before '%s' in your `MIDDLEWARE_CLASSES` "
                     "setting." % path
                 )
