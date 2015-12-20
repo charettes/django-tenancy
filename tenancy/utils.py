@@ -5,14 +5,8 @@ from itertools import chain
 
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
-from django.db import connections, models, router
+from django.db import models
 from django.db.models.base import ModelBase
-
-
-def allow_migrate(model):
-    for db in connections:
-        if router.allow_migrate(db, model):
-            yield db
 
 
 def get_model(app_label, model_name, **kwargs):

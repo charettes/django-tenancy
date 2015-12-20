@@ -1,14 +1,12 @@
 from __future__ import unicode_literals
 
 import logging
-from collections import OrderedDict
+import re
 
 from django.contrib.contenttypes.models import ContentType
-from django.core.management.color import no_style
-from django.db import connections, router, transaction
+from django.db import connections, router
 
 from .. import signals
-from ..utils import allow_migrate
 
 
 def create_tenant_schema(tenant, using=None):
@@ -42,104 +40,59 @@ def create_tenant_schema(tenant, using=None):
         sender=tenant_class, tenant=tenant, using=using
     )
 
-    # Here we don't use south's API to avoid detecting things such
-    # as `unique_together` and `index_together` (which are set on the
-    # abstract base) and manually calling `create_index`.
-    # This code is heavily inspired by the `syncdb` command and wouldn't
-    # be required if we could specify models to be "synced" to the command.
-    style = no_style()
-    seen_models = dict(
-        (db, connections[db].introspection.installed_models(tables))
-        for db, tables in (
-            (db, connections[db].introspection.table_names())
-            for db in connections
-        )
-    )
-    created_models = dict((db, set()) for db in connections)
-    pending_references = dict((db, {}) for db in connections)
-    index_sql = OrderedDict()
-    if connection.vendor == 'postgresql':
-        index_prefix = "%s." % quoted_schema
-
     signals.pre_models_creation.send(
         sender=tenant_class, tenant=tenant, using=using
     )
 
-    for model in tenant.models:
-        opts = model._meta
-        logger.debug(
-            "Processing %s.%s model" % (opts.app_label, opts.object_name)
-        )
-        # Has the side effect of creating the required `ContentType`.
-        ContentType.objects.get_for_model(model)
-        # Avoid further processing we're dealing with an unmanaged model or
-        # one proxying another.
-        if not opts.managed or opts.proxy:
-            continue
-        # Store index required for this model to be created later on.
-        index_sql[model] = connection.creation.sql_indexes_for_model(
-            model, style
-        )
-        if connection.vendor == 'postgresql':
-            table_name = "%s.%s" % (
-                schema, model._for_tenant_model._meta.db_table
+    with connection.schema_editor() as editor:
+        for model in tenant.models:
+            # Has the side effect of creating the required `ContentType`.
+            ContentType.objects.get_for_model(model)
+            # Avoid further processing we're dealing with an unmanaged model or
+            # one proxying another.
+            opts = model._meta
+            if not opts.managed or opts.proxy or opts.auto_created:
+                continue
+            if not router.allow_migrate(connection.alias, model):
+                continue
+            logger.debug(
+                "Processing %s.%s model" % (opts.app_label, opts.object_name)
             )
-            for i, statement in enumerate(index_sql[model]):
-                index_sql[model][i] = statement.replace(index_prefix, '', 1)
-        else:
-            table_name = opts.db_table
-        quoted_table_name = quote_name(opts.db_table)
-        for db in allow_migrate(model):
+            if connection.vendor == 'postgresql':
+                table_name = "%s.%s" % (
+                    schema, model._for_tenant_model._meta.db_table
+                )
+            else:
+                table_name = opts.db_table
             logger.info("Creating table %s ..." % table_name)
-            connection = connections[db]
-            sql, references = connection.creation.sql_create_model(
-                model, style, seen_models
-            )
-            seen_models[db].add(model)
-            created_models[db].add(model)
-            for refto, refs in references.items():
-                pending_references[db].setdefault(refto, []).extend(refs)
-                if refto in seen_models[db]:
-                    sql.extend(
-                        connection.creation.sql_for_pending_references(
-                            refto, style, pending_references[db]
-                        )
-                    )
-            sql.extend(
-                connection.creation.sql_for_pending_references(
-                    model, style, pending_references[db]
-                )
-            )
+            for m2m in opts.many_to_many:
+                through_opts = m2m.rel.through._meta
+                if through_opts.auto_created:
+                    logger.info("Creating table %s ..." % through_opts.db_table)
+            editor.create_model(model)
             if connection.vendor == 'postgresql' and SCHEMA_AUTHORIZATION:
-                sql.append(
+                quoted_tables = [quote_name(opts.db_table)] + [
+                    quote_name(m2m.rel.through._meta.db_table)
+                    for m2m in opts.many_to_many if through_opts.auto_created
+                ]
+                editor.deferred_sql.extend(
                     "ALTER TABLE %s OWNER TO %s" % (
-                        quoted_table_name, quoted_schema
-                    )
+                        quoted_table, quoted_schema
+                    ) for quoted_table in quoted_tables
                 )
-            cursor = connection.cursor()
-            for statement in sql:
-                cursor.execute(statement)
-
-    logger.info('Installing indexes ...')
-    for model, statements in index_sql.items():
-        if statements:
-            for db in allow_migrate(model):
-                connection = connections[db]
-                sid = transaction.savepoint(db)
-                cursor = connection.cursor()
-                try:
-                    for statement in statements:
-                        cursor.execute(statement)
-                except Exception:
-                    opts = model._meta
-                    logger.exception(
-                        "Failed to install index for %s.%s model." % (
-                            opts.app_label, opts.object_name
-                        )
-                    )
-                    transaction.savepoint_rollback(sid, db)
-                else:
-                    transaction.savepoint_commit(sid, db)
+        if connection.vendor == 'postgresql':
+            altered_statements = []
+            # Our "db_table" hack to allow specifying a schema interferes with
+            # index and constraint creation.
+            create_index_re = re.compile('CREATE INDEX %s' % re.escape("%s." % quoted_schema))
+            add_constraint_re = re.compile('ADD CONSTRAINT "([^"]+)"\."([^"]+)"')
+            for statement in editor.deferred_sql:
+                if statement.startswith('CREATE INDEX'):
+                    statement = create_index_re.sub('CREATE INDEX ', statement)
+                elif 'ADD CONSTRAINT' in statement:
+                    statement = add_constraint_re.sub('ADD CONSTRAINT "\g<1>_\g<2>"', statement)
+                altered_statements.append(statement)
+            editor.deferred_sql = altered_statements
 
     signals.post_models_creation.send(
         sender=tenant_class, tenant=tenant, using=using
@@ -172,13 +125,14 @@ def drop_tenant_schema(tenant, using=None):
             "DROP SCHEMA %s CASCADE" % quote_name(tenant.db_schema)
         )
     else:
-        for model in tenant.models:
-            opts = model._meta
-            if not opts.managed or opts.proxy:
-                continue
-            table_name = quote_name(opts.db_table)
-            for db in allow_migrate(model):
-                connections[db].cursor().execute("DROP TABLE %s" % table_name)
+        with connection.schema_editor() as editor:
+            for model in tenant.models:
+                opts = model._meta
+                if not opts.managed or opts.proxy or opts.auto_created:
+                    continue
+                if not router.allow_migrate(connection.alias, model):
+                    continue
+                editor.delete_model(model)
 
     tenant._default_manager._remove_from_cache(tenant)
     ContentType.objects.clear_cache()

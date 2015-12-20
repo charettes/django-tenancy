@@ -441,6 +441,9 @@ class TenantModelBase(ModelBase):
                 # Make sure related fields pointing to tenant models are
                 # pointing to their tenant specific counterpart.
                 to = rel.to
+                # Clear the field's cache.
+                if hasattr(field, '_related_fields'):
+                    delattr(field, '_related_fields')
                 if isinstance(to, TenantModelBase):
                     if getattr(rel, 'parent_link', False):
                         continue

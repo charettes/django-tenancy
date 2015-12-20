@@ -13,7 +13,6 @@ from django.utils.six import StringIO
 
 from tenancy.models import Tenant, TenantModelBase
 from tenancy.signals import post_schema_deletion, pre_schema_creation
-from tenancy.utils import allow_migrate
 
 from .utils import (
     TenancyTestCase, mock_inputs, setup_custom_tenant_user, skipIfCustomTenant,
@@ -52,10 +51,13 @@ class CreateTenantCommandTest(TransactionTestCase):
             if connection.vendor == 'postgresql':
                 self.assertIn(tenant.db_schema, stdout.readline())
             for model in TenantModelBase.references:
-                self.assertIn(model._meta.object_name, stdout.readline())
-                if not model._meta.proxy:
+                if not model._meta.proxy and not model._meta.auto_created:
+                    self.assertIn(model._meta.object_name, stdout.readline())
                     self.assertIn(model._meta.db_table, stdout.readline())
-            self.assertIn('Installing indexes ...', stdout.readline())
+                for m2m in model._meta.many_to_many:
+                    through_opts = m2m.rel.through._meta
+                    if through_opts.auto_created:
+                        self.assertIn(through_opts.db_table, stdout.readline())
         finally:
             tenant.delete()
 
@@ -121,25 +123,23 @@ class SchemaAuthorizationTest(TenancyTestCase):
         """
         Make sure schema and table owner is correctly assigned.
         """
-        for db in allow_migrate(Tenant):
-            connection = connections[db]
-            cursor = connection.cursor()
-            for tenant in Tenant.objects.all():
-                schema = tenant.db_schema
-                cursor.execute(
-                    "SELECT rolname FROM pg_namespace "
-                    "INNER JOIN pg_roles ON pg_namespace.nspowner = pg_roles.oid "
-                    "WHERE nspname = %s",
-                    [schema]
-                )
-                schema_owner, = cursor.cursor.fetchone()
-                self.assertEqual(schema_owner, schema)
-                cursor.execute(
-                    "SELECT tableowner FROM pg_tables WHERE schemaname = %s",
-                    [schema]
-                )
-                for table_owner, in cursor.cursor.fetchall():
-                    self.assertEqual(table_owner, schema)
+        cursor = connection.cursor()
+        for tenant in Tenant.objects.all():
+            schema = tenant.db_schema
+            cursor.execute(
+                "SELECT rolname FROM pg_namespace "
+                "INNER JOIN pg_roles ON pg_namespace.nspowner = pg_roles.oid "
+                "WHERE nspname = %s",
+                [schema]
+            )
+            schema_owner, = cursor.cursor.fetchone()
+            self.assertEqual(schema_owner, schema)
+            cursor.execute(
+                "SELECT tableowner FROM pg_tables WHERE schemaname = %s",
+                [schema]
+            )
+            for table_owner, in cursor.cursor.fetchall():
+                self.assertEqual(table_owner, schema)
 
     def test_permission_denied(self):
         """
