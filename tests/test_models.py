@@ -4,6 +4,7 @@ import gc
 import logging
 import pickle
 import weakref
+from itertools import chain
 from unittest import skipUnless
 
 from django.contrib.contenttypes.models import ContentType
@@ -358,7 +359,7 @@ class TenantModelTest(TenancyTestCase):
                 opts = model._meta
                 tenant_model = model.for_tenant(tenant)
                 tenant_opts = tenant_model._meta
-                for field in (opts.local_fields + opts.many_to_many):
+                for field in chain(opts.local_fields, opts.many_to_many):
                     tenant_field = tenant_opts.get_field(field.name)
                     self.assertEqual(tenant_field.__class__, field.__class__)
 
