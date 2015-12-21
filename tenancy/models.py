@@ -17,6 +17,7 @@ from django.utils.six import itervalues, string_types, with_metaclass
 from django.utils.six.moves import copyreg
 
 from . import get_tenant_model
+from .compat import get_remote_field_model, set_remote_field_model
 from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (
     AbstractTenantManager, TenantManager, TenantModelManagerDescriptor,
@@ -435,22 +436,22 @@ class TenantModelBase(ModelBase):
             if rel:
                 # Make sure related fields pointing to tenant models are
                 # pointing to their tenant specific counterpart.
-                to = rel.to
+                remote_field_model = get_remote_field_model(field)
                 # Clear the field's cache.
                 if hasattr(field, '_related_fields'):
                     delattr(field, '_related_fields')
                 clear_cached_properties(field)
                 clear_cached_properties(rel)
-                if isinstance(to, TenantModelBase):
+                if isinstance(remote_field_model, TenantModelBase):
                     if getattr(rel, 'parent_link', False):
                         continue
-                    rel.to = self.references[to].for_tenant(tenant)
+                    set_remote_field_model(field, self.references[remote_field_model].for_tenant(tenant))
                     # If no `related_name` was specified we make sure to
                     # define one based on the non-tenant specific model name.
                     if not rel.related_name:
                         rel.related_name = "%s_set" % self._meta.model_name
                 else:
-                    clear_opts_related_cache(to)
+                    clear_opts_related_cache(remote_field_model)
                     related_name = reference.related_names[field.name]
                     # The `related_name` was validated earlier to either end
                     # with a '+' sign or to contain %(class)s.
