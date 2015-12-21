@@ -212,11 +212,6 @@ class TenantModelBase(ModelBase):
     def __new__(cls, name, bases, attrs):
         super_new = super(TenantModelBase, cls).__new__
 
-        # attrs will never be empty for classes declared in the standard way
-        # (ie. with the `class` keyword). This is quite robust.
-        if name == 'NewBase' and attrs == {}:
-            return super_new(cls, name, bases, attrs)
-
         Meta = attrs.setdefault('Meta', meta())
         if (getattr(Meta, 'abstract', False) or
                 any(issubclass(base, TenantSpecificModel) for base in bases)):
