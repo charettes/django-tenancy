@@ -2,14 +2,16 @@ from __future__ import unicode_literals
 
 from unittest import skipUnless
 
+from tenancy.compat import get_remote_field_model
+
 from .utils import TenancyTestCase
 
 try:
     from mutant.contrib.boolean.models import NullBooleanFieldDefinition
+    from .models import MutableModel, MutableModelSubclass, NonMutableModel
 except ImportError:
     mutant_installed = False
 else:
-    from .models import MutableModel, MutableModelSubclass, NonMutableModel
     mutant_installed = True
 
 
@@ -29,7 +31,7 @@ class MutableTenantModelTest(TenancyTestCase):
     def test_subclassing(self):
         model_class = MutableModelSubclass.for_tenant(self.tenant)
         self.assertEqual(
-            model_class.non_mutable_fk.field.rel.to,
+            get_remote_field_model(model_class._meta.get_field('non_mutable_fk')),
             self.tenant.specificmodels.model
         )
         specific_model = self.tenant.specificmodels.create()

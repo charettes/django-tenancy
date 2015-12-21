@@ -289,7 +289,7 @@ except ImportError:
     pass
 else:
     class MutableModel(MutableTenantModel):
-        field = models.BooleanField()
+        field = models.BooleanField(default=False)
         model_def = models.ForeignKey(ModelDefinition, on_delete=models.CASCADE, null=True)
 
         class Meta:

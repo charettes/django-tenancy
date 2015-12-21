@@ -17,6 +17,7 @@ except ImportError:
     pass
 else:
     INSTALLED_APPS.append('mutant')
+    INSTALLED_APPS.append('mutant.contrib.boolean')
 
 TEMPLATES = [
     {

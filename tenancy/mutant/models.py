@@ -10,9 +10,14 @@ from mutant.db.models import MutableModel
 from mutant.models import (
     BaseDefinition, ModelDefinition, OrderingFieldDefinition,
 )
+from mutant.models.model import MutableModelProxy
 from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
+from ..compat import (
+    contribute_to_related_class, get_remote_field, get_remote_field_model,
+    get_reverse_fields, set_remote_field_model,
+)
 from ..models import (
     Reference, TenantModel, TenantModelBase, TenantSpecificModel,
     db_schema_table,
@@ -20,12 +25,7 @@ from ..models import (
 from ..signals import (
     post_models_creation, pre_models_creation, pre_schema_deletion,
 )
-from ..utils import get_model
-
-try:
-    from mutant.models.model import MutableModelProxy
-except ImportError:
-    from mutant.models.model import _ModelClassProxy as MutableModelProxy
+from ..utils import get_forward_fields, get_model
 
 
 class MutableReference(Reference):
@@ -97,6 +97,15 @@ class MutableTenantModel(six.with_metaclass(MutableTenantModelBase, TenantModel)
     class Meta:
         abstract = True
 
+    @classmethod
+    def get_model_state(cls):
+        model_state = super(MutableTenantModel, cls).get_model_state()
+        tenant_model = str(cls._for_tenant_model._meta)
+        model_state.bases = tuple(
+            base for base in model_state.bases if base != tenant_model
+        )
+        return model_state
+
 
 def __unpickle_mutable_tenant_model_base(model, natural_key, abstract):
     try:
@@ -130,14 +139,15 @@ def contribute_to_related_mutable_class(sender, existing_model_class, **kwargs):
     the same with mutated classes they relate to in order to attach objects
     such as reverse descriptor.
     """
-    if existing_model_class:
-        related_objects = (
-            related_object for related_object, model in
-            sender._meta.get_all_related_objects_with_model() if model is None
-        )
-        for related_object in related_objects:
-            field = related_object.field
-            field.contribute_to_related_class(sender, field.related)
+    for model in sender._meta.apps.get_models():
+        for field in get_forward_fields(model._meta):
+            remote_field = get_remote_field(field)
+            if remote_field:
+                remote_field_model = get_remote_field_model(field)
+                # XXX: Remove the == conditional when dropping support for Django 1.8
+                if remote_field_model is existing_model_class or remote_field_model == sender:
+                    contribute_to_related_class(sender, field)
+                    set_remote_field_model(field, sender)
 
 
 @receiver(pre_models_creation)
@@ -177,7 +187,7 @@ def cached_mutable_models(tenant, using, **kwargs):
             opts.managed = True
             # Repoint all local related object to the existing model class to
             # prevent access to the definition once it's deleted.
-            for related_object in opts.get_all_related_objects(local_only=True):
-                related_object.field.rel.to = model
+            for reverse_field in get_reverse_fields(opts):
+                set_remote_field_model(reverse_field.field, model)
         models.append(model)
     tenant.models = tuple(models)
