@@ -68,9 +68,15 @@ if django.VERSION >= (1, 9):
 
     def set_remote_field_model(field, model):
         field.remote_field.model = model
+
+    def get_related_descriptor_field(descriptor):
+        return descriptor.field
 else:
     def get_remote_field_model(field):
         return field.rel.to
 
     def set_remote_field_model(field, model):
         field.rel.to = model
+
+    def get_related_descriptor_field(descriptor):
+        return descriptor.related.field

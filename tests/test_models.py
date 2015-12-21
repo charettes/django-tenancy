@@ -13,7 +13,7 @@ from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
 
 from tenancy import get_tenant_model
-from tenancy.compat import get_related_model, get_remote_field
+from tenancy.compat import get_related_descriptor_field, get_remote_field
 from tenancy.models import (
     Tenant, TenantModel, TenantModelBase, TenantModelDescriptor,
     TenantSpecificModel, db_schema_table,
@@ -382,11 +382,11 @@ class TenantModelTest(TenancyTestCase):
         """
         for tenant in Tenant.objects.all():
             self.assertEqual(
-                get_related_model(tenant.related_tenant_models.model.m2mspecific_set.related),
+                get_related_descriptor_field(tenant.related_tenant_models.model.m2mspecific_set).model,
                 tenant.m2m_specifics.model
             )
             self.assertEqual(
-                get_related_model(tenant.specificmodels.model.tests_m2mspecific_related.related),
+                get_related_descriptor_field(tenant.specificmodels.model.tests_m2mspecific_related).model,
                 tenant.m2m_specifics.model
             )
 
