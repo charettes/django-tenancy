@@ -1,6 +1,9 @@
 from __future__ import unicode_literals
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.contenttypes.fields import (
+    GenericForeignKey, GenericRelation,
+)
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
@@ -8,15 +11,6 @@ from tenancy.models import Tenant, TenantModel
 from tenancy.utils import model_sender_signals
 
 from .managers import ManagerOtherSubclass, ManagerSubclass
-
-try:
-    from django.contrib.contenttypes.fields import (
-        GenericRelation, GenericForeignKey
-    )
-except ImportError:
-    from django.contrib.contenttypes.generic import (
-        GenericRelation, GenericForeignKey
-    )
 
 
 class NonTenantModel(models.Model):
