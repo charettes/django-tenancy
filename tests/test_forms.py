@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import modelform_factory, modelformset_factory
 
+from tenancy.compat import get_remote_field_model
 from tenancy.forms import (
     tenant_inlineformset_factory, tenant_modelform_factory,
     tenant_modelformset_factory,
@@ -57,7 +58,7 @@ class TenantInlineFormsetFactoryTest(TenancyTestCase):
         formset = tenant_inlineformset_factory(self.tenant, NonTenantInlineFormSet)
         tenant_specific_model = SpecificModel.for_tenant(self.tenant)
         self.assertEqual(formset.model, tenant_specific_model)
-        self.assertEqual(formset.fk.rel.to, NonTenantModel)
+        self.assertEqual(get_remote_field_model(formset.fk), NonTenantModel)
         self.assertTrue(issubclass(formset, NonTenantInlineFormSet))
         form = formset.form
         self.assertTrue(issubclass(form, SpecificModelForm))
@@ -68,7 +69,7 @@ class TenantInlineFormsetFactoryTest(TenancyTestCase):
         tenant_specific_model = SpecificModel.for_tenant(self.tenant)
         tenant_related_model = RelatedTenantModel.for_tenant(self.tenant)
         self.assertEqual(formset.model, tenant_related_model)
-        self.assertEqual(formset.fk.rel.to, tenant_specific_model)
+        self.assertEqual(get_remote_field_model(formset.fk), tenant_specific_model)
         self.assertTrue(issubclass(formset, RelatedInlineFormSet))
         form = formset.form
         self.assertTrue(issubclass(form, RelatedTenantModelForm))

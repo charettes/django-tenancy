@@ -17,7 +17,9 @@ from django.utils.six import itervalues, string_types, with_metaclass
 from django.utils.six.moves import copyreg
 
 from . import get_tenant_model
-from .compat import get_remote_field_model, set_remote_field_model
+from .compat import (
+    get_remote_field, get_remote_field_model, set_remote_field_model,
+)
 from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (
     AbstractTenantManager, TenantManager, TenantModelManagerDescriptor,
@@ -239,18 +241,20 @@ class TenantModelBase(ModelBase):
             else:
                 # Extract field related names prior to adding them to the model
                 # in order to validate them later on.
-                related_names = dict(
-                    (attr.name or name, attr.rel.related_name)
-                    for name, attr in attrs.items()
-                    if isinstance(attr, Field) and attr.rel
-                )
+                related_names = {}
+                for attr_name, attr in attrs.items():
+                    if isinstance(attr, Field):
+                        remote_field = get_remote_field(attr)
+                        if remote_field:
+                            related_names[attr.name or attr_name] = remote_field.related_name
                 for base in bases:
                     if isinstance(base, ModelBase) and base._meta.abstract:
                         for field in base._meta.local_fields:
-                            if field.rel:
-                                related_names[field.name] = field.rel.related_name
+                            remote_field = get_remote_field(field)
+                            if remote_field:
+                                related_names[field.name] = remote_field.related_name
                         for m2m in base._meta.local_many_to_many:
-                            related_names[m2m.name] = m2m.rel.related_name
+                            related_names[m2m.name] = get_remote_field(m2m).related_name
                 model = super_new(
                     cls, name, bases,
                     dict(attrs, Meta=meta(Meta, managed=False))
@@ -259,21 +263,21 @@ class TenantModelBase(ModelBase):
                 opts = model._meta
                 # Validate related name of related fields.
                 for field in (opts.local_fields + opts.virtual_fields):
-                    rel = getattr(field, 'rel', None)
-                    if rel:
-                        cls.validate_related_name(field, field.rel.to, model)
+                    remote_field = get_remote_field(field)
+                    if remote_field:
+                        cls.validate_related_name(field, get_remote_field_model(field), model)
                         # Replace and store the current `on_delete` value to
                         # make sure non-tenant models are not collected on
                         # deletion.
-                        on_delete = rel.on_delete
+                        on_delete = remote_field.on_delete
                         if on_delete is not DO_NOTHING:
-                            rel._on_delete = on_delete
-                            rel.on_delete = DO_NOTHING
+                            remote_field._on_delete = on_delete
+                            remote_field.on_delete = DO_NOTHING
                 for m2m in opts.local_many_to_many:
-                    rel = m2m.rel
-                    to = rel.to
-                    cls.validate_related_name(m2m, to, model)
-                    through = rel.through
+                    m2m_remote_field = get_remote_field(m2m)
+                    m2m_related_model = get_remote_field_model(m2m)
+                    cls.validate_related_name(m2m, m2m_related_model, model)
+                    through = m2m_remote_field.through
                     if (not isinstance(through, string_types) and
                             through._meta.auto_created):
                         # Replace the automatically created intermediary model
@@ -281,11 +285,11 @@ class TenantModelBase(ModelBase):
                         remove_from_app_cache(through)
                         # Make sure to clear the referenced model cache if
                         # we have contributed to it already.
-                        if not isinstance(to, string_types):
-                            clear_opts_related_cache(rel.to)
-                        rel.through = cls.intermediary_model_factory(m2m, model)
+                        if not isinstance(m2m_related_model, string_types):
+                            clear_opts_related_cache(m2m_related_model)
+                        m2m_remote_field.through = cls.intermediary_model_factory(m2m, model)
                     else:
-                        cls.validate_through(m2m, m2m.rel.to, model)
+                        cls.validate_through(m2m, m2m_related_model, model)
             # Replace `ManagerDescriptor`s with `TenantModelManagerDescriptor`
             # instances.
             for manager in managers:
@@ -319,7 +323,7 @@ class TenantModelBase(ModelBase):
         elif not isinstance(rel_to, TenantModelBase):
             related_name = cls.references[model].related_names[field.name]
             if (related_name is not None and
-                    not (field.rel.is_hidden() or '%(class)s' in related_name)):
+                    not (get_remote_field(field).is_hidden() or '%(class)s' in related_name)):
                     del cls.references[model]
                     remove_from_app_cache(model, quiet=True)
                     raise ImproperlyConfigured(
@@ -336,7 +340,7 @@ class TenantModelBase(ModelBase):
         Make sure the related fields with a specified through points to an
         instance of `TenantModelBase`.
         """
-        through = field.rel.through
+        through = get_remote_field(field).through
         if isinstance(through, string_types):
             add_lazy_relation(model, field, through, cls.validate_through)
         elif not isinstance(through, cls):
@@ -350,7 +354,7 @@ class TenantModelBase(ModelBase):
 
     @classmethod
     def intermediary_model_factory(cls, field, from_model):
-        to_model = field.rel.to
+        to_model = get_remote_field_model(field)
         opts = from_model._meta
         from_model_name = opts.model_name
         if to_model == from_model:
@@ -432,8 +436,8 @@ class TenantModelBase(ModelBase):
             )
         )
         for field in fields:
-            rel = getattr(field, 'rel', None)
-            if rel:
+            remote_field = get_remote_field(field)
+            if remote_field:
                 # Make sure related fields pointing to tenant models are
                 # pointing to their tenant specific counterpart.
                 remote_field_model = get_remote_field_model(field)
@@ -441,32 +445,32 @@ class TenantModelBase(ModelBase):
                 if hasattr(field, '_related_fields'):
                     delattr(field, '_related_fields')
                 clear_cached_properties(field)
-                clear_cached_properties(rel)
+                clear_cached_properties(remote_field)
                 if isinstance(remote_field_model, TenantModelBase):
-                    if getattr(rel, 'parent_link', False):
+                    if getattr(remote_field, 'parent_link', False):
                         continue
                     set_remote_field_model(field, self.references[remote_field_model].for_tenant(tenant))
                     # If no `related_name` was specified we make sure to
                     # define one based on the non-tenant specific model name.
-                    if not rel.related_name:
-                        rel.related_name = "%s_set" % self._meta.model_name
+                    if not remote_field.related_name:
+                        remote_field.related_name = "%s_set" % self._meta.model_name
                 else:
                     clear_opts_related_cache(remote_field_model)
                     related_name = reference.related_names[field.name]
                     # The `related_name` was validated earlier to either end
                     # with a '+' sign or to contain %(class)s.
                     if related_name:
-                        rel.related_name = related_name
+                        remote_field.related_name = related_name
                     else:
                         related_name = 'unspecified_for_tenant_model+'
                 if isinstance(field, models.ManyToManyField):
-                    through = field.rel.through
-                    rel.through = self.references[through].for_tenant(tenant)
+                    through = remote_field.through
+                    remote_field.through = self.references[through].for_tenant(tenant)
                 # Re-assign the correct `on_delete` that was swapped for
                 # `DO_NOTHING` to prevent non-tenant model collection.
-                on_delete = getattr(rel, '_on_delete', None)
+                on_delete = getattr(remote_field, '_on_delete', None)
                 if on_delete:
-                    rel.on_delete = on_delete
+                    remote_field.on_delete = on_delete
             field.contribute_to_class(model, field.name)
 
         # Some virtual fields such as GenericRelation are not correctly
@@ -656,7 +660,8 @@ def validate_relationships(signal, sender, **kwargs):
         # improper configuration.
         if not opts.auto_created:
             for field in opts.local_fields:
-                if field.rel:
-                    validate_not_to_tenant_model(field, field.rel.to, sender)
+                remote_field = get_remote_field(field)
+                if remote_field:
+                    validate_not_to_tenant_model(field, get_remote_field_model(field), sender)
             for m2m in opts.local_many_to_many:
-                validate_not_to_tenant_model(m2m, m2m.rel.to, sender)
+                validate_not_to_tenant_model(m2m, get_remote_field_model(m2m), sender)

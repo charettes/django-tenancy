@@ -11,6 +11,7 @@ from django.db.utils import DatabaseError
 from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
 
+from tenancy.compat import get_remote_field
 from tenancy.models import Tenant, TenantModelBase
 from tenancy.signals import post_schema_deletion, pre_schema_creation
 
@@ -52,7 +53,7 @@ class CreateTenantCommandTest(TransactionTestCase):
                     self.assertIn(model._meta.object_name, stdout.readline())
                     self.assertIn(model._meta.db_table, stdout.readline())
                 for m2m in model._meta.many_to_many:
-                    through_opts = m2m.rel.through._meta
+                    through_opts = get_remote_field(m2m).through._meta
                     if through_opts.auto_created:
                         self.assertIn(through_opts.db_table, stdout.readline())
         finally:

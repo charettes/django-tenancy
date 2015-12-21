@@ -13,7 +13,7 @@ from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
 
 from tenancy import get_tenant_model
-from tenancy.compat import get_related_model
+from tenancy.compat import get_related_model, get_remote_field
 from tenancy.models import (
     Tenant, TenantModel, TenantModelBase, TenantModelDescriptor,
     TenantSpecificModel, db_schema_table,
@@ -465,12 +465,14 @@ class TenantModelTest(TenancyTestCase):
         Make sure that exposed un-managed models with m2m relations have their
         intermediary models also un-managed.
         """
-        get_field = RelatedTenantModel._meta.get_field
-        self.assertFalse(get_field('m2m').rel.through._meta.managed)
-        self.assertFalse(get_field('m2m_to_undefined').rel.through._meta.managed)
-        self.assertFalse(get_field('m2m_through').rel.through._meta.managed)
-        self.assertFalse(get_field('m2m_recursive').rel.through._meta.managed)
-        self.assertFalse(get_field('m2m_non_tenant').rel.through._meta.managed)
+        def get_through_managed(name):
+            field = RelatedTenantModel._meta.get_field(name)
+            return get_remote_field(field).through._meta.managed
+        self.assertFalse(get_through_managed('m2m'))
+        self.assertFalse(get_through_managed('m2m_to_undefined'))
+        self.assertFalse(get_through_managed('m2m_through'))
+        self.assertFalse(get_through_managed('m2m_recursive'))
+        self.assertFalse(get_through_managed('m2m_non_tenant'))
 
     def test_invalid_foreign_key_related_name(self):
         # Ensure `related_name` with no %(tenant)s format placeholder also

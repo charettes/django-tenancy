@@ -7,6 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import connections, router
 
 from .. import signals
+from ..compat import get_remote_field
 
 
 def create_tenant_schema(tenant, using=None):
@@ -66,13 +67,13 @@ def create_tenant_schema(tenant, using=None):
                 table_name = opts.db_table
             logger.info("Creating table %s ..." % table_name)
             for m2m in opts.many_to_many:
-                through_opts = m2m.rel.through._meta
+                through_opts = get_remote_field(m2m).through._meta
                 if through_opts.auto_created:
                     logger.info("Creating table %s ..." % through_opts.db_table)
             editor.create_model(model)
             if connection.vendor == 'postgresql' and SCHEMA_AUTHORIZATION:
                 quoted_tables = [quote_name(opts.db_table)] + [
-                    quote_name(m2m.rel.through._meta.db_table)
+                    quote_name(get_remote_field(m2m).through._meta.db_table)
                     for m2m in opts.many_to_many if through_opts.auto_created
                 ]
                 editor.deferred_sql.extend(
