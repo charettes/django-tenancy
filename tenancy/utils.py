@@ -70,13 +70,7 @@ def unreference_model(model):
                     try:
                         delattr(remote_field_model, get_remote_field_accessor_name(field))
                     except AttributeError:
-                        # Hidden related names are not respected for o2o
-                        # thus a tenant models with a o2o pointing to
-                        # a non-tenant one would have a class for multiple
-                        # tenant thus the attribute might be attempted
-                        # to be deleted multiple times.
-                        if not (o2o and rel_is_hidden):
-                            raise
+                        pass
 
 
 model_sender_signals = (
