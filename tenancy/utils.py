@@ -46,7 +46,7 @@ def remove_from_app_cache(model_class, quiet=False):
     return model_class
 
 
-def get_foward_fields(opts):
+def get_forward_fields(opts):
     return chain(
         opts.fields,
         opts.many_to_many
@@ -55,7 +55,7 @@ def get_foward_fields(opts):
 
 def unreference_model(model):
     disconnect_signals(model)
-    for field in get_foward_fields(model._meta):
+    for field in get_forward_fields(model._meta):
         remote_field = get_remote_field(field)
         if field.model is model and remote_field:
             remote_field_model = get_remote_field_model(field)
