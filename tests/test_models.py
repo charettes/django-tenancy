@@ -14,6 +14,7 @@ from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
 
 from tenancy import get_tenant_model
+from tenancy.compat import get_related_model
 from tenancy.models import (
     Tenant, TenantModel, TenantModelBase, TenantModelDescriptor,
     TenantSpecificModel, db_schema_table,
@@ -384,11 +385,11 @@ class TenantModelTest(TenancyTestCase):
         """
         for tenant in Tenant.objects.all():
             self.assertEqual(
-                tenant.related_tenant_models.model.m2mspecific_set.related.model,
+                get_related_model(tenant.related_tenant_models.model.m2mspecific_set.related),
                 tenant.m2m_specifics.model
             )
             self.assertEqual(
-                tenant.specificmodels.model.tests_m2mspecific_related.related.model,
+                get_related_model(tenant.specificmodels.model.tests_m2mspecific_related.related),
                 tenant.m2m_specifics.model
             )
 
