@@ -20,7 +20,7 @@ class NonTenantModel(models.Model):
 
 
 class AbstractNonTenant(models.Model):
-    hidden_non_tenant = models.ForeignKey(NonTenantModel, null=True)
+    hidden_non_tenant = models.ForeignKey(NonTenantModel, on_delete=models.CASCADE, null=True)
 
     class Meta:
         app_label = 'tests'
@@ -42,11 +42,12 @@ class TenantModelMixin(object):
 class SpecificModel(AbstractTenantModel, AbstractNonTenant, TenantModelMixin):
     non_tenant = models.ForeignKey(
         NonTenantModel,
+        on_delete=models.CASCADE,
         related_name="%(class)ss",
         null=True
     )
-    o2o = models.OneToOneField(NonTenantModel, related_name="%(class)s_o2os", null=True)
-    o2o_hidden = models.OneToOneField(NonTenantModel, related_name='+', null=True)
+    o2o = models.OneToOneField(NonTenantModel, on_delete=models.CASCADE, related_name="%(class)s_o2os", null=True)
+    o2o_hidden = models.OneToOneField(NonTenantModel, on_delete=models.CASCADE, related_name='+', null=True)
 
     objects = ManagerSubclass()
     custom_objects = ManagerOtherSubclass()
@@ -71,7 +72,7 @@ class PostInitFieldsModel(TenantModel):
     attaching a `(pre|post)_init` signal to their model are not preventing
     garbage collection of them.
     """
-    content_type = models.ForeignKey(ContentType)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
     try:
@@ -162,7 +163,7 @@ class RelatedSpecificModel(TenantModel):
 
 
 class AbstractSpecificModelSubclass(TenantModel):
-    fk = models.ForeignKey(SpecificModel, related_name='fks', null=True)
+    fk = models.ForeignKey(SpecificModel, on_delete=models.CASCADE, related_name='fks', null=True)
 
     class Meta:
         app_label = 'tests'
@@ -191,9 +192,9 @@ class RelatedTenantModel(AbstractSpecificModelSubclass):
 
 
 class M2MSpecific(TenantModel):
-    related = models.ForeignKey('RelatedTenantModel', null=True)
+    related = models.ForeignKey('RelatedTenantModel', on_delete=models.CASCADE, null=True)
     specific = models.ForeignKey(
-        SpecificModel, related_name="%(app_label)s_%(class)s_related"
+        SpecificModel, on_delete=models.CASCADE, related_name="%(app_label)s_%(class)s_related"
     )
 
     class Meta:
@@ -208,7 +209,9 @@ class M2MSpecific(TenantModel):
     def test_mro(self):
         return 'M2MSpecific'
 
-ForeignObject(RelatedTenantModel, ['specific'], ['fk'], related_name='+').contribute_to_class(
+ForeignObject(
+    to=RelatedTenantModel, on_delete=models.CASCADE, from_fields=['specific'], to_fields=['fk'], related_name='+',
+).contribute_to_class(
     M2MSpecific, 'specific_related_fk', virtual_only=True,
 )
 
@@ -287,7 +290,7 @@ except ImportError:
 else:
     class MutableModel(MutableTenantModel):
         field = models.BooleanField()
-        model_def = models.ForeignKey(ModelDefinition, null=True)
+        model_def = models.ForeignKey(ModelDefinition, on_delete=models.CASCADE, null=True)
 
         class Meta:
             app_label = 'tests'
@@ -300,7 +303,7 @@ else:
             return 'MutableModel'
 
     class MutableModelSubclass(MutableModel):
-        non_mutable_fk = models.ForeignKey(SpecificModel, related_name='mutables')
+        non_mutable_fk = models.ForeignKey(SpecificModel, on_delete=models.CASCADE, related_name='mutables')
 
         class Meta:
             app_label = 'tests'
@@ -309,7 +312,7 @@ else:
             return 'MutableModelSubclass'
 
     class NonMutableModel(TenantModel):
-        mutable_fk = models.ForeignKey(MutableModel, related_name='non_mutables')
+        mutable_fk = models.ForeignKey(MutableModel, on_delete=models.CASCADE, related_name='non_mutables')
 
         class Meta:
             app_label = 'tests'

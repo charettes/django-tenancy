@@ -379,10 +379,10 @@ class TenantModelBase(ModelBase):
             'Meta': Meta,
             '__module__': from_model.__module__,
             from_: models.ForeignKey(
-                from_model, related_name="%s+" % name, **field_opts
+                from_model, on_delete=models.CASCADE, related_name="%s+" % name, **field_opts
             ),
             to: models.ForeignKey(
-                to_model, related_name="%s+" % name, **field_opts
+                to_model, on_delete=models.CASCADE, related_name="%s+" % name, **field_opts
             ),
         })
 

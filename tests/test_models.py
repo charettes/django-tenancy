@@ -483,7 +483,9 @@ class TenantModelTest(TenancyTestCase):
             "'+' or contain the '%(class)s' format placeholder."
         ):
             class InvalidRelatedName(TenantModel):
-                fk = django_models.ForeignKey(NonTenantModel, related_name='no-tenant')
+                fk = django_models.ForeignKey(
+                    NonTenantModel, on_delete=django_models.CASCADE, related_name='no-tenant'
+                )
 
     def test_invalid_m2m_through(self):
         with self.assertRaisesMessage(
@@ -581,7 +583,7 @@ class NonTenantModelTest(TransactionTestCase):
             "instance of `TenantModelBase` since it's not one itself."
         ):
             class NonTenantFkToTenant(django_models.Model):
-                fk = django_models.ForeignKey('UndeclaredSpecificModel')
+                fk = django_models.ForeignKey('UndeclaredSpecificModel', on_delete=django_models.CASCADE)
 
             class UndeclaredSpecificModel(TenantModel):
                 pass
