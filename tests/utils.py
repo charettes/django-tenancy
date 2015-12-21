@@ -4,7 +4,6 @@ import logging
 from collections import OrderedDict
 from functools import wraps
 from imp import reload
-from unittest import skipIf
 
 from django.contrib.auth.management.commands import createsuperuser
 from django.dispatch.dispatcher import receiver
@@ -19,17 +18,6 @@ from tenancy.models import Tenant
 logger = logging.getLogger('tests')
 
 
-def skipIfCustomTenant(test):
-    """
-    Skip a test if a custom tenant model is in use.
-    """
-    return skipIf(
-        settings.TENANT_MODEL != settings.DEFAULT_TENANT_MODEL,
-        'Custom tenant model in use'
-    )(test)
-
-
-@skipIfCustomTenant
 class TenancyTestCase(TransactionTestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(name='tenant')

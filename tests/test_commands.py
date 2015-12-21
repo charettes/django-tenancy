@@ -14,12 +14,9 @@ from django.utils.six import StringIO
 from tenancy.models import Tenant, TenantModelBase
 from tenancy.signals import post_schema_deletion, pre_schema_creation
 
-from .utils import (
-    TenancyTestCase, mock_inputs, setup_custom_tenant_user, skipIfCustomTenant,
-)
+from .utils import TenancyTestCase, mock_inputs, setup_custom_tenant_user
 
 
-@skipIfCustomTenant
 class CreateTenantCommandTest(TransactionTestCase):
     def test_too_many_fields(self):
         args = ('name', 'useless')

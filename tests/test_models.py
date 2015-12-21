@@ -27,7 +27,7 @@ from .models import (
     RelatedTenantModel, SpecificModel, SpecificModelProxy,
     SpecificModelProxySubclass, SpecificModelSubclass, TenantModelMixin,
 )
-from .utils import TenancyTestCase, logger, skipIfCustomTenant
+from .utils import TenancyTestCase, logger
 
 
 class TenantTest(TransactionTestCase):
@@ -63,7 +63,6 @@ class TenantTest(TransactionTestCase):
             "which is not a subclass of 'tenancy.AbstractTenant'"
         )
 
-    @skipIfCustomTenant
     def test_content_types_deleted(self):
         """
         Make sure content types of tenant models are deleted upon their related
@@ -75,7 +74,6 @@ class TenantTest(TransactionTestCase):
         tenant.delete()
         self.assertFalse(ContentType.objects.filter(pk=content_type.pk).exists())
 
-    @skipIfCustomTenant
     def test_model_garbage_collection(self):
         """
         Make sure tenant models are correctly garbage collected upon tenant
