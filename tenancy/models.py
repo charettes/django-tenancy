@@ -11,14 +11,14 @@ from django.db import DEFAULT_DB_ALIAS, connections, models
 from django.db.models.base import ModelBase, subclass_exception
 from django.db.models.deletion import DO_NOTHING
 from django.db.models.fields import Field
-from django.db.models.fields.related import add_lazy_relation
 from django.dispatch.dispatcher import receiver
 from django.utils.six import itervalues, string_types, with_metaclass
 from django.utils.six.moves import copyreg
 
 from . import get_tenant_model
 from .compat import (
-    get_remote_field, get_remote_field_model, set_remote_field_model,
+    get_remote_field, get_remote_field_model, lazy_related_operation,
+    set_remote_field_model,
 )
 from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (
@@ -265,7 +265,7 @@ class TenantModelBase(ModelBase):
                 for field in (opts.local_fields + opts.virtual_fields):
                     remote_field = get_remote_field(field)
                     if remote_field:
-                        cls.validate_related_name(field, get_remote_field_model(field), model)
+                        cls.validate_related_name(model, get_remote_field_model(field), field)
                         # Replace and store the current `on_delete` value to
                         # make sure non-tenant models are not collected on
                         # deletion.
@@ -276,7 +276,7 @@ class TenantModelBase(ModelBase):
                 for m2m in opts.local_many_to_many:
                     m2m_remote_field = get_remote_field(m2m)
                     m2m_related_model = get_remote_field_model(m2m)
-                    cls.validate_related_name(m2m, m2m_related_model, model)
+                    cls.validate_related_name(model, m2m_related_model, m2m)
                     through = m2m_remote_field.through
                     if (not isinstance(through, string_types) and
                             through._meta.auto_created):
@@ -289,7 +289,7 @@ class TenantModelBase(ModelBase):
                             clear_opts_related_cache(m2m_related_model)
                         m2m_remote_field.through = cls.intermediary_model_factory(m2m, model)
                     else:
-                        cls.validate_through(m2m, m2m_related_model, model)
+                        cls.validate_through(model, m2m_related_model, m2m)
             # Replace `ManagerDescriptor`s with `TenantModelManagerDescriptor`
             # instances.
             for manager in managers:
@@ -313,13 +313,13 @@ class TenantModelBase(ModelBase):
         return model
 
     @classmethod
-    def validate_related_name(cls, field, rel_to, model):
+    def validate_related_name(cls, model, rel_to, field):
         """
         Make sure that related fields pointing to non-tenant models specify
         a related name containing a %(class)s format placeholder.
         """
         if isinstance(rel_to, string_types):
-            add_lazy_relation(model, field, rel_to, cls.validate_related_name)
+            lazy_related_operation(cls.validate_related_name, model, rel_to, field=field)
         elif not isinstance(rel_to, TenantModelBase):
             related_name = cls.references[model].related_names[field.name]
             if (related_name is not None and
@@ -335,14 +335,14 @@ class TenantModelBase(ModelBase):
                     )
 
     @classmethod
-    def validate_through(cls, field, rel_to, model):
+    def validate_through(cls, model, rel_to, field):
         """
         Make sure the related fields with a specified through points to an
         instance of `TenantModelBase`.
         """
         through = get_remote_field(field).through
         if isinstance(through, string_types):
-            add_lazy_relation(model, field, through, cls.validate_through)
+            lazy_related_operation(cls.validate_through, model, through, field=field)
         elif not isinstance(through, cls):
             del cls.references[model]
             remove_from_app_cache(model, quiet=True)
@@ -631,13 +631,13 @@ def attach_signals(signal, sender, **kwargs):
             signal.connect(receiver_, sender=sender)
 
 
-def validate_not_to_tenant_model(field, to, model):
+def validate_not_to_tenant_model(model, to, field):
     """
     Make sure the `to` relationship is not pointing to an instance of
     `TenantModelBase`.
     """
     if isinstance(to, string_types):
-        add_lazy_relation(model, field, to, validate_not_to_tenant_model)
+        lazy_related_operation(validate_not_to_tenant_model, model, to, field=field)
     elif isinstance(to, TenantModelBase):
         remove_from_app_cache(model, quiet=True)
         raise ImproperlyConfigured(
@@ -662,6 +662,6 @@ def validate_relationships(signal, sender, **kwargs):
             for field in opts.local_fields:
                 remote_field = get_remote_field(field)
                 if remote_field:
-                    validate_not_to_tenant_model(field, get_remote_field_model(field), sender)
+                    validate_not_to_tenant_model(sender, get_remote_field_model(field), field)
             for m2m in opts.local_many_to_many:
-                validate_not_to_tenant_model(m2m, get_remote_field_model(m2m), sender)
+                validate_not_to_tenant_model(sender, get_remote_field_model(m2m), m2m)

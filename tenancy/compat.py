@@ -71,6 +71,8 @@ if django.VERSION >= (1, 9):
 
     def get_related_descriptor_field(descriptor):
         return descriptor.field
+
+    from django.db.models.fields.related import lazy_related_operation  # noqa
 else:
     def get_remote_field_model(field):
         return field.rel.to
@@ -80,3 +82,10 @@ else:
 
     def get_related_descriptor_field(descriptor):
         return descriptor.related.field
+
+    from django.db.models.fields.related import add_lazy_relation
+
+    def lazy_related_operation(function, model, related_model, field):
+        def operation(field, related, local):
+            return function(local, related, field)
+        add_lazy_relation(model, field, related_model, operation)
