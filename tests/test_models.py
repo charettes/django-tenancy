@@ -5,7 +5,6 @@ import logging
 import pickle
 import weakref
 from itertools import chain
-from unittest import skipUnless
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
@@ -546,8 +545,6 @@ class TenantModelTest(TenancyTestCase):
                 ]
             )
 
-    @skipUnless(hasattr(django_models, 'ForeignObject'),
-                'Foreign object is not present is this version of Django.')
     def test_virtual_foreign_object(self):
         """
         Make sure a virtual foreign object pointing to a tenant specific

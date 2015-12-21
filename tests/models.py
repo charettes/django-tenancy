@@ -6,6 +6,7 @@ from django.contrib.contenttypes.fields import (
 )
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models.fields.related import ForeignObject
 
 from tenancy.models import Tenant, TenantModel
 from tenancy.utils import model_sender_signals
@@ -207,6 +208,10 @@ class M2MSpecific(TenantModel):
     def test_mro(self):
         return 'M2MSpecific'
 
+ForeignObject(RelatedTenantModel, ['specific'], ['fk'], related_name='+').contribute_to_class(
+    M2MSpecific, 'specific_related_fk', virtual_only=True,
+)
+
 
 class SignalTenantModel(TenantModel):
     class Meta:
@@ -311,15 +316,3 @@ else:
 
         def test_mro(self):
             return 'NonMutableModel'
-
-
-try:
-    from django.db.models.fields.related import ForeignObject
-except ImportError:
-    pass
-else:
-    ForeignObject(
-        RelatedTenantModel, ['specific'], ['fk'], related_name='+'
-    ).contribute_to_class(
-        M2MSpecific, 'specific_related_fk', virtual_only=True
-    )
