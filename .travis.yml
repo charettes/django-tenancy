@@ -12,6 +12,8 @@ env:
   - TOXENV=py27-1.7-postgresql
   - TOXENV=py27-1.8-sqlite3
   - TOXENV=py27-1.8-postgresql
+  - TOXENV=py27-1.9-sqlite3
+  - TOXENV=py27-1.9-postgresql
   - TOXENV=py27-master-sqlite3
   - TOXENV=py27-master-postgresql
   - TOXENV=py32-1.7-sqlite3
@@ -26,6 +28,8 @@ env:
   - TOXENV=py34-1.7-postgresql
   - TOXENV=py34-1.8-sqlite3
   - TOXENV=py34-1.8-postgresql
+  - TOXENV=py34-1.9-sqlite3
+  - TOXENV=py34-1.9-postgresql
   - TOXENV=py34-master-sqlite3
   - TOXENV=py34-master-postgresql
 
