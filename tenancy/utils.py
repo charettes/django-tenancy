@@ -5,6 +5,7 @@ from itertools import chain
 
 from django.apps import apps
 from django.db import models
+from django.utils.functional import cached_property
 
 from .compat import (
     clear_opts_related_cache, get_remote_field, get_remote_field_accessor_name,
@@ -98,3 +99,13 @@ def receivers_for_model(model):
 def disconnect_signals(model):
     for signal, receiver in receivers_for_model(model):
         signal.disconnect(receiver, sender=model)
+
+
+def clear_cached_properties(instance):
+    """
+    Clear the cache from the instance properties.
+    """
+    cls = type(instance)
+    for attr in list(instance.__dict__):
+        if isinstance(getattr(cls, attr, None), cached_property):
+            instance.__dict__.pop(attr)

@@ -23,8 +23,8 @@ from .managers import (
 )
 from .signals import lazy_class_prepared
 from .utils import (
-    clear_opts_related_cache, disconnect_signals, get_model,
-    receivers_for_model, remove_from_app_cache,
+    clear_cached_properties, clear_opts_related_cache, disconnect_signals,
+    get_model, receivers_for_model, remove_from_app_cache,
 )
 
 
@@ -444,6 +444,8 @@ class TenantModelBase(ModelBase):
                 # Clear the field's cache.
                 if hasattr(field, '_related_fields'):
                     delattr(field, '_related_fields')
+                clear_cached_properties(field)
+                clear_cached_properties(rel)
                 if isinstance(to, TenantModelBase):
                     if getattr(rel, 'parent_link', False):
                         continue
