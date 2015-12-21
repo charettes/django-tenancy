@@ -59,10 +59,11 @@ else:
         for child in children:
             clear_opts_related_cache(child)
 
-get_remote_field = attrgetter('remote_field' if django.VERSION >= (1, 9) else 'rel')
-
 
 if django.VERSION >= (1, 9):
+    def get_remote_field(field):
+        return field.remote_field
+
     def get_remote_field_model(field):
         return field.remote_field.model
 
@@ -74,6 +75,9 @@ if django.VERSION >= (1, 9):
 
     from django.db.models.fields.related import lazy_related_operation  # noqa
 else:
+    def get_remote_field(field):
+        return getattr(field, 'rel', None)
+
     def get_remote_field_model(field):
         return field.rel.to
 
