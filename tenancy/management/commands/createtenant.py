@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import logging
 
+import django
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
@@ -33,13 +34,24 @@ class CommandLoggingHandler(logging.StreamHandler):
 
 
 class Command(BaseCommand):
-    args = '<field1 field2 ...>'
+    # XXX: Remove when dropping support for Django 1.7
+    if django.VERSION < (1, 8):
+        args = '<field1 field2 ...>'
+
+    def add_arguments(self, parser):
+        super(Command, self).add_arguments(parser)
+        parser.add_argument('fields', nargs='*')
 
     def handle(self, *args, **options):
+        try:
+            fields = options['fields']
+        except KeyError:
+            # XXX: Remove when dropping support for Django 1.7
+            fields = args
         tenant_model = get_tenant_model()
         # Attempt to build the instance based on specified data
         try:
-            tenant = tenant_model(None, *args)
+            tenant = tenant_model(None, *fields)
         except IndexError:
             opts = tenant_model._meta
             field_names = tuple(
@@ -50,7 +62,7 @@ class Command(BaseCommand):
                 "Got %s when defined fields are %s." % (
                     opts.app_label,
                     opts.object_name,
-                    args,
+                    fields,
                     field_names
                 )
             )
@@ -88,4 +100,4 @@ class Command(BaseCommand):
             while confirm not in ('yes', 'no'):
                 confirm = input('Please enter either "yes" or "no": ')
             if confirm == 'yes':
-                call_command('createtenantsuperuser', tenant=tenant, **options)
+                call_command('createtenantsuperuser', *tenant.natural_key(), **options)

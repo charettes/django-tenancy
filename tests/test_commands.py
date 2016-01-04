@@ -20,13 +20,11 @@ from .utils import TenancyTestCase, mock_inputs
 
 class CreateTenantCommandTest(TransactionTestCase):
     def test_too_many_fields(self):
-        args = ('name', 'useless')
         expected_message = (
-            "Number of args exceeds the number of fields for model tenancy.Tenant.\n"
-            "Got %s when defined fields are ('name',)." % repr(args)
+            "Number of args exceeds the number of fields for model tenancy.Tenant."
         )
         with self.assertRaisesMessage(CommandError, expected_message):
-            call_command('createtenant', *args)
+            call_command('createtenant', 'name', 'useless')
 
     def test_full_clean_failure(self):
         expected_message = (
