@@ -14,7 +14,7 @@ setup(
     author='Simon Charette',
     author_email='charette.s+pypi@gmail.com',
     install_requires=(
-        'django>=1.7',
+        'Django>=1.7',
     ),
     packages=find_packages(exclude=['test_settings']),
     include_package_data=True,
