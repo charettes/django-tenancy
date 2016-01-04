@@ -1,8 +1,7 @@
 from __future__ import unicode_literals
 
-from unittest import skipIf, skipUnless
+from unittest import skipUnless
 
-import django
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection, connections, router, transaction
@@ -60,9 +59,6 @@ class CreateTenantCommandTest(TransactionTestCase):
         finally:
             tenant.delete()
 
-    @skipIf(
-        django.VERSION >= (1, 7), 'Management commands cannot be overriden on Django >= 1.7'
-    )
     @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     @mock_inputs((
         ('\nYou just created a new tenant,', 'yes'),
