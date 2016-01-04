@@ -17,7 +17,6 @@ setup(
         'Django>=1.7',
     ),
     packages=find_packages(exclude=['test_settings']),
-    include_package_data=True,
     license='MIT License',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
