@@ -5,7 +5,7 @@ from django.test.utils import override_settings
 
 from tenancy.auth.backends import CustomTenantUserBackend
 
-from .utils import TenancyTestCase, setup_custom_tenant_user
+from .utils import TenancyTestCase
 
 
 class CustomTenantUserBackendTest(TenancyTestCase):
@@ -31,7 +31,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
             CustomTenantUserBackend
         )
 
-    @setup_custom_tenant_user
+    @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     def test_authenticate(self):
         with self.tenant.as_global():
             backend = CustomTenantUserBackend()
@@ -42,7 +42,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
         self.assertIsNone(backend.authenticate('p.roy@habs.ca'))
         self.assertTrue(backend.authenticate('p.roy@habs.ca', 'numero 33'))
 
-    @setup_custom_tenant_user
+    @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     def test_get_user(self):
         with self.tenant.as_global():
             backend = CustomTenantUserBackend()

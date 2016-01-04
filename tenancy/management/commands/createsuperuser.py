@@ -6,6 +6,7 @@ from django.contrib.auth.management.commands.createsuperuser import Command
 from django.core.management.base import CommandError
 
 from ... import get_tenant_model
+from ...models import TenantModelBase
 
 
 def get_tenant_by_natural_key(option, opt, value, parser):
@@ -20,8 +21,7 @@ class Command(Command):
 
     def __init__(self):
         super(Command, self).__init__()
-        from ...settings import TENANT_AUTH_USER_MODEL
-        self.tenant_auth_user_model = TENANT_AUTH_USER_MODEL
+        self.tenant_auth_user_model = isinstance(self.UserModel, TenantModelBase)
         if self.tenant_auth_user_model:
             self.option_list += (
                 make_option(

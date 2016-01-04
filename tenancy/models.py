@@ -15,7 +15,7 @@ from django.dispatch.dispatcher import receiver
 from django.utils.six import itervalues, string_types, with_metaclass
 from django.utils.six.moves import copyreg
 
-from . import get_tenant_model
+from . import get_tenant_model, settings
 from .compat import (
     get_remote_field, get_remote_field_model, lazy_related_operation,
     set_remote_field_model,
@@ -305,9 +305,7 @@ class TenantModelBase(ModelBase):
                 def attach_descriptor(tenant_model):
                     descriptor = TenantModelDescriptor(model)
                     setattr(tenant_model, related_name, descriptor)
-                # Avoid circular imports on Django < 1.7
-                from .settings import TENANT_MODEL
-                app_label, model_name = TENANT_MODEL.split('.')
+                app_label, model_name = settings.TENANT_MODEL.split('.')
                 lazy_class_prepared(app_label, model_name, attach_descriptor)
             model._for_tenant_model = model
         return model

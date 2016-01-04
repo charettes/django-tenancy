@@ -35,23 +35,9 @@ class TenancyTestCase(TransactionTestCase):
         del self.other_tenant
 
 
-def setup_custom_tenant_user(test):
-    """
-    Setup Django's internal with a custom tenant user for a test or skip it
-    if the current Django version has no custom user support.
-    """
-    @wraps(test)
-    def wrapped(self, *args, **kwargs):
-        with self.settings(AUTH_USER_MODEL='tests.TenantUser'):
-            from tenancy.settings import TENANT_AUTH_USER_MODEL
-            self.assertTrue(TENANT_AUTH_USER_MODEL)
-            test(self, *args, **kwargs)
-    return wrapped
-
-
 @receiver(setting_changed)
 def reload_settings_module(signal, sender, setting, value, **kwargs):
-    if setting == 'AUTH_USER_MODEL' or setting.startswith('TENANCY_'):
+    if setting.startswith('TENANCY_'):
         logger.debug(
             "Attempt reload of settings because `%s` has changed to %r." % (
                 setting, value

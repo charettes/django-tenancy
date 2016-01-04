@@ -2,12 +2,14 @@ from __future__ import unicode_literals
 
 import logging
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.six.moves import input
 
 from ... import get_tenant_model
+from ...models import TenantModelBase
 
 
 class CommandLoggingHandler(logging.StreamHandler):
@@ -77,8 +79,7 @@ class Command(BaseCommand):
         logger.removeHandler(handler)
         logger.setLevel(logging.NOTSET)
 
-        from ...settings import TENANT_AUTH_USER_MODEL
-        if options.get('interactive', True) and TENANT_AUTH_USER_MODEL:
+        if options.get('interactive', True) and isinstance(get_user_model(), TenantModelBase):
             confirm = input(
                 "\nYou just created a new tenant, which means you don't have "
                 "any superusers defined.\nWould you like to create one "

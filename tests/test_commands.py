@@ -9,13 +9,14 @@ from django.db import connection, connections, router, transaction
 from django.db.transaction import atomic
 from django.db.utils import DatabaseError
 from django.test.testcases import TransactionTestCase
+from django.test.utils import override_settings
 from django.utils.six import StringIO
 
 from tenancy.compat import get_remote_field
 from tenancy.models import Tenant, TenantModelBase
 from tenancy.signals import post_schema_deletion, pre_schema_creation
 
-from .utils import TenancyTestCase, mock_inputs, setup_custom_tenant_user
+from .utils import TenancyTestCase, mock_inputs
 
 
 class CreateTenantCommandTest(TransactionTestCase):
@@ -62,7 +63,7 @@ class CreateTenantCommandTest(TransactionTestCase):
     @skipIf(
         django.VERSION >= (1, 7), 'Management commands cannot be overriden on Django >= 1.7'
     )
-    @setup_custom_tenant_user
+    @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     @mock_inputs((
         ('\nYou just created a new tenant,', 'yes'),
         ('Email', 'bleh@teant.test.ca'),
@@ -75,7 +76,7 @@ class CreateTenantCommandTest(TransactionTestCase):
         self.assertIn('Superuser created successfully.', stdout.read())
         Tenant.objects.get(name='tenant').delete()
 
-    @setup_custom_tenant_user
+    @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     @mock_inputs((
         ('\nYou just created a new tenant,', 'no'),
     ))
