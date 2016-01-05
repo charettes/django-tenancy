@@ -57,9 +57,7 @@ class MutableTenantModelBase(TenantModelBase):
         object_name = reference.object_name_for_tenant(tenant)
 
         # Return the already cached model instead of creating a new one.
-        model = get_model(
-            opts.app_label, object_name.lower(), only_installed=False
-        )
+        model = get_model(opts.app_label, object_name.lower())
         if model:
             return MutableModelProxy(model)
 

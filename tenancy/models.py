@@ -187,7 +187,7 @@ class TenantSpecificModel(with_metaclass(ABCMeta)):
     def __subclasshook__(cls, subclass):
         if isinstance(subclass, TenantModelBase):
             try:
-                tenant_model = get_tenant_model(False)
+                tenant_model = get_tenant_model()
             except ImproperlyConfigured:
                 # If the tenant model is not configured yet we can assume
                 # no specific models have been defined so far.
@@ -518,10 +518,7 @@ class TenantModelBase(ModelBase):
         name = reference.object_name_for_tenant(tenant)
 
         # Return the already cached model instead of creating a new one.
-        model = get_model(
-            opts.app_label, name.lower(),
-            only_installed=False
-        )
+        model = get_model(opts.app_label, name.lower())
         if model:
             return model
 

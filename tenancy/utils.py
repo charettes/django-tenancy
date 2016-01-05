@@ -13,7 +13,7 @@ from .compat import (
 )
 
 
-def get_model(app_label, model_name, **kwargs):
+def get_model(app_label, model_name):
     try:
         return apps.get_registered_model(app_label, model_name)
     except LookupError:

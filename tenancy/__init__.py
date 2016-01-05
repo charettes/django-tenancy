@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 __version__ = (0, 1, 3, 'alpha', 0)
 
 
-def get_tenant_model(seed_cache=True):
+def get_tenant_model():
     from django.core.exceptions import ImproperlyConfigured
     from .models import AbstractTenant
     from .utils import get_model
@@ -11,9 +11,7 @@ def get_tenant_model(seed_cache=True):
 
     app_label, object_name = TENANT_MODEL.split('.')
     model_name = object_name.lower()
-    tenant_model = get_model(
-        app_label, model_name, seed_cache=seed_cache, only_installed=False
-    )
+    tenant_model = get_model(app_label, model_name)
     if tenant_model is None:
         raise ImproperlyConfigured(
             "TENANCY_TENANT_MODEL refers to model '%s.%s' that has not "

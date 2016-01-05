@@ -10,10 +10,7 @@ def lazy_class_prepared(app_label, object_name, callback):
     """
     Lazily execute a callback upon model class preparation.
     """
-    model = get_model(
-        app_label, object_name.lower(),
-        seed_cache=False, only_installed=False
-    )
+    model = get_model(app_label, object_name.lower())
     if model:
         callback(model)
     else:
