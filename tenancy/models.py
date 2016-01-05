@@ -7,7 +7,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 
 from django.core.exceptions import ImproperlyConfigured
-from django.db import DEFAULT_DB_ALIAS, connections, models
+from django.db import connection, models
 from django.db.models.base import ModelBase, subclass_exception
 from django.db.models.deletion import DO_NOTHING
 from django.db.models.fields import Field
@@ -113,12 +113,15 @@ class AbstractTenant(models.Model):
         Expose this tenant as thread local object. This is required by parts
         of django relying on global states such as authentification backends.
         """
-        connection = connections[DEFAULT_DB_ALIAS]
+        setattr(connection, self.ATTR_NAME, self)
         try:
-            setattr(connection, self.ATTR_NAME, self)
             yield
         finally:
             delattr(connection, self.ATTR_NAME)
+
+    @classmethod
+    def get_global(cls):
+        return getattr(connection, cls.ATTR_NAME, None)
 
     @property
     def model_name_prefix(self):
@@ -152,7 +155,6 @@ def meta(Meta=None, **opts):
 
 
 def db_schema_table(tenant, db_table):
-    connection = connections[tenant._state.db or DEFAULT_DB_ALIAS]
     if connection.vendor == 'postgresql':
         # See https://code.djangoproject.com/ticket/6148#comment:47
         return '%s\".\"%s' % (tenant.db_schema, db_table)
