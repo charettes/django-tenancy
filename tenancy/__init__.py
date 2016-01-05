@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 __version__ = (0, 1, 3, 'alpha', 0)
 
+default_app_config = 'tenancy.apps.TenancyConfig'
+
 
 def get_tenant_model():
     from django.core.exceptions import ImproperlyConfigured

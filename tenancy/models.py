@@ -12,6 +12,7 @@ from django.db.models.base import ModelBase, subclass_exception
 from django.db.models.deletion import DO_NOTHING
 from django.db.models.fields import Field
 from django.dispatch.dispatcher import receiver
+from django.utils.deconstruct import deconstructible
 from django.utils.six import itervalues, string_types, with_metaclass
 from django.utils.six.moves import copyreg
 
@@ -144,6 +145,26 @@ class Tenant(AbstractTenant):
         return (self.name,)
 
 
+@deconstructible
+class Managed(object):
+    """
+    Sentinel object used to detect tenant managed models.
+    """
+
+    def __init__(self, tenant_model):
+        self.tenant_model = tenant_model
+
+    def __bool__(self):
+        # Evaluates to False in order to prevent Django from managing the model.
+        return False
+
+    # Remove when dropping support for Python 2.7
+    __nonzero__ = bool
+
+    def __eq__(self, other):
+        return isinstance(other, Managed) and other.tenant_model == self.tenant_model
+
+
 def meta(Meta=None, **opts):
     """
     Create a class with specified opts as attributes to be used as model
@@ -237,7 +258,7 @@ class TenantModelBase(ModelBase):
             if getattr(Meta, 'proxy', False):
                 model = super_new(
                     cls, name, bases,
-                    dict(attrs, meta=meta(Meta, managed=False))
+                    dict(attrs, meta=meta(Meta, managed=Managed(settings.TENANT_MODEL)))
                 )
                 cls.references[model] = cls.reference(model, Meta)
             else:
@@ -259,7 +280,7 @@ class TenantModelBase(ModelBase):
                             related_names[m2m.name] = get_remote_field(m2m).related_name
                 model = super_new(
                     cls, name, bases,
-                    dict(attrs, Meta=meta(Meta, managed=False))
+                    dict(attrs, Meta=meta(Meta, managed=Managed(settings.TENANT_MODEL)))
                 )
                 cls.references[model] = cls.reference(model, Meta, related_names)
                 opts = model._meta
