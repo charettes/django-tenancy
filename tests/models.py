@@ -212,7 +212,7 @@ class M2MSpecific(TenantModel):
         return 'M2MSpecific'
 
 ForeignObject(
-    to=RelatedTenantModel, on_delete=models.CASCADE, from_fields=['specific'], to_fields=['fk'], related_name='+',
+    to=SpecificModel, on_delete=models.CASCADE, from_fields=['specific'], to_fields=['id'], related_name='+',
 ).contribute_to_class(
     M2MSpecific, 'specific_related_fk', virtual_only=True,
 )

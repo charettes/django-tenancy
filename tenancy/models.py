@@ -479,6 +479,8 @@ class TenantModelBase(ModelBase):
         for virtual_field in self._meta.virtual_fields:
             if virtual_field in opts.virtual_fields:
                 opts.virtual_fields.remove(virtual_field)
+            if virtual_field in opts.local_fields:
+                opts.local_fields.remove(virtual_field)
 
         return model
 

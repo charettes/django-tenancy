@@ -10,6 +10,7 @@ from unittest.case import expectedFailure
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
+from django.core.management import call_command
 from django.db import models as django_models
 from django.test.testcases import TransactionTestCase
 from django.utils.six import StringIO
@@ -325,6 +326,10 @@ class TenantModelDescriptorTest(TenancyTestCase):
 
 
 class TenantModelTest(TenancyTestCase):
+    def test_checks(self):
+        """Make sure generated models are valid."""
+        call_command('check', stdout=StringIO())
+
     def test_isolation_between_tenants(self):
         """
         Make sure instances created in a tenant specific schema are not
@@ -564,9 +569,8 @@ class TenantModelTest(TenancyTestCase):
         """
         for tenant in Tenant.objects.all():
             specific = tenant.specificmodels.create()
-            related = tenant.related_tenant_models.create(fk=specific)
             m2m_specific = tenant.m2m_specifics.create(specific=specific)
-            self.assertEqual(m2m_specific.specific_related_fk, related)
+            self.assertEqual(m2m_specific.specific_related_fk, specific)
 
     def test_generic_relation(self):
         for tenant in Tenant.objects.all():
