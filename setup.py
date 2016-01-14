@@ -13,10 +13,10 @@ setup(
     url='https://github.com/charettes/django-tenancy',
     author='Simon Charette',
     author_email='charette.s+pypi@gmail.com',
-    install_requires=(
+    install_requires=[
         'Django>=1.7',
-    ),
-    packages=find_packages(exclude=['test_settings']),
+    ],
+    packages=find_packages(exclude=['tests', 'tests.*']),
     license='MIT License',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
