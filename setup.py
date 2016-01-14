@@ -8,7 +8,7 @@ from tenancy import __version__
 
 setup(
     name='django-tenancy',
-    version='.'.join(str(v) for v in __version__),
+    version=__version__,
     description='Handle multi-tenancy in Django with no additional global state using schemas.',
     url='https://github.com/charettes/django-tenancy',
     author='Simon Charette',
