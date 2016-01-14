@@ -7,6 +7,7 @@ from tenancy.compat import get_remote_field_model
 from .utils import TenancyTestCase
 
 try:
+    from mutant.models import BaseDefinition, ModelDefinition
     from mutant.contrib.boolean.models import NullBooleanFieldDefinition
     from .models import MutableModel, MutableModelSubclass, NonMutableModel
 except ImportError:
@@ -97,3 +98,22 @@ class MutableTenantModelTest(TenancyTestCase):
         model_class = MutableModel.for_tenant(self.tenant)
         with self.assertNumQueries(0):
             self.assertEqual(model_class, MutableModel.for_tenant(self.tenant))
+
+    def test_dynamic_subclassing(self):
+        """
+        Tenant specific mutable models should be dynamically subclassable.
+        """
+        # Create the model definition.
+        model_def = ModelDefinition.objects.create(
+            bases=(BaseDefinition(base=MutableModel.for_tenant(self.tenant)),),
+            app_label='tests',
+            object_name='DynamicMutableSubclass',
+        )
+        # Alter the model definition.
+        NullBooleanFieldDefinition.objects.create_with_default(
+            False,
+            model_def=model_def,
+            name='is_cool',
+        )
+        # Delete the model definition.
+        model_def.delete()

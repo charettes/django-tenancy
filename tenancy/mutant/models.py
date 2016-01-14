@@ -96,13 +96,26 @@ class MutableTenantModel(six.with_metaclass(MutableTenantModelBase, TenantModel)
         abstract = True
 
     @classmethod
-    def get_model_state(cls):
-        model_state = super(MutableTenantModel, cls).get_model_state()
+    def get_model_state(cls, **kwargs):
+        model_state = super(MutableTenantModel, cls).get_model_state(**kwargs)
         tenant_model = str(cls._for_tenant_model._meta)
         model_state.bases = tuple(
             base for base in model_state.bases if base != tenant_model
         )
         return model_state
+
+    @classmethod
+    def get_related_model_states(cls, model_state):
+        model_states = super(MutableTenantModel, cls).get_related_model_states(model_state)
+        apps = cls._meta.apps
+        for state in model_states:
+            model = apps.get_model(state.app_label, state.name)
+            if issubclass(model, TenantSpecificModel):
+                tenant_model = str(model._for_tenant_model._meta)
+                state.bases = tuple(
+                    base for base in state.bases if base != tenant_model
+                )
+        return model_states
 
 
 def __unpickle_mutable_tenant_model_base(model, natural_key, abstract):

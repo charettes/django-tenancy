@@ -40,6 +40,6 @@ setup(
     ],
     extras_require={
         'hosts': ['django-hosts'],
-        'mutant': ['django-mutant>=0.2'],
+        'mutant': ['django-mutant>=0.2.1'],
     }
 )
