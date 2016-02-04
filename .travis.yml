@@ -60,7 +60,7 @@ before_script:
   - if echo $TOXENV | grep -E 'postgresql' -q; then psql -U postgres -c "CREATE DATABASE tenancy;"; fi
 
 install:
-  - pip install tox coveralls
+  - pip install tox "virtualenv<14.0"
 
 script:
   - tox
