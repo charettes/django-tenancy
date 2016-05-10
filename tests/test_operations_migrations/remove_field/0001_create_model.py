@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from django.db import migrations, models
 
 from tenancy.models import Managed
-from tenancy.operations import AddFied, CreateModel
+from tenancy.operations import AddField, CreateModel
 
 
 class Migration(migrations.Migration):
@@ -21,5 +21,5 @@ class Migration(migrations.Migration):
                 'managed': Managed('tenancy.Tenant'),
             }
         ),
-        AddFied('RemoveField', 'foreign_key', models.ForeignKey('self', on_delete=models.CASCADE, null=True)),
+        AddField('RemoveField', 'foreign_key', models.ForeignKey('self', on_delete=models.CASCADE, null=True)),
     ]

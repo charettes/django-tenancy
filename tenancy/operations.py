@@ -112,7 +112,7 @@ class TenantModelFieldOperation(TenantModelOperation):
         return from_state.models[app_label, self.model_name.lower()]
 
 
-class AddFied(TenantModelFieldOperation, operations.AddField):
+class AddField(TenantModelFieldOperation, operations.AddField):
     pass
 
 
