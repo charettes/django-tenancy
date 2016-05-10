@@ -12,15 +12,24 @@ from .models import Managed, db_schema_table
 from .utils import patch_connection_introspection
 
 
-class TenantModelOperation(Operation):
-    def get_operation_model_state(self, app_label, from_state, to_state):
-        # XXX: Use self.name_lower when dropping support for Django 1.7
-        return to_state.models[app_label, self.name.lower()]
-
+class TenantOperation(Operation):
     def get_tenant_model(self, app_label, from_state, to_state):
-        model_state = self.get_operation_model_state(app_label, from_state, to_state)
-        managed = model_state.options.get('managed')
-        return apps.get_model(managed.tenant_model)
+        raise NotImplementedError
+
+    @contextmanager
+    def tenant_context(self, tenant, schema_editor):
+        connection = schema_editor.connection
+        cursor = connection.cursor()
+        if connection.vendor == 'postgresql':
+            sql = "SET search_path = %s, public" % tenant.db_schema
+            cursor.execute(sql)
+            schema_editor.deferred_sql.append(sql)
+        with patch_connection_introspection(connection):
+            yield
+        if connection.vendor == 'postgresql':
+            sql = 'RESET search_path'
+            cursor.execute(sql)
+            schema_editor.deferred_sql.append(sql)
 
     def create_tenant_project_state(self, tenant, state, connection):
         managed = Managed("%s.%s" % (tenant._meta.app_label, tenant._meta.object_name))
@@ -42,21 +51,6 @@ class TenantModelOperation(Operation):
                 project_state.reload_model(app_label, model_name)
         return project_state
 
-    @contextmanager
-    def tenant_context(self, tenant, schema_editor):
-        connection = schema_editor.connection
-        cursor = connection.cursor()
-        if connection.vendor == 'postgresql':
-            sql = "SET search_path = %s, public" % tenant.db_schema
-            cursor.execute(sql)
-            schema_editor.deferred_sql.append(sql)
-        with patch_connection_introspection(connection):
-            yield
-        if connection.vendor == 'postgresql':
-            sql = 'RESET search_path'
-            cursor.execute(sql)
-            schema_editor.deferred_sql.append(sql)
-
     def tenant_operation(self, tenant_model, operation, app_label, schema_editor, from_state, to_state):
         connection = schema_editor.connection
         for tenant in tenant_model._base_manager.all():
@@ -67,13 +61,24 @@ class TenantModelOperation(Operation):
 
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         tenant_model = self.get_tenant_model(app_label, from_state, to_state)
-        operation = super(TenantModelOperation, self).database_forwards
+        operation = super(TenantOperation, self).database_forwards
         self.tenant_operation(tenant_model, operation, app_label, schema_editor, from_state, to_state)
 
     def database_backwards(self, app_label, schema_editor, from_state, to_state):
         tenant_model = self.get_tenant_model(app_label, to_state, from_state)
-        operation = super(TenantModelOperation, self).database_backwards
+        operation = super(TenantOperation, self).database_backwards
         self.tenant_operation(tenant_model, operation, app_label, schema_editor, from_state, to_state)
+
+
+class TenantModelOperation(TenantOperation):
+    def get_operation_model_state(self, app_label, from_state, to_state):
+        # XXX: Use self.name_lower when dropping support for Django 1.7
+        return to_state.models[app_label, self.name.lower()]
+
+    def get_tenant_model(self, app_label, from_state, to_state):
+        model_state = self.get_operation_model_state(app_label, from_state, to_state)
+        managed = model_state.options.get('managed')
+        return apps.get_model(managed.tenant_model)
 
 
 class CreateModel(TenantModelOperation, operations.CreateModel):
@@ -125,4 +130,21 @@ class AlterField(TenantModelFieldOperation, operations.AlterField):
 
 
 class RenameField(TenantModelFieldOperation, operations.RenameField):
+    pass
+
+
+class TenantSpecialOperation(TenantOperation):
+    def __init__(self, tenant_model, *args, **kwargs):
+        self.tenant_model = tenant_model
+        super(TenantSpecialOperation, self).__init__(*args, **kwargs)
+
+    def get_tenant_model(self, app_label, from_state, to_state):
+        return self.tenant_model
+
+
+class RunPython(TenantSpecialOperation, operations.RunPython):
+    pass
+
+
+class RunSQL(TenantSpecialOperation, operations.RunSQL):
     pass

@@ -1,5 +1,8 @@
 from __future__ import unicode_literals
 
+import contextlib
+import unittest
+
 import django
 from django.core.management import call_command
 from django.db import connection
@@ -22,23 +25,26 @@ class TestTenantSchemaOperations(TenancyTestCase):
     def get_tenant_table_name(self, tenant, table_name):
         return table_name if connection.vendor == 'postgresql' else db_schema_table(tenant, table_name)
 
+    @contextlib.contextmanager
+    def tenant_connection_context(self, tenant):
+        with connection.cursor() as cursor:
+            if connection.vendor == 'postgresql':
+                cursor.execute("SET search_path = %s" % tenant.db_schema)
+            try:
+                yield cursor
+            finally:
+                if connection.vendor == 'postgresql':
+                    cursor.execute('RESET search_path')
+
     def get_tenant_table_names(self, tenant):
-        if connection.vendor == 'postgresql':
-            cursor = connection.cursor()
-            cursor.execute("SET search_path = %s" % tenant.db_schema)
-        table_names = connection.introspection.table_names()
-        if connection.vendor == 'postgresql':
-            cursor.execute('RESET search_path')
+        with self.tenant_connection_context(tenant):
+            table_names = connection.introspection.table_names()
         return table_names
 
     def get_tenant_table_columns(self, tenant, table_name):
-        cursor = connection.cursor()
-        if connection.vendor == 'postgresql':
-            cursor.execute("SET search_path = %s" % tenant.db_schema)
         tenant_table_name = self.get_tenant_table_name(tenant, table_name)
-        columns = connection.introspection.get_table_description(cursor, tenant_table_name)
-        if connection.vendor == 'postgresql':
-            cursor.execute('RESET search_path')
+        with self.tenant_connection_context(tenant) as cursor:
+            columns = connection.introspection.get_table_description(cursor, tenant_table_name)
         return columns
 
     def get_tenant_table_column_names(self, tenant, table_name):
@@ -47,14 +53,9 @@ class TestTenantSchemaOperations(TenancyTestCase):
         }
 
     def get_tenant_table_constraints(self, tenant, table_name):
-        cursor = connection.cursor()
-        if connection.vendor == 'postgresql':
-            cursor.execute("SET search_path = %s" % tenant.db_schema)
         tenant_table_name = self.get_tenant_table_name(tenant, table_name)
-        with patch_connection_introspection(connection):
+        with self.tenant_connection_context(tenant) as cursor, patch_connection_introspection(connection):
             constraints = connection.introspection.get_constraints(cursor, tenant_table_name)
-        if connection.vendor == 'postgresql':
-            cursor.execute('RESET search_path')
         return constraints
 
     def get_column_constraints(self, constraints, column):
@@ -400,3 +401,46 @@ class TestTenantSchemaOperations(TenancyTestCase):
             self.assertEqual(self.get_tenant_table_column_names(tenant, 'tests_renamefield'), {
                 'id', 'charfield', 'foreign_key_id'
             })
+
+    @override_settings(MIGRATION_MODULES={'tests': 'tests.test_operations_migrations.run_python'})
+    def test_run_python(self):
+        call_command('migrate', 'tests', '0001', interactive=False, stdout=StringIO())
+        for tenant in Tenant.objects.all():
+            table_name = self.get_tenant_table_name(tenant, 'tests_runpython')
+            with self.tenant_connection_context(tenant) as cursor:
+                cursor.execute("SELECT COUNT(*) FROM %s" % table_name)
+                self.assertEqual(cursor.fetchone(), (0,))
+        call_command('migrate', 'tests', '0002', interactive=False, stdout=StringIO())
+        for tenant in Tenant.objects.all():
+            table_name = self.get_tenant_table_name(tenant, 'tests_runpython')
+            with self.tenant_connection_context(tenant) as cursor:
+                cursor.execute("SELECT COUNT(*) FROM %s" % table_name)
+                self.assertEqual(cursor.fetchone(), (1,))
+        call_command('migrate', 'tests', '0001', interactive=False, stdout=StringIO())
+        for tenant in Tenant.objects.all():
+            table_name = self.get_tenant_table_name(tenant, 'tests_runpython')
+            with self.tenant_connection_context(tenant) as cursor:
+                cursor.execute("SELECT COUNT(*) FROM %s" % table_name)
+                self.assertEqual(cursor.fetchone(), (0,))
+
+    @unittest.skipIf(connection.vendor == 'sqlite', 'Cannot use RunSQL on SQLite.')
+    @override_settings(MIGRATION_MODULES={'tests': 'tests.test_operations_migrations.run_sql'})
+    def test_run_sql(self):
+        call_command('migrate', 'tests', '0001', interactive=False, stdout=StringIO())
+        for tenant in Tenant.objects.all():
+            table_name = self.get_tenant_table_name(tenant, 'tests_runsql')
+            with self.tenant_connection_context(tenant) as cursor:
+                cursor.execute("SELECT COUNT(*) FROM %s" % table_name)
+                self.assertEqual(cursor.fetchone(), (0,))
+        call_command('migrate', 'tests', '0002', interactive=False, stdout=StringIO())
+        for tenant in Tenant.objects.all():
+            table_name = self.get_tenant_table_name(tenant, 'tests_runsql')
+            with self.tenant_connection_context(tenant) as cursor:
+                cursor.execute("SELECT COUNT(*) FROM %s" % table_name)
+                self.assertEqual(cursor.fetchone(), (1,))
+        call_command('migrate', 'tests', '0001', interactive=False, stdout=StringIO())
+        for tenant in Tenant.objects.all():
+            table_name = self.get_tenant_table_name(tenant, 'tests_runsql')
+            with self.tenant_connection_context(tenant) as cursor:
+                cursor.execute("SELECT COUNT(*) FROM %s" % table_name)
+                self.assertEqual(cursor.fetchone(), (0,))
