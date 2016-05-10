@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import logging
 
-import django
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
@@ -34,10 +33,6 @@ class CommandLoggingHandler(logging.StreamHandler):
 
 
 class Command(BaseCommand):
-    # XXX: Remove when dropping support for Django 1.7
-    if django.VERSION < (1, 8):
-        args = '<field1 field2 ...>'
-
     def add_arguments(self, parser):
         super(Command, self).add_arguments(parser)
         parser.add_argument(
@@ -48,11 +43,7 @@ class Command(BaseCommand):
         parser.add_argument('fields', nargs='*')
 
     def handle(self, *args, **options):
-        try:
-            fields = options['fields']
-        except KeyError:
-            # XXX: Remove when dropping support for Django 1.7
-            fields = args
+        fields = options['fields']
         tenant_model = get_tenant_model()
         # Attempt to build the instance based on specified data
         try:

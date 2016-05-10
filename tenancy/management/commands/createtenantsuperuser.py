@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import argparse
 
-import django
 from django.contrib.auth.management.commands.createsuperuser import Command
 from django.core.management.base import CommandError
 
@@ -25,9 +24,6 @@ class TenantAction(argparse.Action):
 
 
 class Command(Command):
-    # XXX: Remove when dropping support for Django 1.7
-    if django.VERSION < (1, 8):
-        args = 'tenant natural key'
     help = 'Used to create a specific tenant superuser.'
     requires_system_checks = False
 
@@ -46,11 +42,6 @@ class Command(Command):
         )
 
     def handle(self, *args, **options):
-        try:
-            tenant = options['tenant']
-        except KeyError:
-            # XXX: Remove when dropping support for Django 1.7
-            tenant_model = get_tenant_model()
-            tenant = tenant_model._default_manager.get_by_natural_key(*args)
+        tenant = options['tenant']
         self.UserModel = self.UserModel.for_tenant(tenant)
         return super(Command, self).handle(*args, **options)

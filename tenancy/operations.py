@@ -46,9 +46,7 @@ class TenantOperation(Operation):
                     managed=True,
                     db_table=db_table,
                 )
-            # XXX: Remove the hasttr check when dropping support for Django 1.7
-            if hasattr(project_state, 'reload_model'):
-                project_state.reload_model(app_label, model_name)
+            project_state.reload_model(app_label, model_name)
         return project_state
 
     def tenant_operation(self, tenant_model, operation, app_label, schema_editor, from_state, to_state):
@@ -72,8 +70,7 @@ class TenantOperation(Operation):
 
 class TenantModelOperation(TenantOperation):
     def get_operation_model_state(self, app_label, from_state, to_state):
-        # XXX: Use self.name_lower when dropping support for Django 1.7
-        return to_state.models[app_label, self.name.lower()]
+        return to_state.models[app_label, self.name_lower]
 
     def get_tenant_model(self, app_label, from_state, to_state):
         model_state = self.get_operation_model_state(app_label, from_state, to_state)
@@ -87,14 +84,12 @@ class CreateModel(TenantModelOperation, operations.CreateModel):
 
 class DeleteModel(TenantModelOperation, operations.DeleteModel):
     def get_operation_model_state(self, app_label, from_state, to_state):
-        # XXX: Use self.name_lower when dropping support for Django 1.7
-        return from_state.models[app_label, self.name.lower()]
+        return from_state.models[app_label, self.name_lower]
 
 
 class RenameModel(TenantModelOperation, operations.RenameModel):
     def get_operation_model_state(self, app_label, from_state, to_state):
-        # XXX: Use self.old_name_lower when dropping support for Django 1.7
-        return from_state.models[app_label, self.old_name.lower()]
+        return from_state.models[app_label, self.old_name_lower]
 
     database_backwards = operations.RenameModel.database_backwards
 
@@ -113,8 +108,7 @@ class AlterIndexTogether(TenantModelOperation, operations.AlterIndexTogether):
 
 class TenantModelFieldOperation(TenantModelOperation):
     def get_operation_model_state(self, app_label, from_state, to_state):
-        # XXX: Use self.model_name_lower when dropping support for Django 1.7
-        return from_state.models[app_label, self.model_name.lower()]
+        return from_state.models[app_label, self.model_name_lower]
 
 
 class AddField(TenantModelFieldOperation, operations.AddField):

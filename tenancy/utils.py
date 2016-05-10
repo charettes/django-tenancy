@@ -7,10 +7,7 @@ from django.apps import apps
 from django.db import models
 from django.utils.functional import cached_property
 
-from .compat import (
-    clear_opts_related_cache, get_remote_field, get_remote_field_accessor_name,
-    get_remote_field_model,
-)
+from .compat import get_remote_field, get_remote_field_model
 
 
 def get_model(app_label, model_name):
@@ -53,6 +50,23 @@ def get_forward_fields(opts):
     )
 
 
+def get_reverse_fields(opts):
+    return opts._get_fields(forward=False, reverse=True, include_hidden=True)
+
+
+def clear_opts_related_cache(model_class):
+    opts = model_class._meta
+    if not opts.apps.ready:
+        return
+    children = [
+        related_object.related_model
+        for related_object in opts.__dict__.get('related_objects', []) if related_object.parent_link
+    ]
+    opts._expire_cache()
+    for child in children:
+        clear_opts_related_cache(child)
+
+
 def unreference_model(model):
     disconnect_signals(model)
     for field in get_forward_fields(model._meta):
@@ -68,7 +82,7 @@ def unreference_model(model):
                 o2o = isinstance(field, models.OneToOneField)
                 if not rel_is_hidden or o2o:
                     try:
-                        delattr(remote_field_model, get_remote_field_accessor_name(field))
+                        delattr(remote_field_model, remote_field.get_accessor_name())
                     except AttributeError:
                         pass
 

@@ -15,8 +15,7 @@ from mutant.signals import mutable_class_prepared
 
 from .. import get_tenant_model
 from ..compat import (
-    contribute_to_related_class, get_remote_field, get_remote_field_model,
-    get_reverse_fields, set_remote_field_model,
+    get_remote_field, get_remote_field_model, set_remote_field_model,
 )
 from ..models import (
     Reference, TenantModel, TenantModelBase, TenantSpecificModel,
@@ -25,7 +24,7 @@ from ..models import (
 from ..signals import (
     post_models_creation, pre_models_creation, pre_schema_deletion,
 )
-from ..utils import get_forward_fields, get_model
+from ..utils import get_forward_fields, get_model, get_reverse_fields
 
 
 class MutableReference(Reference):
@@ -157,7 +156,7 @@ def contribute_to_related_mutable_class(sender, existing_model_class, **kwargs):
                 remote_field_model = get_remote_field_model(field)
                 # XXX: Remove the == conditional when dropping support for Django 1.8
                 if remote_field_model is existing_model_class or remote_field_model == sender:
-                    contribute_to_related_class(sender, field)
+                    field.contribute_to_related_class(sender, remote_field)
                     set_remote_field_model(field, sender)
 
 
