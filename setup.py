@@ -14,7 +14,7 @@ setup(
     author='Simon Charette',
     author_email='charette.s+pypi@gmail.com',
     install_requires=[
-        'Django>=1.7',
+        'Django>=1.8',
     ],
     packages=find_packages(exclude=['tests', 'tests.*']),
     license='MIT License',
@@ -22,7 +22,6 @@ setup(
         'Development Status :: 5 - Production/Stable',
         'Environment :: Web Environment',
         'Framework :: Django',
-        'Framework :: Django :: 1.7',
         'Framework :: Django :: 1.8',
         'Framework :: Django :: 1.9',
         'Intended Audience :: Developers',
