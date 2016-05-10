@@ -1,11 +1,6 @@
 from __future__ import unicode_literals
 
-from operator import attrgetter
-
 import django
-
-get_related_model = attrgetter('related_model' if django.VERSION >= (1, 8) else 'model')
-
 
 if django.VERSION >= (1, 8):
     def get_remote_field_accessor_name(field):
