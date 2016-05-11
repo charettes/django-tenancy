@@ -5,7 +5,6 @@ import logging
 from django.dispatch.dispatcher import receiver
 from django.utils import six
 from django.utils.six.moves import copyreg
-
 from mutant.db.models import MutableModel
 from mutant.models import (
     BaseDefinition, ModelDefinition, OrderingFieldDefinition,
