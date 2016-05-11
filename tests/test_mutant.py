@@ -26,8 +26,8 @@ class MutableTenantModelTest(TenancyTestCase):
             name='is_cool'
         )
         tenant_mutable_models = self.tenant.mutable_models
-        tenant_mutable_models.create(field='test', is_cool=False)
-        self.assertEqual(1, tenant_mutable_models.filter(is_cool=False).count())
+        tenant_mutable_models.create(field=True, is_cool=False)
+        self.assertEqual(1, tenant_mutable_models.filter(field=True, is_cool=False).count())
 
     def test_subclassing(self):
         model_class = MutableModelSubclass.for_tenant(self.tenant)
