@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import warnings
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 
@@ -7,13 +9,13 @@ from .. import get_tenant_model
 from ..models import TenantModelBase
 
 
-class CustomTenantUserBackend(object):
+class TenantUserBackend(object):
     def __init__(self):
         self.user_model = get_user_model()
         self.tenant_model = get_tenant_model()
         if not isinstance(self.user_model, TenantModelBase):
             raise ImproperlyConfigured(
-                "The `tenancy.auth.backends.CustomTenantUserBackend` "
+                "The `tenancy.auth.backends.TenantUserBackend` "
                 "authentification backend can only be used with a custom "
                 "tenant user model."
             )
@@ -47,3 +49,9 @@ class CustomTenantUserBackend(object):
                 return tenant_user_model._default_manager.get(pk=pk)
             except tenant_user_model.DoesNotExist:
                 return None
+
+
+class CustomTenantUserBackend(TenantUserBackend):
+    def __init__(self):
+        warnings.warn('CustomTenantUserBackend is deprecated in favor or TenantUserBackend.', DeprecationWarning)
+        super(CustomTenantUserBackend, self).__init__()

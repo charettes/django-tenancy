@@ -3,20 +3,20 @@ from __future__ import unicode_literals
 from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 
-from tenancy.auth.backends import CustomTenantUserBackend
+from tenancy.auth.backends import TenantUserBackend
 
 from .utils import TenancyTestCase
 
 
-class CustomTenantUserBackendTest(TenancyTestCase):
+class TenantUserBackendTests(TenancyTestCase):
     @override_settings(AUTH_USER_MODEL='auth.User')
     def test_custom_user_not_tenant(self):
         self.assertRaisesMessage(
             ImproperlyConfigured,
-            "The `tenancy.auth.backends.CustomTenantUserBackend` "
+            "The `tenancy.auth.backends.TenantUserBackend` "
             "authentification backend can only be used with a custom "
             "tenant user model.",
-            CustomTenantUserBackend
+            TenantUserBackend
         )
 
     @override_settings(AUTH_USER_MODEL='tests.TenantUser')
@@ -24,7 +24,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
         user = self.tenant.users.model(email='p.roy@habs.ca')
         user.set_password('numero 33')
         user.save()
-        backend = CustomTenantUserBackend()
+        backend = TenantUserBackend()
         # Test globally.
         with self.tenant.as_global():
             self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca'))
@@ -49,7 +49,7 @@ class CustomTenantUserBackendTest(TenancyTestCase):
 
     @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     def test_get_user(self):
-        backend = CustomTenantUserBackend()
+        backend = TenantUserBackend()
         user = self.tenant.users.create(email='latitude-e4200@dell.com')
         with self.tenant.as_global():
             self.assertIsNone(backend.get_user(user.pk + 1))
