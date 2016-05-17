@@ -20,32 +20,37 @@ class CustomTenantUserBackendTest(TenancyTestCase):
         )
 
     @override_settings(AUTH_USER_MODEL='tests.TenantUser')
-    def test_missing_connection_tenant(self):
-        self.assertRaisesMessage(
-            ImproperlyConfigured,
-            "The `tenancy.auth.backends.CustomTenantUserBackend` "
-            "authentification backend requires that a `tenant` attribute "
-            "be set on the default connection to work properly. The "
-            "`tenancy.middleware.GlobalTenantMiddleware` does "
-            "just that.",
-            CustomTenantUserBackend
-        )
-
-    @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     def test_authenticate(self):
-        with self.tenant.as_global():
-            backend = CustomTenantUserBackend()
         user = self.tenant.users.model(email='p.roy@habs.ca')
         user.set_password('numero 33')
         user.save()
+        backend = CustomTenantUserBackend()
+        # Test globally.
+        with self.tenant.as_global():
+            self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca'))
+            self.assertIsNone(backend.authenticate('p.roy@habs.ca'))
+            self.assertEqual(backend.authenticate('p.roy@habs.ca', 'numero 33'), user)
+        # Test explicit.
+        self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca', tenant=self.tenant))
+        self.assertIsNone(backend.authenticate('p.roy@habs.ca', tenant=self.tenant))
+        self.assertEqual(backend.authenticate('p.roy@habs.ca', 'numero 33', tenant=self.tenant), user)
+        # Test explicit using ATTR_NAME.
+        type(self.tenant).ATTR_NAME = 'foo'
+        try:
+            self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca', foo=self.tenant))
+            self.assertIsNone(backend.authenticate('p.roy@habs.ca', foo=self.tenant))
+            self.assertEqual(backend.authenticate('p.roy@habs.ca', 'numero 33', foo=self.tenant), user)
+        finally:
+            del type(self.tenant).ATTR_NAME
+        # Test missing.
         self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca'))
         self.assertIsNone(backend.authenticate('p.roy@habs.ca'))
-        self.assertTrue(backend.authenticate('p.roy@habs.ca', 'numero 33'))
+        self.assertIsNone(backend.authenticate('p.roy@habs.ca', 'numero 33'))
 
     @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     def test_get_user(self):
-        with self.tenant.as_global():
-            backend = CustomTenantUserBackend()
+        backend = CustomTenantUserBackend()
         user = self.tenant.users.create(email='latitude-e4200@dell.com')
-        self.assertIsNone(backend.get_user(user.pk + 1))
-        self.assertEqual(user, backend.get_user(user.pk))
+        with self.tenant.as_global():
+            self.assertIsNone(backend.get_user(user.pk + 1))
+            self.assertEqual(user, backend.get_user(user.pk))
