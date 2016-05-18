@@ -27,28 +27,35 @@ class TenantUserBackend(object):
                 return None
         return self.user_model.for_tenant(tenant)
 
+    def get_tenant_user_queryset(self, tenant_user_model):
+        return tenant_user_model._default_manager
+
     def authenticate(self, username=None, password=None, tenant=None, **kwargs):
         if tenant is None:
             tenant = kwargs.get(self.tenant_model.ATTR_NAME)
         tenant_user_model = self.get_tenant_user_model(tenant)
         if tenant_user_model is None:
             return None
+        users = self.get_tenant_user_queryset(tenant_user_model)
+        username_field = tenant_user_model.USERNAME_FIELD
         if username is None:
-            username = kwargs.get(tenant_user_model.USERNAME_FIELD)
+            username = kwargs.get(username_field)
         try:
-            user = tenant_user_model._default_manager.get_by_natural_key(username)
-            if user.check_password(password):
-                return user
+            user = users.get(**{username_field: username})
         except tenant_user_model.DoesNotExist:
             return None
+        if user.check_password(password):
+            return user
 
     def get_user(self, pk):
         tenant_user_model = self.get_tenant_user_model()
-        if tenant_user_model:
-            try:
-                return tenant_user_model._default_manager.get(pk=pk)
-            except tenant_user_model.DoesNotExist:
-                return None
+        if tenant_user_model is None:
+            return None
+        users = self.get_tenant_user_queryset(tenant_user_model)
+        try:
+            return users.get(pk=pk)
+        except tenant_user_model.DoesNotExist:
+            return None
 
 
 class CustomTenantUserBackend(TenantUserBackend):
