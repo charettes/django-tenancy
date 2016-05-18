@@ -27,8 +27,8 @@ class TenantUserBackend(object):
                 return None
         return self.user_model.for_tenant(tenant)
 
-    def get_tenant_user_queryset(self, tenant_user_model):
-        return tenant_user_model._default_manager
+    def get_tenant_user_queryset(self, tenant):
+        return self.get_tenant_user_model(tenant)._default_manager
 
     def authenticate(self, username=None, password=None, tenant=None, **kwargs):
         if tenant is None:
@@ -36,7 +36,7 @@ class TenantUserBackend(object):
         tenant_user_model = self.get_tenant_user_model(tenant)
         if tenant_user_model is None:
             return None
-        users = self.get_tenant_user_queryset(tenant_user_model)
+        users = self.get_tenant_user_queryset(tenant)
         username_field = tenant_user_model.USERNAME_FIELD
         if username is None:
             username = kwargs.get(username_field)
@@ -51,7 +51,8 @@ class TenantUserBackend(object):
         tenant_user_model = self.get_tenant_user_model()
         if tenant_user_model is None:
             return None
-        users = self.get_tenant_user_queryset(tenant_user_model)
+        tenant = getattr(tenant_user_model, self.tenant_model.ATTR_NAME)
+        users = self.get_tenant_user_queryset(tenant)
         try:
             return users.get(pk=pk)
         except tenant_user_model.DoesNotExist:
