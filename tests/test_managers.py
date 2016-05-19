@@ -9,28 +9,21 @@ from .models import (
 from .utils import TenancyTestCase
 
 
-class TenantManagerTest(TenancyTestCase):
+class TenantManagerTests(TenancyTestCase):
     def test_cache_on_init(self):
         # They were cached on `setUp`.
-        self.assertEqual(
-            id(self.tenant),
-            id(Tenant.objects.get_by_natural_key(
-                *self.tenant.natural_key()
-            ))
-        )
-        self.assertEqual(
-            id(self.other_tenant),
-            id(Tenant.objects.get_by_natural_key(
-                *self.other_tenant.natural_key()
-            ))
-        )
+        self.assertIs(self.tenant, Tenant.objects.get_by_natural_key(
+            *self.tenant.natural_key()
+        ))
+        self.assertIs(self.other_tenant, Tenant.objects.get_by_natural_key(
+            *self.other_tenant.natural_key()
+        ))
 
         Tenant.objects.clear_cache()
         for tenant in Tenant.objects.all():
-            self.assertEqual(
-                id(tenant),
-                id(Tenant.objects._get_from_cache(*tenant.natural_key()))
-            )
+            self.assertIs(tenant, Tenant.objects.get_by_natural_key(
+                *tenant.natural_key()
+            ))
 
     def test_clear_cache(self):
         # They were cached on `setUp`.
@@ -40,6 +33,13 @@ class TenantManagerTest(TenancyTestCase):
             Tenant.objects._get_from_cache(*self.tenant.natural_key())
         with self.assertRaises(KeyError):
             Tenant.objects._get_from_cache(*self.other_tenant.natural_key())
+
+    def test_deferred_not_cached(self):
+        # They were cached on `setUp`.
+        Tenant.objects.clear_cache()
+        Tenant.objects.only('id').get(id=self.tenant.id)
+        with self.assertRaises(KeyError):
+            Tenant.objects._get_from_cache(*self.tenant.natural_key())
 
 
 class TenantModelManagerDescriptorTest(TenancyTestCase):

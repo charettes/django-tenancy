@@ -86,11 +86,6 @@ class AbstractTenant(models.Model):
     class Meta:
         abstract = True
 
-    def __init__(self, *args, **kwargs):
-        super(AbstractTenant, self).__init__(*args, **kwargs)
-        if self.pk:
-            self._default_manager._add_to_cache(self)
-
     def save(self, *args, **kwargs):
         created = not self.pk
         save = super(AbstractTenant, self).save(*args, **kwargs)

@@ -4,6 +4,12 @@ from django.db import models
 
 
 class AbstractTenantManager(models.Manager):
+    class _queryset_class(models.QuerySet):
+        def iterator(self):
+            add_to_cache = self.model._default_manager._add_to_cache
+            for tenant in super(AbstractTenantManager._queryset_class, self).iterator():
+                yield add_to_cache(tenant)
+
     def __init__(self):
         self.__cache = {}
         super(AbstractTenantManager, self).__init__()
@@ -12,15 +18,20 @@ class AbstractTenantManager(models.Manager):
         for tenant in list(self.__cache.values()):
             self._remove_from_cache(tenant)
 
+    def should_cache(self, tenant):
+        """Return whether or not a tenant instance should be cached."""
+        return not getattr(tenant, '_deferred', False)
+
     def _get_from_cache(self, *natural_key):
         return self.__cache[natural_key]
 
     def _add_to_cache(self, tenant):
-        key = tenant.natural_key()
-        try:
-            return self._get_from_cache(*key)
-        except KeyError:
-            self.__cache[key] = tenant
+        if self.should_cache(tenant):
+            key = tenant.natural_key()
+            try:
+                return self._get_from_cache(*key)
+            except KeyError:
+                self.__cache[key] = tenant
         return tenant
 
     def _remove_from_cache(self, tenant):
