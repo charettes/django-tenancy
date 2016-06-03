@@ -1,5 +1,9 @@
 from __future__ import unicode_literals
 
+import unittest
+
+import django
+
 from tenancy.models import Tenant
 
 from .models import (
@@ -34,6 +38,7 @@ class TenantManagerTests(TenancyTestCase):
         with self.assertRaises(KeyError):
             Tenant.objects._get_from_cache(*self.other_tenant.natural_key())
 
+    @unittest.skipIf(django.VERSION >= (1, 10), "Django 1.10 doesn't create model classes for deferred fields anymore")
     def test_deferred_not_cached(self):
         # They were cached on `setUp`.
         Tenant.objects.clear_cache()

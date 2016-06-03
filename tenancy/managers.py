@@ -20,6 +20,7 @@ class AbstractTenantManager(models.Manager):
 
     def should_cache(self, tenant):
         """Return whether or not a tenant instance should be cached."""
+        # TODO: Remove when dropping support for Django < 1.10 and simply return True.
         return not getattr(tenant, '_deferred', False)
 
     def _get_from_cache(self, *natural_key):
