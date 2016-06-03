@@ -135,7 +135,7 @@ def drop_tenant_schema(tenant, using=None):
                     continue
                 editor.delete_model(model)
 
-    tenant._default_manager._remove_from_cache(tenant)
+    tenant_class._default_manager._remove_from_cache(tenant)
     ContentType.objects.clear_cache()
 
     signals.post_schema_deletion.send(

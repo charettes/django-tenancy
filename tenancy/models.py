@@ -54,7 +54,7 @@ class TenantModelsDescriptor(object):
         setattr(cls, name, self)
 
     def _get_instance(self, instance):
-        return instance._default_manager.get_by_natural_key(
+        return instance.__class__._default_manager.get_by_natural_key(
             *instance.natural_key()
         )
 
