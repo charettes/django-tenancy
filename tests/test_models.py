@@ -8,11 +8,12 @@ import weakref
 from itertools import chain
 from unittest.case import expectedFailure
 
+from django.apps.registry import Apps
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.db import models as django_models
-from django.test.testcases import TransactionTestCase
+from django.test.testcases import SimpleTestCase, TransactionTestCase
 from django.utils.six import StringIO
 
 from tenancy import get_tenant_model
@@ -585,12 +586,13 @@ class TenantModelTest(TenancyTestCase):
                 self.assertEqual(getattr(model, tenant.ATTR_NAME), tenant)
 
 
-class NonTenantModelTest(TransactionTestCase):
+class NonTenantModelTest(SimpleTestCase):
     def test_fk_to_tenant(self):
         """
         Non-tenant models shouldn't be allowed to have a ForeignKey pointing
         to an instance of `TenantModelBase`.
         """
+        test_apps = Apps()
         with self.assertRaisesMessage(
             ImproperlyConfigured,
             "`NonTenantFkToTenant.fk`'s `to` option` can't point to an "
@@ -599,14 +601,19 @@ class NonTenantModelTest(TransactionTestCase):
             class NonTenantFkToTenant(django_models.Model):
                 fk = django_models.ForeignKey('UndeclaredSpecificModel', on_delete=django_models.CASCADE)
 
+                class Meta:
+                    apps = test_apps
+
             class UndeclaredSpecificModel(TenantModel):
-                pass
+                class Meta:
+                    apps = test_apps
 
     def test_m2m_to_tenant(self):
         """
         Non-tenant models shouldn't be allowed to have ManyToManyField pointing
         to an instance of `TenantModelBase`.
         """
+        test_apps = Apps()
         with self.assertRaisesMessage(
             ImproperlyConfigured,
             "`NonTenantM2MToTenant.m2m`'s `to` option` can't point to an "
@@ -614,3 +621,6 @@ class NonTenantModelTest(TransactionTestCase):
         ):
             class NonTenantM2MToTenant(django_models.Model):
                 m2m = django_models.ManyToManyField(SpecificModel)
+
+                class Meta:
+                    apps = test_apps
