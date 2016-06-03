@@ -6,6 +6,7 @@ from abc import ABCMeta
 from collections import OrderedDict
 from contextlib import contextmanager
 
+import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection, models
 from django.db.models.base import ModelBase, subclass_exception
@@ -506,13 +507,17 @@ class TenantModelBase(ModelBase):
         if issubclass(self, TenantSpecificModel):
             for_tenant_model = self._for_tenant_model
 
-            # Attach the tenant model concrete managers since they should
-            # override the ones from abstract bases.
-            managers = for_tenant_model._meta.concrete_managers
-            for _, mgr_name, manager in managers:
-                new_manager = manager._copy_to_model(self)
-                new_manager.creation_counter = manager.creation_counter
-                self.add_to_class(mgr_name, new_manager)
+            # TODO: Remove when dropping support for Django < 1.10
+            if django.VERSION >= (1, 10):
+                for mgr_name, manager in for_tenant_model._meta.managers_map.items():
+                    new_manager = copy.copy(manager)
+                    new_manager.creation_counter = manager.creation_counter
+                    self.add_to_class(mgr_name, new_manager)
+            else:
+                for _, mgr_name, manager in for_tenant_model._meta.concrete_managers:
+                    new_manager = manager._copy_to_model(self)
+                    new_manager.creation_counter = manager.creation_counter
+                    self.add_to_class(mgr_name, new_manager)
 
             # Since our declaration class is not one of our parents we must
             # make sure our exceptions extend his.
