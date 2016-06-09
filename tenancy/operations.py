@@ -1,11 +1,13 @@
 from __future__ import unicode_literals
 
 from contextlib import contextmanager
+from functools import partial
 
 from django.apps import apps
 from django.db.backends.utils import truncate_name
 from django.db.migrations import operations
 from django.db.migrations.operations.base import Operation
+from django.utils import six
 from django.utils.six import iteritems
 
 from .models import Managed, db_schema_table
@@ -51,7 +53,14 @@ class TenantOperation(Operation):
 
     def tenant_operation(self, tenant_model, operation, app_label, schema_editor, from_state, to_state):
         connection = schema_editor.connection
+        global_tenant_model = apps.get_model(tenant_model._meta.app_label, tenant_model._meta.model_name)
+        get_db_schema = global_tenant_model.db_schema.fget
+        get_natural_key = global_tenant_model.natural_key
+        if six.PY2:
+            get_natural_key = get_natural_key.im_func
         for tenant in tenant_model._base_manager.all():
+            tenant.natural_key = partial(get_natural_key, tenant)
+            tenant.db_schema = get_db_schema(tenant)
             tenant_from_state = self.create_tenant_project_state(tenant, from_state, connection)
             tenant_to_state = self.create_tenant_project_state(tenant, to_state, connection)
             with self.tenant_context(tenant, schema_editor):
@@ -75,7 +84,7 @@ class TenantModelOperation(TenantOperation):
     def get_tenant_model(self, app_label, from_state, to_state):
         model_state = self.get_operation_model_state(app_label, from_state, to_state)
         managed = model_state.options.get('managed')
-        return apps.get_model(managed.tenant_model)
+        return from_state.apps.get_model(managed.tenant_model)
 
 
 class CreateModel(TenantModelOperation, operations.CreateModel):
@@ -133,7 +142,8 @@ class TenantSpecialOperation(TenantOperation):
         super(TenantSpecialOperation, self).__init__(*args, **kwargs)
 
     def get_tenant_model(self, app_label, from_state, to_state):
-        return self.tenant_model
+        opts = self.tenant_model._meta
+        return from_state.apps.get_model(opts.app_label, opts.model_name)
 
 
 class RunPython(TenantSpecialOperation, operations.RunPython):
