@@ -23,7 +23,7 @@ class TenantOperation(Operation):
         connection = schema_editor.connection
         cursor = connection.cursor()
         if connection.vendor == 'postgresql':
-            sql = "SET search_path = %s, public" % tenant.db_schema
+            sql = "SET search_path = %s, public" % schema_editor.connection.ops.quote_name(tenant.db_schema)
             cursor.execute(sql)
             schema_editor.deferred_sql.append(sql)
         with patch_connection_introspection(connection):
