@@ -69,12 +69,14 @@ class TenantHostMiddlewareTest(TenancyTestCase):
     def test_tenant_not_found(self):
         tenant = Tenant(name='inexistent')
         client = self.tenant_client(tenant)
-        response = client.get('/')
+        with self.settings(ALLOWED_HOSTS=[client.defaults['SERVER_NAME']]):
+            response = client.get('/')
         self.assertEqual(response.status_code, 404)
 
     @django_hosts_installed_setup
     def test_tenant_found(self):
         client = self.tenant_client(self.tenant)
-        response = client.get('/')
+        with self.settings(ALLOWED_HOSTS=[client.defaults['SERVER_NAME']]):
+            response = client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, force_bytes(self.tenant.name))
