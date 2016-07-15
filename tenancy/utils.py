@@ -211,11 +211,15 @@ def get_postgresql_visible_constraints(cursor, table_name):
             ),
             idx.indisunique,
             idx.indisprimary
-        FROM pg_catalog.pg_class c, pg_catalog.pg_class c2,
+        FROM
+            pg_catalog.pg_class c,
+            pg_catalog.pg_class c2,
             pg_catalog.pg_index idx
-        WHERE c.oid = idx.indrelid
+        WHERE
+            c.oid = idx.indrelid
             AND idx.indexrelid = c2.oid
             AND c.relname = %s
+            AND pg_catalog.pg_table_is_visible(c.oid)
     """, [table_name])
     for index, columns, unique, primary in cursor.fetchall():
         if index not in constraints:
