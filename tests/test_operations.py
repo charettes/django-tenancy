@@ -205,26 +205,63 @@ class TestTenantSchemaOperations(TenancyTestCase):
                 'foreign_key_id',
             })
             constraints = self.get_tenant_table_constraints(tenant, 'tests_addfield')
-            self.assertEqual(list(self.get_column_constraints(constraints, 'charfield').values()), [{
-                'index': connection.vendor != 'postgresql',
-                'primary_key': False,
-                # The get_constraints() method doesn't correctly set `foreign_key`
-                # to `False` on PostgreSQL.
-                'foreign_key': None if connection.vendor == 'postgresql' else False,
-                'unique': True,
-                'check': False,
-                'columns': ['charfield'],
-            }])
-            self.assertEqual(list(self.get_column_constraints(constraints, 'textfield').values()), [{
-                'index': True,
-                'primary_key': False,
-                # The get_constraints() method doesn't correctly set `foreign_key`
-                # to `False` on PostgreSQL.
-                'foreign_key': None if connection.vendor == 'postgresql' else False,
-                'unique': False,
-                'check': False,
-                'columns': ['textfield'],
-            }])
+            charfield_constraints = list(self.get_column_constraints(constraints, 'charfield').values())
+            if connection.vendor == 'postgresql':
+                self.assertEqual(len(charfield_constraints), 2)
+                self.assertIn({
+                    'index': False,
+                    'primary_key': False,
+                    'foreign_key': None,
+                    'unique': True,
+                    'check': False,
+                    'columns': ['charfield'],
+                }, charfield_constraints)
+                self.assertIn({
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': None,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['charfield'],
+                }, charfield_constraints)
+            else:
+                self.assertEqual(charfield_constraints, [{
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': False,
+                    'unique': True,
+                    'check': False,
+                    'columns': ['charfield'],
+                }])
+            textfield_constraints = list(self.get_column_constraints(constraints, 'textfield').values())
+            if connection.vendor == 'postgresql':
+                # An additionnal LIKE index should be created.
+                self.assertEqual(len(charfield_constraints), 2)
+                self.assertIn({
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': None,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['textfield'],
+                }, textfield_constraints)
+                self.assertIn({
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': None,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['textfield'],
+                }, textfield_constraints)
+            else:
+                self.assertEqual(textfield_constraints, [{
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': False,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['textfield'],
+                }])
             if connection.vendor == 'postgresql':
                 self.assertEqual(list(self.get_column_constraints(constraints, 'positiveintegerfield').values()), [{
                     'index': False,
