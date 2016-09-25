@@ -33,22 +33,31 @@ class TenantOperation(Operation):
             cursor.execute(sql)
             schema_editor.deferred_sql.append(sql)
 
-    def create_tenant_project_state(self, tenant, state, connection):
-        managed = Managed("%s.%s" % (tenant._meta.app_label, tenant._meta.object_name))
+    def _create_managed_state(self, tenant_model, connection, state):
+        managed = Managed("%s.%s" % (tenant_model._meta.app_label, tenant_model._meta.object_name))
+        state.__dict__.pop('apps', None)
         project_state = state.clone()
-        for (app_label, model_name), model_state in iteritems(project_state.models):
+        managed_models = []
+        for model_key, model_state in iteritems(project_state.models):
             options = model_state.options
             if options.get('managed') == managed:
                 db_table = options.get('db_table')
                 if not db_table:
-                    db_table = truncate_name("%s_%s" % (app_label, model_name), connection.ops.max_name_length())
-                if not connection.vendor == 'postgresql':
-                    db_table = db_schema_table(tenant, db_table)
+                    db_table = truncate_name("%s_%s" % model_key, connection.ops.max_name_length())
                 options.update(
                     managed=True,
                     db_table=db_table,
                 )
-            project_state.reload_model(app_label, model_name)
+                managed_models.append(model_key)
+        return project_state, managed_models
+
+    def _create_tenant_state(self, tenant, connection, state, managed_models):
+        if not managed_models or connection.vendor == 'postgresql':
+            return state
+        project_state = state.clone()
+        for model_key in managed_models:
+            model_state = project_state.models[model_key]
+            model_state.options['db_table'] = db_schema_table(tenant, model_state.options['db_table'])
         return project_state
 
     def tenant_operation(self, tenant_model, operation, app_label, schema_editor, from_state, to_state):
@@ -58,13 +67,18 @@ class TenantOperation(Operation):
         get_natural_key = global_tenant_model.natural_key
         if six.PY2:
             get_natural_key = get_natural_key.im_func
-        for tenant in tenant_model._base_manager.all():
-            tenant.natural_key = partial(get_natural_key, tenant)
-            tenant.db_schema = get_db_schema(tenant)
-            tenant_from_state = self.create_tenant_project_state(tenant, from_state, connection)
-            tenant_to_state = self.create_tenant_project_state(tenant, to_state, connection)
-            with self.tenant_context(tenant, schema_editor):
-                operation(app_label, schema_editor, tenant_from_state, tenant_to_state)
+        tenants = list(tenant_model._base_manager.all())
+        # Small optimization to avoid creating model states if not required.
+        if tenants:
+            managed_from = self._create_managed_state(tenant_model, connection, from_state)
+            managed_to = self._create_managed_state(tenant_model, connection, to_state)
+            for tenant in tenants:
+                tenant.natural_key = partial(get_natural_key, tenant)
+                tenant.db_schema = get_db_schema(tenant)
+                tenant_from_state = self._create_tenant_state(tenant, connection, *managed_from)
+                tenant_to_state = self._create_tenant_state(tenant, connection, *managed_to)
+                with self.tenant_context(tenant, schema_editor):
+                    operation(app_label, schema_editor, tenant_from_state, tenant_to_state)
 
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         tenant_model = self.get_tenant_model(app_label, from_state, to_state)
