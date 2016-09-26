@@ -27,7 +27,11 @@ class TenantOperation(Operation):
             cursor.execute(sql)
             schema_editor.deferred_sql.append(sql)
         with patch_connection_introspection(connection):
-            yield
+            setattr(schema_editor, 'tenant', tenant)
+            try:
+                yield
+            finally:
+                delattr(schema_editor, 'tenant')
         if connection.vendor == 'postgresql':
             sql = 'RESET search_path'
             cursor.execute(sql)

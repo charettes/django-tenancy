@@ -8,10 +8,12 @@ from tenancy.operations import RunPython
 
 
 def foward(apps, schema_editor):
+    assert hasattr(schema_editor, 'tenant')
     apps.get_model('tests', 'RunPython').objects.create()
 
 
 def backward(apps, schema_editor):
+    assert hasattr(schema_editor, 'tenant')
     apps.get_model('tests', 'RunPython').objects.all().delete()
 
 
