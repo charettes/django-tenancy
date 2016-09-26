@@ -545,13 +545,17 @@ class TenantModelBase(ModelBase):
         if model:
             return model
 
+        meta_attrs = {
+            # TODO: Use `db_schema` once django #6148 is fixed.
+            'db_table': db_schema_table(tenant, self._meta.db_table),
+        }
+
+        if django.VERSION >= (1, 10):
+            meta_attrs['manager_inheritance_from_future'] = True
+
         attrs = {
             '__module__': self.__module__,
-            'Meta': meta(
-                reference.Meta,
-                # TODO: Use `db_schema` once django #6148 is fixed.
-                db_table=db_schema_table(tenant, self._meta.db_table),
-            )
+            'Meta': meta(reference.Meta, **meta_attrs),
         }
 
         if opts.proxy:
