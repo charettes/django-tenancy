@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import contextlib
 import unittest
 
-import django
 from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.recorder import MigrationRecorder
@@ -54,7 +53,8 @@ class TestTenantSchemaOperations(TenancyTestCase):
 
     def get_tenant_table_constraints(self, tenant, table_name):
         tenant_table_name = self.get_tenant_table_name(tenant, table_name)
-        with self.tenant_connection_context(tenant) as cursor, patch_connection_introspection(connection):
+        with self.tenant_connection_context(tenant) as cursor,\
+                patch_connection_introspection(connection, tenant.db_schema):
             constraints = connection.introspection.get_constraints(cursor, tenant_table_name)
         return constraints
 
@@ -127,15 +127,19 @@ class TestTenantSchemaOperations(TenancyTestCase):
     def test_alter_unique_together(self):
         call_command('migrate', 'tests', '0001', interactive=False, stdout=StringIO())
         expected_constraint = {
-            'index': connection.vendor != 'postgresql',
+            'index': True,
             'primary_key': False,
-            # The get_constraints() method doesn't correctly set `foreign_key`
-            # to `False` on PostgreSQL.
-            'foreign_key': None if connection.vendor == 'postgresql' else False,
+            'foreign_key': False,
             'unique': True,
             'check': False,
             'columns': ['id', 'name'],
         }
+        if connection.vendor == 'postgresql':
+            expected_constraint.update(
+                index=False,
+                foreign_key=None,
+                definition=None,
+            )
         for tenant in Tenant.objects.all():
             self.assertTenantTableExists(tenant, 'tests_alteruniquetogether')
             for constraint in self.get_tenant_table_constraints(tenant, 'tests_alteruniquetogether').values():
@@ -162,13 +166,18 @@ class TestTenantSchemaOperations(TenancyTestCase):
         expected_index = {
             'index': True,
             'primary_key': False,
-            # The get_constraints() method doesn't correctly set `foreign_key`
-            # to `False` on PostgreSQL.
-            'foreign_key': None if connection.vendor == 'postgresql' else False,
+            'foreign_key': False,
             'unique': False,
             'check': False,
             'columns': ['id', 'name'],
         }
+        if connection.vendor == 'postgresql':
+            expected_index.update(
+                foreign_key=None,
+                definition=None,
+                type='btree',
+                orders=['ASC', 'ASC'],
+            )
         for tenant in Tenant.objects.all():
             self.assertTenantTableExists(tenant, 'tests_alterindextogether')
             for index in self.get_tenant_table_constraints(tenant, 'tests_alterindextogether').values():
@@ -215,6 +224,7 @@ class TestTenantSchemaOperations(TenancyTestCase):
                     'unique': True,
                     'check': False,
                     'columns': ['charfield'],
+                    'definition': None,
                 }, charfield_constraints)
                 self.assertIn({
                     'index': True,
@@ -223,6 +233,9 @@ class TestTenantSchemaOperations(TenancyTestCase):
                     'unique': False,
                     'check': False,
                     'columns': ['charfield'],
+                    'definition': None,
+                    'type': 'btree',
+                    'orders': ['ASC'],
                 }, charfield_constraints)
             else:
                 self.assertEqual(charfield_constraints, [{
@@ -236,23 +249,17 @@ class TestTenantSchemaOperations(TenancyTestCase):
             textfield_constraints = list(self.get_column_constraints(constraints, 'textfield').values())
             if connection.vendor == 'postgresql':
                 # An additionnal LIKE index should be created.
-                self.assertEqual(len(charfield_constraints), 2)
-                self.assertIn({
+                self.assertEqual(textfield_constraints, [{
                     'index': True,
                     'primary_key': False,
                     'foreign_key': None,
                     'unique': False,
                     'check': False,
                     'columns': ['textfield'],
-                }, textfield_constraints)
-                self.assertIn({
-                    'index': True,
-                    'primary_key': False,
-                    'foreign_key': None,
-                    'unique': False,
-                    'check': False,
-                    'columns': ['textfield'],
-                }, textfield_constraints)
+                    'definition': None,
+                    'type': 'btree',
+                    'orders': ['ASC'],
+                }] * 2)
             else:
                 self.assertEqual(textfield_constraints, [{
                     'index': True,
@@ -266,43 +273,44 @@ class TestTenantSchemaOperations(TenancyTestCase):
                 self.assertEqual(list(self.get_column_constraints(constraints, 'positiveintegerfield').values()), [{
                     'index': False,
                     'primary_key': False,
-                    # The get_constraints() method doesn't correctly set `foreign_key`
-                    # to `False` on PostgreSQL.
-                    'foreign_key': None if connection.vendor == 'postgresql' else False,
+                    'foreign_key': None,
                     'unique': False,
                     'check': True,
                     'columns': ['positiveintegerfield'],
+                    'definition': None,
                 }])
             foreign_key_constraints = list(self.get_column_constraints(constraints, 'foreign_key_id').values())
-            expected_index = {
-                'index': True,
-                'primary_key': False,
-                # The get_constraints() method doesn't correctly set `foreign_key`
-                # to `False` on PostgreSQL.
-                'foreign_key': None if connection.vendor == 'postgresql' else False,
-                'unique': False,
-                'check': False,
-                'columns': ['foreign_key_id'],
-            }
-            for constraint in foreign_key_constraints:
-                if constraint == expected_index:
-                    break
-            else:
-                self.fail('Missing fk index.')
             if connection.vendor == 'postgresql':
-                expected_fk = {
+                self.assertEqual(len(foreign_key_constraints), 2)
+                self.assertIn({
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': None,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['foreign_key_id'],
+                    'definition': None,
+                    'type': 'btree',
+                    'orders': ['ASC'],
+                }, foreign_key_constraints)
+                self.assertIn({
                     'index': False,
                     'primary_key': False,
                     'foreign_key': ('tests_addfield', 'id'),
                     'unique': False,
                     'check': False,
                     'columns': ['foreign_key_id'],
-                }
-                for constraint in foreign_key_constraints:
-                    if constraint == expected_fk:
-                        break
-                else:
-                    self.fail('Missing fk.')
+                    'definition': None,
+                }, foreign_key_constraints)
+            else:
+                self.assertEqual(foreign_key_constraints, [{
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': False,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['foreign_key_id'],
+                }])
         call_command('migrate', 'tests', '0001', interactive=False, stdout=StringIO())
         for tenant in Tenant.objects.all():
             self.assertTenantTableExists(tenant, 'tests_addfield')
@@ -326,68 +334,79 @@ class TestTenantSchemaOperations(TenancyTestCase):
             })
             constraints = self.get_tenant_table_constraints(tenant, 'tests_alterfield')
             charfield_constraints = list(self.get_column_constraints(constraints, 'charfield').values())
-            self.assertIn({
-                'index': connection.vendor != 'postgresql',
-                'primary_key': False,
-                # The get_constraints() method doesn't correctly set `foreign_key`
-                # to `False` on PostgreSQL.
-                'foreign_key': None if connection.vendor == 'postgresql' else False,
-                'unique': True,
-                'check': False,
-                'columns': ['charfield'],
-            }, charfield_constraints)
-            if connection.vendor == 'postgresql' and django.VERSION >= (1, 8):
+            if connection.vendor == 'postgresql':
+                self.assertEqual(len(charfield_constraints), 2)
+                self.assertIn({
+                    'index': False,
+                    'primary_key': False,
+                    'foreign_key': None,
+                    'unique': True,
+                    'check': False,
+                    'columns': ['charfield'],
+                    'definition': None
+                }, charfield_constraints)
                 self.assertIn({
                     'index': True,
                     'primary_key': False,
-                    # The get_constraints() method doesn't correctly set `foreign_key`
-                    # to `False` on PostgreSQL.
-                    'foreign_key': None if connection.vendor == 'postgresql' else False,
+                    'foreign_key': None,
                     'unique': False,
                     'check': False,
                     'columns': ['charfield'],
+                    'definition': None,
+                    'type': 'btree',
+                    'orders': ['ASC'],
                 }, charfield_constraints)
+            else:
+                self.assertEqual(charfield_constraints, [{
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': False,
+                    'unique': True,
+                    'check': False,
+                    'columns': ['charfield'],
+                }])
             if connection.vendor == 'postgresql':
                 self.assertEqual(list(self.get_column_constraints(constraints, 'integerfield').values()), [{
                     'index': False,
                     'primary_key': False,
-                    # The get_constraints() method doesn't correctly set `foreign_key`
-                    # to `False` on PostgreSQL.
-                    'foreign_key': None if connection.vendor == 'postgresql' else False,
+                    'foreign_key': None,
                     'unique': False,
                     'check': True,
                     'columns': ['integerfield'],
+                    'definition': None,
                 }])
             foreign_key_constraints = list(self.get_column_constraints(constraints, 'foreign_key_id').values())
-            expected_index = {
-                'index': True,
-                'primary_key': False,
-                # The get_constraints() method doesn't correctly set `foreign_key`
-                # to `False` on PostgreSQL.
-                'foreign_key': None if connection.vendor == 'postgresql' else False,
-                'unique': False,
-                'check': False,
-                'columns': ['foreign_key_id'],
-            }
-            for constraint in foreign_key_constraints:
-                if constraint == expected_index:
-                    break
-            else:
-                self.fail('Missing fk index.')
             if connection.vendor == 'postgresql':
-                expected_fk = {
+                self.assertEqual(len(foreign_key_constraints), 2)
+                self.assertIn({
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': None,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['foreign_key_id'],
+                    'definition': None,
+                    'type': 'btree',
+                    'orders': ['ASC'],
+                }, foreign_key_constraints)
+                self.assertIn({
                     'index': False,
                     'primary_key': False,
                     'foreign_key': ('tests_alterfield', 'id'),
                     'unique': False,
                     'check': False,
                     'columns': ['foreign_key_id'],
-                }
-                for constraint in foreign_key_constraints:
-                    if constraint == expected_fk:
-                        break
-                else:
-                    self.fail('Missing fk.')
+                    'definition': None,
+                }, foreign_key_constraints)
+            else:
+                self.assertEqual(foreign_key_constraints, [{
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': False,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['foreign_key_id'],
+                }])
         call_command('migrate', 'tests', '0001', interactive=False, stdout=StringIO())
         for tenant in Tenant.objects.all():
             self.assertTenantTableExists(tenant, 'tests_alterfield')

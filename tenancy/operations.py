@@ -22,11 +22,12 @@ class TenantOperation(Operation):
     def tenant_context(self, tenant, schema_editor):
         connection = schema_editor.connection
         cursor = connection.cursor()
+        db_schema = tenant.db_schema
         if connection.vendor == 'postgresql':
             sql = "SET search_path = %s, public" % schema_editor.connection.ops.quote_name(tenant.db_schema)
             cursor.execute(sql)
             schema_editor.deferred_sql.append(sql)
-        with patch_connection_introspection(connection):
+        with patch_connection_introspection(connection, db_schema):
             setattr(schema_editor, 'tenant', tenant)
             try:
                 yield
