@@ -86,12 +86,15 @@ def create_tenant_schema(tenant, using=None):
             # Our "db_table" hack to allow specifying a schema interferes with
             # index and constraint creation.
             create_index_re = re.compile('CREATE INDEX %s' % re.escape("%s." % quoted_schema))
-            add_constraint_re = re.compile('ADD CONSTRAINT "([^"]+)"\."([^"]+)"')
+            add_constraint_re = re.compile('ADD CONSTRAINT "([^\s]+)" ')
             for statement in editor.deferred_sql:
                 if statement.startswith('CREATE INDEX'):
                     statement = create_index_re.sub('CREATE INDEX ', statement)
                 elif 'ADD CONSTRAINT' in statement:
-                    statement = add_constraint_re.sub('ADD CONSTRAINT "\g<1>_\g<2>"', statement)
+                    statement = add_constraint_re.sub(
+                        lambda match: 'ADD CONSTRAINT "%s" ' % match.group(1).replace('"', '_'),
+                        statement
+                    )
                 altered_statements.append(statement)
             editor.deferred_sql = altered_statements
 
