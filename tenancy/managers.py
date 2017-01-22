@@ -2,14 +2,31 @@ from __future__ import unicode_literals
 
 from django.db import models
 
-
-class AbstractTenantManager(models.Manager):
-    class _queryset_class(models.QuerySet):
+try:
+    from django.db.models.query import ModelIterable
+except ImportError:
+    # TODO: Remove when dropping support for Django 1.8.
+    class TenantQueryset(models.QuerySet):
         def iterator(self):
+            iterator = super(TenantQueryset, self).iterator()
             add_to_cache = self.model._default_manager._add_to_cache
-            for tenant in super(AbstractTenantManager._queryset_class, self).iterator():
+            for tenant in iterator:
+                yield add_to_cache(tenant)
+else:
+    class TenantIterable(ModelIterable):
+        def __iter__(self):
+            iterator = super(TenantIterable, self).__iter__()
+            add_to_cache = self.queryset.model._default_manager._add_to_cache
+            for tenant in iterator:
                 yield add_to_cache(tenant)
 
+    class TenantQueryset(models.QuerySet):
+        def __init__(self, *args, **kwargs):
+            super(TenantQueryset, self).__init__(*args, **kwargs)
+            self._iterable_class = TenantIterable
+
+
+class AbstractTenantManager(models.Manager.from_queryset(TenantQueryset)):
     def __init__(self):
         self.__cache = {}
         super(AbstractTenantManager, self).__init__()
@@ -20,7 +37,7 @@ class AbstractTenantManager(models.Manager):
 
     def should_cache(self, tenant):
         """Return whether or not a tenant instance should be cached."""
-        # TODO: Remove when dropping support for Django < 1.10 and simply return True.
+        # TODO: Remove when dropping support for Django 1.9 and simply return True.
         return not getattr(tenant, '_deferred', False)
 
     def _get_from_cache(self, *natural_key):
