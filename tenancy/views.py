@@ -29,6 +29,7 @@ class TenantMixin(object):
     def get_tenant(self):
         return getattr(self.request, self.tenant_attr_name)
 
+
 setattr(
     TenantMixin, get_tenant_model().ATTR_NAME,
     cached_property(lambda self: self.get_tenant())

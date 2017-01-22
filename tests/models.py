@@ -211,6 +211,7 @@ class M2MSpecific(TenantModel):
     def test_mro(self):
         return 'M2MSpecific'
 
+
 ForeignObject(
     to=SpecificModel, on_delete=models.CASCADE, from_fields=['specific'], to_fields=['id'], related_name='+',
 ).contribute_to_class(
@@ -245,6 +246,7 @@ class SignalTenantModel(TenantModel):
 
 def add_to_dispatched(signal, sender, **kwargs):
     sender.logs().append(signal)
+
 
 for signal in model_sender_signals:
     signal.connect(add_to_dispatched, sender=SignalTenantModel)

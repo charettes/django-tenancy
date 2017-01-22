@@ -137,6 +137,7 @@ def __pickle_mutable_tenant_model_base(model):
         )
     return model.__name__
 
+
 copyreg.pickle(MutableTenantModelBase, __pickle_mutable_tenant_model_base)
 
 

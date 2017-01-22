@@ -625,6 +625,7 @@ def __pickle_tenant_model_base(model):
         )
     return model.__name__
 
+
 copyreg.pickle(TenantModelBase, __pickle_tenant_model_base)
 
 
