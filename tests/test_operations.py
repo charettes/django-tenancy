@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import contextlib
 import unittest
 
+import django
 from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.recorder import MigrationRecorder
@@ -178,6 +179,11 @@ class TestTenantSchemaOperations(TenancyTestCase):
                 type='btree',
                 orders=['ASC', 'ASC'],
             )
+        elif django.VERSION[0:2] >= (1, 11):
+            expected_index.update(
+                type='btree',
+                orders=['ASC', 'ASC'],
+            )
         for tenant in Tenant.objects.all():
             self.assertTenantTableExists(tenant, 'tests_alterindextogether')
             for index in self.get_tenant_table_constraints(tenant, 'tests_alterindextogether').values():
@@ -260,6 +266,17 @@ class TestTenantSchemaOperations(TenancyTestCase):
                     'type': 'btree',
                     'orders': ['ASC'],
                 }] * 2)
+            elif django.VERSION[0:2] >= (1, 11):
+                self.assertEqual(textfield_constraints, [{
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': False,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['textfield'],
+                    'type': 'btree',
+                    'orders': ['ASC'],
+                }])
             else:
                 self.assertEqual(textfield_constraints, [{
                     'index': True,
@@ -302,6 +319,17 @@ class TestTenantSchemaOperations(TenancyTestCase):
                     'columns': ['foreign_key_id'],
                     'definition': None,
                 }, foreign_key_constraints)
+            elif django.VERSION[0:2] >= (1, 11):
+                self.assertEqual(foreign_key_constraints, [{
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': False,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['foreign_key_id'],
+                    'type': 'btree',
+                    'orders': ['ASC'],
+                }])
             else:
                 self.assertEqual(foreign_key_constraints, [{
                     'index': True,
@@ -398,6 +426,17 @@ class TestTenantSchemaOperations(TenancyTestCase):
                     'columns': ['foreign_key_id'],
                     'definition': None,
                 }, foreign_key_constraints)
+            elif django.VERSION[0:2] >= (1, 11):
+                self.assertEqual(foreign_key_constraints, [{
+                    'index': True,
+                    'primary_key': False,
+                    'foreign_key': False,
+                    'unique': False,
+                    'check': False,
+                    'columns': ['foreign_key_id'],
+                    'type': 'btree',
+                    'orders': ['ASC'],
+                }])
             else:
                 self.assertEqual(foreign_key_constraints, [{
                     'index': True,
