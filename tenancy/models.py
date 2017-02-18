@@ -52,30 +52,40 @@ class TenantModels(object):
 class TenantModelsDescriptor(object):
     def contribute_to_class(self, cls, name):
         self.name = name
+        self.tenant_models = {}
         setattr(cls, name, self)
-
-    def _get_instance(self, instance):
-        return instance.__class__._default_manager.get_by_natural_key(
-            *instance.natural_key()
-        )
 
     def __get__(self, instance, owner):
         if instance is None:
             return self
-        instance = self._get_instance(instance)
+
         try:
-            models = instance.__dict__[self.name]
+            return instance.__dict__[self.name]
         except KeyError:
-            models = TenantModels(instance)
+            pass
+
+        tenant_key = instance.natural_key()
+        try:
+            models = self.tenant_models[tenant_key]
+        except KeyError:
+            models = self.tenant_models[tenant_key] = TenantModels(instance)
             self.__set__(instance, models)
         return models
 
     def __set__(self, instance, value):
-        instance = self._get_instance(instance)
         instance.__dict__[self.name] = value
 
     def __delete__(self, instance):
-        for model in self.__get__(instance, owner=None):
+        try:
+            # Use the instance assigned values if available.
+            models = instance.__dict__[self.name]
+        except KeyError:
+            tenant_key = instance.natural_key()
+            try:
+                models = self.tenant_models[tenant_key]
+            except KeyError:
+                return
+        for model in models:
             model.destroy()
 
 

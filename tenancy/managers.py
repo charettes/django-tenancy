@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import threading
+
 from django.db import models
 
 try:
@@ -27,12 +29,19 @@ else:
 
 
 class AbstractTenantManager(models.Manager.from_queryset(TenantQueryset)):
-    def __init__(self):
-        self.__cache = {}
-        super(AbstractTenantManager, self).__init__()
+    __cache = threading.local()
+
+    @property
+    def _tenants(self):
+        try:
+            return self.__cache.tenants
+        except AttributeError:
+            tenants = {}
+            setattr(self.__cache, 'tenants', tenants)
+            return tenants
 
     def clear_cache(self):
-        for tenant in list(self.__cache.values()):
+        for tenant in list(self._tenants.values()):
             self._remove_from_cache(tenant)
 
     def should_cache(self, tenant):
@@ -41,7 +50,7 @@ class AbstractTenantManager(models.Manager.from_queryset(TenantQueryset)):
         return not getattr(tenant, '_deferred', False)
 
     def _get_from_cache(self, *natural_key):
-        return self.__cache[natural_key]
+        return self._tenants[natural_key]
 
     def _add_to_cache(self, tenant):
         if self.should_cache(tenant):
@@ -49,13 +58,14 @@ class AbstractTenantManager(models.Manager.from_queryset(TenantQueryset)):
             try:
                 return self._get_from_cache(*key)
             except KeyError:
-                self.__cache[key] = tenant
+                self._tenants[key] = tenant
         return tenant
 
     def _remove_from_cache(self, tenant):
         key = tenant.natural_key()
         delattr(tenant, 'models')
-        return self.__cache.pop(key)
+        tenant.__class__.models.tenant_models.pop(key, None)
+        return self._tenants.pop(key)
 
     def _get_by_natural_key(self, *natural_key):
         raise NotImplementedError

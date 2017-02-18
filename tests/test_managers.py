@@ -1,8 +1,10 @@
 from __future__ import unicode_literals
 
+import threading
 import unittest
 
 import django
+from django.db import connections
 
 from tenancy.models import Tenant
 
@@ -45,6 +47,28 @@ class TenantManagerTests(TenancyTestCase):
         Tenant.objects.only('id').get(id=self.tenant.id)
         with self.assertRaises(KeyError):
             Tenant.objects._get_from_cache(*self.tenant.natural_key())
+
+    def test_thread_local_cache(self):
+        """Tenant instances should't be shared between threads."""
+        connections_override = {}
+        for connection in connections.all():
+            connection.allow_thread_sharing = True
+            connections_override[connection.alias] = connection
+
+        def assert_different_instances():
+            for alias, connection in connections_override.items():
+                connections[alias] = connection
+            self.assertIsNot(
+                Tenant.objects.get_by_natural_key(*self.tenant.natural_key()),
+                self.tenant
+            )
+            self.assertIsNot(
+                Tenant.objects.get_by_natural_key(*self.other_tenant.natural_key()),
+                self.other_tenant
+            )
+        thread = threading.Thread(target=assert_different_instances)
+        thread.start()
+        thread.join(1)
 
 
 class TenantModelManagerDescriptorTest(TenancyTestCase):
