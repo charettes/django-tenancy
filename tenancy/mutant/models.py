@@ -17,7 +17,7 @@ from ..compat import (
     get_remote_field, get_remote_field_model, set_remote_field_model,
 )
 from ..models import (
-    Reference, TenantModel, TenantModelBase, TenantSpecificModel,
+    Reference, TenantApps, TenantModel, TenantModelBase, TenantSpecificModel,
     db_schema_table,
 )
 from ..signals import (
@@ -149,6 +149,13 @@ def contribute_to_related_mutable_class(sender, existing_model_class, **kwargs):
     the same with mutated classes they relate to in order to attach objects
     such as reverse descriptor.
     """
+    tenant_attr_name = get_tenant_model().ATTR_NAME
+    try:
+        tenant = getattr(sender, tenant_attr_name)
+    except AttributeError:
+        pass
+    else:
+        sender._meta.apps = TenantApps(tenant, sender._meta.apps)
     for model in sender._meta.apps.get_models():
         for field in get_forward_fields(model._meta):
             remote_field = get_remote_field(field)

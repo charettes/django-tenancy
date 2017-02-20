@@ -79,18 +79,18 @@ class TenantTest(TransactionTestCase):
 
     def test_model_garbage_collection(self):
         """
-        Make sure tenant models are correctly garbage collected upon tenant
-        deletion.
+        Make sure tenant models are correctly garbage collected upon deletion.
         """
         tenant = Tenant.objects.create(name='tenant')
 
         # Keep weak-references to tenant and associated models to make sure
         # they have been colllected.
         tenant_wref = weakref.ref(tenant)
-        models_wrefs = [
-            weakref.ref(model.for_tenant(tenant))
-            for model in TenantModelBase.references
-        ]
+        models_wrefs = []
+        for model in TenantModelBase.references:
+            # Make sure all models have their relation tree populated.
+            getattr(model._meta, '_relation_tree')
+            models_wrefs.append(weakref.ref(model.for_tenant(tenant)))
 
         # Delete the tenant and all it's associated models.
         tenant.delete()
@@ -584,6 +584,11 @@ class TenantModelTest(TenancyTestCase):
         for tenant in Tenant.objects.all():
             for model in tenant.models:
                 self.assertEqual(getattr(model, tenant.ATTR_NAME), tenant)
+                for apps_model in model._meta.apps.get_models():
+                    if issubclass(apps_model, TenantSpecificModel):
+                        self.assertEqual(getattr(apps_model, tenant.ATTR_NAME), tenant)
+                        for relation in apps_model._meta._relation_tree:
+                            self.assertEqual(getattr(relation.model, tenant.ATTR_NAME), tenant)
 
 
 class NonTenantModelTest(SimpleTestCase):

@@ -7,6 +7,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 
 import django
+from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection, models
 from django.db.models.base import ModelBase, subclass_exception
@@ -233,6 +234,22 @@ class TenantDescriptor(object):
     def __get__(self, model, owner):
         tenant_model = get_tenant_model()
         return tenant_model._default_manager.get_by_natural_key(*self.natural_key)
+
+
+class TenantApps(object):
+    def __init__(self, tenant, apps):
+        self.apps = apps
+        self.natural_key = tenant.natural_key()
+
+    def get_models(self, *args, **kwargs):
+        models = self.apps.get_models(*args, **kwargs)
+        return [
+            model for model in models
+            if not issubclass(model, TenantSpecificModel) or model._meta.apps.natural_key == self.natural_key
+        ]
+
+    def __getattr__(self, name):
+        return getattr(self.apps, name)
 
 
 class TenantModelBase(ModelBase):
@@ -558,6 +575,7 @@ class TenantModelBase(ModelBase):
         meta_attrs = {
             # TODO: Use `db_schema` once django #6148 is fixed.
             'db_table': db_schema_table(tenant, self._meta.db_table),
+            'apps': TenantApps(tenant, getattr(reference.Meta, 'apps', apps)),
         }
 
         if django.VERSION >= (1, 10):
