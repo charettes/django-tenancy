@@ -3,10 +3,8 @@ from __future__ import unicode_literals
 import gc
 import logging
 import pickle
-import sys
 import weakref
 from itertools import chain
-from unittest.case import expectedFailure
 
 from django.apps.registry import Apps
 from django.contrib.contenttypes.models import ContentType
@@ -104,12 +102,6 @@ class TenantTest(TransactionTestCase):
         self.assertIsNone(tenant_wref())
         for model_wref in models_wrefs:
             self.assertIsNone(model_wref())
-
-    if sys.version_info >= (3, 5):
-        # Models with relationships are not correctly garbage collected
-        # on Python 3.5. It looks like circular references between Model._meta,
-        # Options.model, Field.model and Manager.model might be the cause.
-        test_model_garbage_collection = expectedFailure(test_model_garbage_collection)
 
 
 class TenantModelsDescriptorTest(TenancyTestCase):

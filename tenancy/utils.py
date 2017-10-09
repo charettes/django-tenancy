@@ -70,21 +70,23 @@ def clear_opts_related_cache(model_class):
 def unreference_model(model):
     disconnect_signals(model)
     for field in get_forward_fields(model._meta):
-        remote_field = get_remote_field(field)
-        if field.model is model and remote_field:
-            remote_field_model = get_remote_field_model(field)
-            if isinstance(remote_field_model, models.base.ModelBase):
-                clear_opts_related_cache(remote_field_model)
-                rel_is_hidden = remote_field.is_hidden()
-                # An accessor is added to related classes if they are not
-                # hidden. However o2o fields *always* add an accessor
-                # even if the relationship is hidden.
-                o2o = isinstance(field, models.OneToOneField)
-                if not rel_is_hidden or o2o:
-                    try:
-                        delattr(remote_field_model, remote_field.get_accessor_name())
-                    except AttributeError:
-                        pass
+        if field.model is model:
+            remote_field = get_remote_field(field)
+            if remote_field:
+                remote_field_model = get_remote_field_model(field)
+                if isinstance(remote_field_model, models.base.ModelBase):
+                    clear_opts_related_cache(remote_field_model)
+                    rel_is_hidden = remote_field.is_hidden()
+                    # An accessor is added to related classes if they are not
+                    # hidden. However o2o fields *always* add an accessor
+                    # even if the relationship is hidden.
+                    o2o = isinstance(field, models.OneToOneField)
+                    if not rel_is_hidden or o2o:
+                        try:
+                            delattr(remote_field_model, remote_field.get_accessor_name())
+                        except AttributeError:
+                            pass
+            field.model = None
 
 
 model_sender_signals = (
