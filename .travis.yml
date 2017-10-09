@@ -1,9 +1,10 @@
+dist: trusty
 sudo: no
 
 language: python
 
 addons:
-  postgresql: "9.3"
+  postgresql: "9.6"
 
 env:
   - TOXENV=flake8

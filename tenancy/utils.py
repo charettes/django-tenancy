@@ -171,8 +171,8 @@ class SchemaConstraints(object):
         # Now get indexes
         cursor.execute("""
             SELECT
-                indexname, array_agg(attname), indisunique, indisprimary,
-                array_agg(ordering), amname, exprdef
+                indexname, array_agg(attname ORDER BY arridx), indisunique, indisprimary,
+                array_agg(ordering ORDER BY arridx), amname, exprdef, s2.attoptions
             FROM (
                 SELECT
                     c2.relname as indexname, idx.*, attr.attname, am.amname,
@@ -180,16 +180,16 @@ class SchemaConstraints(object):
                         WHEN idx.indexprs IS NOT NULL THEN
                             pg_get_indexdef(idx.indexrelid)
                     END AS exprdef,
-                    CASE
-                        WHEN am.amcanorder THEN
+                    CASE am.amname
+                        WHEN 'btree' THEN
                             CASE (option & 1)
                                 WHEN 1 THEN 'DESC' ELSE 'ASC'
                             END
-                    END as ordering
+                    END as ordering,
+                    c2.reloptions as attoptions
                 FROM (
-                    SELECT
-                        *, unnest(i.indkey) as key, unnest(i.indoption) as option
-                    FROM pg_index i
+                    SELECT *
+                    FROM pg_index i, unnest(i.indkey, i.indoption) WITH ORDINALITY koi(key, option, arridx)
                 ) idx
                 LEFT JOIN pg_class c ON idx.indrelid = c.oid
                 LEFT JOIN pg_class c2 ON idx.indexrelid = c2.oid
@@ -198,9 +198,9 @@ class SchemaConstraints(object):
                 LEFT JOIN pg_catalog.pg_namespace ns ON c.relnamespace = ns.oid
                 WHERE ns.nspname = %s AND c.relname = %s
             ) s2
-            GROUP BY indexname, indisunique, indisprimary, amname, exprdef;
+            GROUP BY indexname, indisunique, indisprimary, amname, exprdef, attoptions;
         """, [self.schema, table_name])
-        for index, columns, unique, primary, orders, type_, definition in cursor.fetchall():
+        for index, columns, unique, primary, orders, type_, definition, options in cursor.fetchall():
             if index not in constraints:
                 constraints[index] = {
                     "columns": columns if columns != [None] else [],
