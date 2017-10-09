@@ -112,10 +112,3 @@ Create a tenant-specific model instance
 ::
 
    tenant_project.objects.create("myfirsttenant_project")
-
-
-Python 3.5
-----------
-
-An issue with circular references between ``Model`` objects prevent garbage
-collection of tenant specific models on tenant deletion.
