@@ -563,9 +563,9 @@ class TenantModelTest(TenancyTestCase):
                 ]
             )
 
-    def test_virtual_foreign_object(self):
+    def test_private_foreign_object(self):
         """
-        Make sure a virtual foreign object pointing to a tenant specific
+        Make sure a private foreign object pointing to a tenant specific
         model is correctly handled.
         """
         for tenant in Tenant.objects.all():

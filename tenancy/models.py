@@ -20,8 +20,8 @@ from django.utils.six.moves import copyreg
 
 from . import get_tenant_model, settings
 from .compat import (
-    get_remote_field, get_remote_field_model, lazy_related_operation,
-    set_remote_field_model,
+    get_private_fields, get_remote_field, get_remote_field_model,
+    lazy_related_operation, set_remote_field_model,
 )
 from .management import create_tenant_schema, drop_tenant_schema
 from .managers import (
@@ -308,7 +308,7 @@ class TenantModelBase(ModelBase):
                 cls.references[model] = cls.reference(model, Meta, related_names)
                 opts = model._meta
                 # Validate related name of related fields.
-                for field in (opts.local_fields + opts.virtual_fields):
+                for field in (opts.local_fields + get_private_fields(opts)):
                     remote_field = get_remote_field(field)
                     if remote_field:
                         cls.validate_related_name(model, get_remote_field_model(field), field)
@@ -476,7 +476,7 @@ class TenantModelBase(ModelBase):
             copy.deepcopy(field) for field in (
                 self._meta.local_fields +
                 self._meta.local_many_to_many +
-                self._meta.virtual_fields
+                get_private_fields(self._meta)
             )
         )
         for field in fields:
@@ -517,14 +517,15 @@ class TenantModelBase(ModelBase):
                     remote_field.on_delete = on_delete
             field.contribute_to_class(model, field.name)
 
-        # Some virtual fields such as GenericRelation are not correctly
+        # Some private fields such as GenericRelation are not correctly
         # cloaked by `contribute_to_class`. Make sure to remove non-tenant
-        # virtual instances from tenant specific model options.
-        for virtual_field in self._meta.virtual_fields:
-            if virtual_field in opts.virtual_fields:
-                opts.virtual_fields.remove(virtual_field)
-            if virtual_field in opts.local_fields:
-                opts.local_fields.remove(virtual_field)
+        # private instances from tenant specific model options.
+        private_fields = get_private_fields(opts)
+        for private_field in get_private_fields(self._meta):
+            if private_field in private_fields:
+                private_fields.remove(private_field)
+            if private_field in opts.local_fields:
+                opts.local_fields.remove(private_field)
 
         return model
 

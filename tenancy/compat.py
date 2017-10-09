@@ -35,3 +35,14 @@ else:
         def operation(field, related, local):
             return function(local, related, field)
         add_lazy_relation(model, field, related_model, operation)
+
+if django.VERSION >= (1, 10):
+    private_only_attr = 'private_only'
+
+    def get_private_fields(opts):
+        return opts.private_fields
+else:
+    private_only_attr = 'virtual_only'
+
+    def get_private_fields(opts):
+        return opts.virtual_fields
