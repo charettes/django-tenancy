@@ -7,7 +7,9 @@ from django.apps import apps
 from django.db import models
 from django.utils.functional import cached_property
 
-from .compat import get_remote_field, get_remote_field_model
+from .compat import (
+    get_deferred_proxies, get_remote_field, get_remote_field_model,
+)
 
 
 def get_model(app_label, model_name):
@@ -28,18 +30,26 @@ def apps_lock():
         yield
 
 
-def remove_from_app_cache(model_class, quiet=False):
+def _pop_model_class(model_class, quiet):
     opts = model_class._meta
     apps = opts.apps
     app_label, model_name = opts.app_label, opts.model_name
+    try:
+        model_class = apps.app_configs[app_label].models.pop(model_name)
+    except KeyError:
+        if not quiet:
+            raise ValueError("%r is not cached" % model_class)
+    return model_class
+
+
+def remove_from_app_cache(model_class, quiet=False):
     with apps_lock():
-        try:
-            model_class = apps.app_configs[app_label].models.pop(model_name)
-        except KeyError:
-            if not quiet:
-                raise ValueError("%r is not cached" % model_class)
-        apps.clear_cache()
+        model_class = _pop_model_class(model_class, quiet=quiet)
+        opts = model_class._meta
+        for deferred_proxy in get_deferred_proxies(opts):
+            _pop_model_class(deferred_proxy, quiet=True)
         unreference_model(model_class)
+        apps.clear_cache()
     return model_class
 
 

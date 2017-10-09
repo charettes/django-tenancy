@@ -41,8 +41,16 @@ if django.VERSION >= (1, 10):
 
     def get_private_fields(opts):
         return opts.private_fields
+
+    def get_deferred_proxies(opts):
+        return []
 else:
     private_only_attr = 'virtual_only'
 
     def get_private_fields(opts):
         return opts.virtual_fields
+
+    def get_deferred_proxies(opts):
+        return (
+            proxy_opts.model for proxy_opts in opts.proxied_children if proxy_opts.model._deferred
+        )

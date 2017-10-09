@@ -582,6 +582,16 @@ class TenantModelTest(TenancyTestCase):
                         for relation in apps_model._meta._relation_tree:
                             self.assertEqual(getattr(relation.model, tenant.ATTR_NAME), tenant)
 
+    def test_deferred_fields_model(self):
+        """
+        Model classes used during fields deferral should be cleared from cache.
+        """
+        self.tenant.specificmodels.create()
+        deferred_model = type(self.tenant.specificmodels.only('pk').get())
+        Tenant.objects.clear_cache()
+        tenant = Tenant.objects.get(pk=self.tenant.pk)
+        self.assertIsNot(type(tenant.specificmodels.only('pk').get()), deferred_model)
+
 
 class NonTenantModelTest(SimpleTestCase):
     def test_fk_to_tenant(self):
