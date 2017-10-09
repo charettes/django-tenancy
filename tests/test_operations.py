@@ -181,7 +181,7 @@ class TestTenantSchemaOperations(TenancyTestCase):
             )
         elif django.VERSION[0:2] >= (1, 11):
             expected_index.update(
-                type='btree',
+                type='idx',
                 orders=['ASC', 'ASC'],
             )
         for tenant in Tenant.objects.all():
@@ -274,7 +274,7 @@ class TestTenantSchemaOperations(TenancyTestCase):
                     'unique': False,
                     'check': False,
                     'columns': ['textfield'],
-                    'type': 'btree',
+                    'type': 'idx',
                     'orders': ['ASC'],
                 }])
             else:
@@ -327,7 +327,7 @@ class TestTenantSchemaOperations(TenancyTestCase):
                     'unique': False,
                     'check': False,
                     'columns': ['foreign_key_id'],
-                    'type': 'btree',
+                    'type': 'idx',
                     'orders': ['ASC'],
                 }])
             else:
@@ -434,7 +434,7 @@ class TestTenantSchemaOperations(TenancyTestCase):
                     'unique': False,
                     'check': False,
                     'columns': ['foreign_key_id'],
-                    'type': 'btree',
+                    'type': 'idx',
                     'orders': ['ASC'],
                 }])
             else:
