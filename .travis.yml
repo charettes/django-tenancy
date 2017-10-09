@@ -77,9 +77,20 @@ matrix:
       env: TOXENV=py35-master-sqlite3
     - python: 3.5
       env: TOXENV=py35-master-postgresql
+
+    - python: 3.6
+      env: TOXENV=py36-1.11-sqlite3
+    - python: 3.6
+      env: TOXENV=py36-1.11-postgresql
+    - python: 3.6
+      env: TOXENV=py36-master-sqlite3
+    - python: 3.6
+      env: TOXENV=py36-master-postgresql
   allow_failures:
     - env: TOXENV=py35-master-sqlite3
     - env: TOXENV=py35-master-postgresql
+    - env: TOXENV=py36-master-sqlite3
+    - env: TOXENV=py36-master-postgresql
 
 before_script:
   - if echo $TOXENV | grep -E 'postgresql' -q; then psql -U postgres -c "CREATE DATABASE tenancy;"; fi
