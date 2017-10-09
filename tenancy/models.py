@@ -579,7 +579,7 @@ class TenantModelBase(ModelBase):
             'apps': TenantApps(tenant, getattr(reference.Meta, 'apps', apps)),
         }
 
-        if django.VERSION >= (1, 10):
+        if (1, 10) <= django.VERSION < (2, 0):
             meta_attrs['manager_inheritance_from_future'] = True
 
         attrs = {
