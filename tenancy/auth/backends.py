@@ -30,7 +30,9 @@ class TenantUserBackend(object):
     def get_tenant_user_queryset(self, tenant):
         return self.get_tenant_user_model(tenant)._default_manager
 
-    def authenticate(self, username=None, password=None, tenant=None, **kwargs):
+    def authenticate(self, request=None, username=None, password=None, tenant=None, **kwargs):
+        if request is not None:
+            tenant = getattr(request, self.tenant_model.ATTR_NAME, None)
         if tenant is None:
             tenant = kwargs.get(self.tenant_model.ATTR_NAME)
         tenant_user_model = self.get_tenant_user_model(tenant)

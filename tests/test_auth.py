@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from django.core.exceptions import ImproperlyConfigured
+from django.test.client import RequestFactory
 from django.test.utils import override_settings
 
 from tenancy.auth.backends import TenantUserBackend
@@ -28,24 +29,34 @@ class TenantUserBackendTests(TenancyTestCase):
         # Test globally.
         with self.tenant.as_global():
             self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca'))
-            self.assertIsNone(backend.authenticate('p.roy@habs.ca'))
-            self.assertEqual(backend.authenticate('p.roy@habs.ca', 'numero 33'), user)
+            self.assertIsNone(backend.authenticate(email='p.roy@habs.ca'))
+            self.assertEqual(backend.authenticate(email='p.roy@habs.ca', password='numero 33'), user)
+        # Test request.
+        request = RequestFactory().get('/')
+        setattr(request, backend.tenant_model.ATTR_NAME, self.tenant)
+        self.assertIsNone(backend.authenticate(request=request, username='nobody@nowhere.ca'))
+        self.assertIsNone(backend.authenticate(request=request, email='p.roy@habs.ca'))
+        self.assertEqual(backend.authenticate(request=request, email='p.roy@habs.ca', password='numero 33'), user)
         # Test explicit.
         self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca', tenant=self.tenant))
-        self.assertIsNone(backend.authenticate('p.roy@habs.ca', tenant=self.tenant))
-        self.assertEqual(backend.authenticate('p.roy@habs.ca', 'numero 33', tenant=self.tenant), user)
+        self.assertIsNone(backend.authenticate(username='p.roy@habs.ca', tenant=self.tenant))
+        self.assertEqual(
+            backend.authenticate(username='p.roy@habs.ca', password='numero 33', tenant=self.tenant), user
+        )
         # Test explicit using ATTR_NAME.
         type(self.tenant).ATTR_NAME = 'foo'
         try:
             self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca', foo=self.tenant))
-            self.assertIsNone(backend.authenticate('p.roy@habs.ca', foo=self.tenant))
-            self.assertEqual(backend.authenticate('p.roy@habs.ca', 'numero 33', foo=self.tenant), user)
+            self.assertIsNone(backend.authenticate(username='p.roy@habs.ca', foo=self.tenant))
+            self.assertEqual(
+                backend.authenticate(username='p.roy@habs.ca', password='numero 33', foo=self.tenant), user
+            )
         finally:
             del type(self.tenant).ATTR_NAME
         # Test missing.
         self.assertIsNone(backend.authenticate(email='nobody@nowhere.ca'))
-        self.assertIsNone(backend.authenticate('p.roy@habs.ca'))
-        self.assertIsNone(backend.authenticate('p.roy@habs.ca', 'numero 33'))
+        self.assertIsNone(backend.authenticate(username='p.roy@habs.ca'))
+        self.assertIsNone(backend.authenticate(username='p.roy@habs.ca', password='numero 33'))
 
     @override_settings(AUTH_USER_MODEL='tests.TenantUser')
     def test_get_user(self):
