@@ -297,6 +297,8 @@ else:
         field = models.BooleanField(default=False)
         model_def = models.ForeignKey(ModelDefinition, on_delete=models.CASCADE, null=True)
 
+        objects = ManagerSubclass()
+
         class Meta:
             app_label = 'tests'
             ordering = ('-id',)
@@ -309,6 +311,8 @@ else:
 
     class MutableModelSubclass(MutableModel):
         non_mutable_fk = models.ForeignKey(SpecificModel, on_delete=models.CASCADE, related_name='mutables')
+
+        other_objects = ManagerOtherSubclass()
 
         class Meta:
             app_label = 'tests'

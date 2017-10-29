@@ -248,30 +248,21 @@ class TenantModelBaseTest(TenancyTestCase):
         """
         # Concrete
         specific_model = SpecificModel.for_tenant(self.tenant)
+        self.assertIsInstance(specific_model._base_manager, django_models.Manager)
         self.assertIsInstance(specific_model._default_manager, ManagerSubclass)
         self.assertIsInstance(specific_model.objects, ManagerSubclass)
-        self.assertIsInstance(
-            specific_model.custom_objects, ManagerOtherSubclass
-        )
+        self.assertIsInstance(specific_model.custom_objects, ManagerOtherSubclass)
         # Proxy
         specific_model_proxy = SpecificModelProxy.for_tenant(self.tenant)
-        self.assertIsInstance(
-            specific_model_proxy._default_manager, ManagerOtherSubclass
-        )
-        self.assertIsInstance(
-            specific_model_proxy.objects, ManagerOtherSubclass
-        )
-        self.assertIsInstance(
-            specific_model_proxy.proxied_objects, ManagerSubclass
-        )
+        self.assertIsInstance(specific_model_proxy._base_manager, django_models.Manager)
+        self.assertIsInstance(specific_model_proxy._default_manager, ManagerOtherSubclass)
+        self.assertIsInstance(specific_model_proxy.objects, ManagerOtherSubclass)
+        self.assertIsInstance(specific_model_proxy.proxied_objects, ManagerSubclass)
         # Concrete subclass
         specific_model_subclass = SpecificModelSubclass.for_tenant(self.tenant)
-        self.assertIsInstance(
-            specific_model_subclass._default_manager, ManagerOtherSubclass
-        )
-        self.assertIsInstance(
-            specific_model_subclass.objects, ManagerOtherSubclass
-        )
+        self.assertIsInstance(specific_model_subclass._base_manager, django_models.Manager)
+        self.assertIsInstance(specific_model_subclass._default_manager, ManagerOtherSubclass)
+        self.assertIsInstance(specific_model_subclass.objects, ManagerOtherSubclass)
 
     def test_mro(self):
         """
