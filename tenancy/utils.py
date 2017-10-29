@@ -72,7 +72,7 @@ def clear_opts_related_cache(model_class):
         related_object.related_model
         for related_object in opts.__dict__.get('related_objects', []) if related_object.parent_link
     ]
-    opts._expire_cache()
+    opts._expire_cache(forward=False)
     for child in children:
         clear_opts_related_cache(child)
 
