@@ -5,6 +5,7 @@ from collections import OrderedDict
 from functools import wraps
 from imp import reload
 
+import django
 from django.contrib.auth.management.commands import createsuperuser
 from django.dispatch.dispatcher import receiver
 from django.test.signals import setting_changed
@@ -16,6 +17,9 @@ from tenancy.management.commands import createtenant
 from tenancy.models import Tenant
 
 logger = logging.getLogger('tests')
+
+
+MIDDLEWARE_SETTING = 'MIDDLEWARE' if django.VERSION >= (1, 10) else 'MIDDLEWARE_CLASSES'
 
 
 class TenancyTestCase(TransactionTestCase):

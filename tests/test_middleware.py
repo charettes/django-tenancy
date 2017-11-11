@@ -6,14 +6,14 @@ from django.test.utils import override_settings
 from django.utils.encoding import force_bytes
 
 from .client import TenantClient
-from .utils import TenancyTestCase
+from .utils import MIDDLEWARE_SETTING, TenancyTestCase
 
 
 @override_settings(
     ROOT_URLCONF='tests.urls',
-    MIDDLEWARE_CLASSES=(
+    **{MIDDLEWARE_SETTING: [
         'tenancy.middleware.GlobalTenantMiddleware',
-    ),
+    ]}
 )
 class GlobalTenantMiddlewareTest(TenancyTestCase):
     def setUp(self):

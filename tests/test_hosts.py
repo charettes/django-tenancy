@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from unittest import skipIf, skipUnless
 
+import django
 from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 from django.utils.encoding import force_bytes
@@ -9,7 +10,7 @@ from django.utils.encoding import force_bytes
 from tenancy.middleware import TenantHostMiddleware
 from tenancy.models import Tenant
 
-from .utils import TenancyTestCase
+from .utils import MIDDLEWARE_SETTING, TenancyTestCase
 
 try:
     import django_hosts
@@ -21,11 +22,11 @@ def django_hosts_installed_setup(func):
     func = override_settings(
         DEFAULT_HOST='default',
         ROOT_HOSTCONF='tests.hosts',
-        MIDDLEWARE_CLASSES=[
+        **{MIDDLEWARE_SETTING: [
             'django_hosts.middleware.HostsRequestMiddleware',
             'tenancy.middleware.TenantHostMiddleware',
             'django_hosts.middleware.HostsResponseMiddleware',
-        ],
+        ]}
     )(func)
     return skipUnless(
         django_hosts,
@@ -49,6 +50,22 @@ class TenantHostMiddlewareTest(TenancyTestCase):
             TenantHostMiddleware
         )
 
+    @skipUnless(django.VERSION >= (1, 10), 'New-style middleware was introduced in Django 1.10.')
+    @skipUnless(django_hosts, 'django-hosts is not installed.')
+    @override_settings(
+        MIDDLEWARE=(
+            'tenancy.middleware.TenantHostMiddleware',
+            'django_hosts.middleware.HostsRequestMiddleware',
+        ),
+    )
+    def test_wrong_middleware_order(self):
+        message = (
+            "Make sure 'django_hosts.middleware.HostsRequestMiddleware' appears before "
+            "'tenancy.middleware.TenantHostMiddleware' in your `MIDDLEWARE` setting."
+        )
+        self.assertRaisesMessage(ImproperlyConfigured, message, TenantHostMiddleware)
+
+    @skipUnless(django.VERSION < (2, 0), 'Old-style middleware support was removed in Django 2.0.')
     @skipUnless(django_hosts, 'django-hosts is not installed.')
     @override_settings(
         MIDDLEWARE_CLASSES=(
@@ -56,14 +73,12 @@ class TenantHostMiddlewareTest(TenancyTestCase):
             'django_hosts.middleware.HostsRequestMiddleware',
         )
     )
-    def test_wrong_order(self):
-        self.assertRaisesMessage(
-            ImproperlyConfigured,
-            "Make sure that 'django_hosts.middleware.HostsRequestMiddleware' is "
-            "placed before 'tenancy.middleware.TenantHostMiddleware' in your "
-            "`MIDDLEWARE_CLASSES` setting.",
-            TenantHostMiddleware
+    def test_wrong_middleware_classes_order(self):
+        message = (
+            "Make sure 'django_hosts.middleware.HostsRequestMiddleware' appears before "
+            "'tenancy.middleware.TenantHostMiddleware' in your `MIDDLEWARE_CLASSES` setting."
         )
+        self.assertRaisesMessage(ImproperlyConfigured, message, TenantHostMiddleware)
 
     @django_hosts_installed_setup
     def test_tenant_not_found(self):

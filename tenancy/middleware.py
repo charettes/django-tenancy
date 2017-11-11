@@ -8,26 +8,37 @@ from django.http import Http404
 from . import get_tenant_model
 from .settings import HOST_NAME
 
+try:
+    from django.utils.deprecation import MiddlewareMixin
+except ImportError:
+    MiddlewareMixin = object
 
-class TenantHostMiddleware(object):
-    def __init__(self):
+
+class TenantHostMiddleware(MiddlewareMixin):
+    def __init__(self, *args, **kwargs):
+        super(TenantHostMiddleware, self).__init__(*args, **kwargs)
         try:
             import django_hosts  # NOQA
         except ImportError:
             raise ImproperlyConfigured(
-                'You must install django-hosts in order to '
-                'use `TenantHostMiddleware`.'
+                'You must install django-hosts in order to use `TenantHostMiddleware`.'
             )
+        django_hosts_middleware = 'django_hosts.middleware.HostsRequestMiddleware'
         path = "%s.%s" % (self.__module__, self.__class__.__name__)
-        for middleware in settings.MIDDLEWARE_CLASSES:
-            if middleware == 'django_hosts.middleware.HostsRequestMiddleware':
-                break
-            elif middleware == path:
-                raise ImproperlyConfigured(
-                    "Make sure that 'django_hosts.middleware.HostsRequestMiddleware' "
-                    "is placed before '%s' in your `MIDDLEWARE_CLASSES` "
-                    "setting." % path
-                )
+        for setting in ('MIDDLEWARE', 'MIDDLEWARE_CLASSES'):
+            middlewares = getattr(settings, setting, None)
+            if middlewares is None:
+                continue
+            for middleware in middlewares:
+                if middleware == django_hosts_middleware:
+                    break
+                elif middleware == path:
+                    raise ImproperlyConfigured(
+                        "Make sure '%s' appears before '%s' in your `%s` setting." % (
+                            django_hosts_middleware, path, setting,
+                        )
+                    )
+            break
         self.tenant_model = get_tenant_model()
         self.attr_name = self.tenant_model.ATTR_NAME
 
@@ -45,14 +56,15 @@ class TenantHostMiddleware(object):
             setattr(request, self.attr_name, tenant)
 
 
-class GlobalTenantMiddleware(object):
+class GlobalTenantMiddleware(MiddlewareMixin):
     """
     Middleware that assigns the request's tenant attribute to the default
     connection object. This unfortunate global state is required in order to
     allow things such as a tenant custom user with the required auth backend.
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super(GlobalTenantMiddleware, self).__init__(*args, **kwargs)
         self.attr_name = get_tenant_model().ATTR_NAME
 
     def get_global_state(self):
