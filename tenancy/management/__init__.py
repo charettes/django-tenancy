@@ -66,15 +66,16 @@ def create_tenant_schema(tenant, using=None):
             else:
                 table_name = opts.db_table
             logger.info("Creating table %s ..." % table_name)
+            auto_created_tables = []
             for m2m in opts.many_to_many:
                 through_opts = get_remote_field(m2m).through._meta
                 if through_opts.auto_created:
                     logger.info("Creating table %s ..." % through_opts.db_table)
+                    auto_created_tables.append(through_opts.db_table)
             editor.create_model(model)
             if connection.vendor == 'postgresql' and SCHEMA_AUTHORIZATION:
                 quoted_tables = [quote_name(opts.db_table)] + [
-                    quote_name(get_remote_field(m2m).through._meta.db_table)
-                    for m2m in opts.many_to_many if through_opts.auto_created
+                    quote_name(db_table) for db_table in auto_created_tables
                 ]
                 editor.deferred_sql.extend(
                     "ALTER TABLE %s OWNER TO %s" % (

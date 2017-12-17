@@ -116,6 +116,9 @@ class SchemaAuthorizationTest(TenancyTestCase):
         """
         Make sure schema and table owner is correctly assigned.
         """
+        table_names = {
+            model._meta.db_table for model in TenantModelBase.references
+        }
         cursor = connection.cursor()
         for tenant in Tenant.objects.all():
             schema = tenant.db_schema
@@ -128,11 +131,14 @@ class SchemaAuthorizationTest(TenancyTestCase):
             schema_owner, = cursor.cursor.fetchone()
             self.assertEqual(schema_owner, schema)
             cursor.execute(
-                "SELECT tableowner FROM pg_tables WHERE schemaname = %s",
+                "SELECT tablename, tableowner FROM pg_tables WHERE schemaname = %s",
                 [schema]
             )
-            for table_owner, in cursor.cursor.fetchall():
-                self.assertEqual(table_owner, schema)
+            schema_table_names = set()
+            for table_name, table_owner in cursor.cursor.fetchall():
+                schema_table_names.add(table_name)
+                self.assertEqual(table_owner, schema, "table %s owner is not %s" % (table_name, schema))
+            self.assertEqual(schema_table_names, table_names)
 
     def test_permission_denied(self):
         """
